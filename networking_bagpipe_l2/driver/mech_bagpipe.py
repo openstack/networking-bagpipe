@@ -16,7 +16,6 @@ from neutron.plugins.ml2.drivers import mech_agent
 
 from networking_bagpipe_l2.driver.type_route_target import TYPE_ROUTE_TARGET
 from networking_bagpipe_l2.rpc import client as bagpipe_rpc_client
-from networking_bagpipe_l2.driver import db as bagpipe_db
 
 LOG = log.getLogger(__name__)
 
@@ -47,6 +46,7 @@ def get_network_info_for_port(session, port_id):
                          models_v2.Subnet.id).
                     filter(models_v2.Port.id == port_id).one())
         return net_info
+
 
 class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
     """
