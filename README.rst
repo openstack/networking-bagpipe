@@ -53,9 +53,12 @@ How to use ?
 	# Data Center AS number
 	as_number = 64512
 
-* install and configure bagpipe-bgp_ on each compute node, with a peering to at least one common BGP Route Reflector
+* install and configure bagpipe-bgp_ on each compute node, with a peering to at least one common BGP Route Reflector: 
+
+  * for two compute nodes, you can use the FakeRR provided in bagpipe-bgp_
+  * for more than two compute nodes, you can use a commercial E-VPN implementation (e.g. vendors participating in `EANTC interop testing on E-VPN <http://www.eantc.de/fileadmin/eantc/downloads/events/2011-2015/MPLSSDN2015/EANTC-MPLSSDN2015-WhitePaper_online.pdf>`_)
+  * (work is in progress to allow `OpenContrail BGP stack <https://github.com/Juniper/contrail-controller/tree/master/src/bgp>`_ to be used for BGP Route Reflection)
 
 .. _bagpipe-bgp: https://github.com/Orange-OpenSource/bagpipe-bgp
 .. _bgpvpn: https://github.com/stackforge/networking-bgpvpn
-
 
