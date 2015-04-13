@@ -30,6 +30,8 @@ its bagpipe driver.
 How to use ?
 ------------
 
+* install a recent devstack (Kilo beta3 for all components except RC1 for Neutron)
+
 * enable the devstack plugin by adding this to `local.conf`: ::
 
 	enable_plugin networking-bagpipe-l2 git@github.com:stackforge/networking-bagpipe-l2.git
