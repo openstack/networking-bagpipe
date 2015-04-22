@@ -29,7 +29,7 @@ from oslo_log import log as logging
 from oslo_concurrency import lockutils
 
 from neutron.agent.common import config
-from neutron.agent.linux import ovs_lib
+from neutron.agent.common import ovs_lib
 from neutron.common import exceptions as q_exc
 from neutron.common import constants as q_const
 from neutron.openstack.common import loopingcall
