@@ -36,6 +36,8 @@ How to use ?
 
 	enable_plugin networking-bagpipe-l2 git@github.com:stackforge/networking-bagpipe-l2.git
 
+* `git clone git@github.com:stackforge/networking-bagpipe-l2.git` in /opt/stack (needed until https://review.openstack.org/#/c/168796/ is merged)
+
 * run devstack (and let it fetch latest openstack code) with the following options: ::
 
 	Q_PLUGIN=ml2
