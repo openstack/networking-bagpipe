@@ -15,6 +15,9 @@
 
 import sys
 
+import eventlet
+eventlet.monkey_patch()
+
 from oslo_config import cfg
 
 from oslo_log import log as logging
