@@ -191,7 +191,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
         self.bagpipe_bgp_status = self.BAGPIPEBGP_DOWN
         self.seq_num = 0
 
-        self.setup_mpls_br(cfg.CONF.BAGPIPE.mpls_bridge)
+        if self.agent_type == q_const.AGENT_TYPE_OVS:
+            self.setup_mpls_br(cfg.CONF.BAGPIPE.mpls_bridge)
 
         # Starts a greenthread for BaGPipe BGP component status polling
         self._start_bagpipe_bgp_status_polling(self.ping_interval)
@@ -405,7 +406,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                           "component: %s", str(e))
                 raise
 
-    def setup_mpls_br(self, mpls_br=None):
+    def setup_mpls_br(self, mpls_br):
         '''Setup the MPLS bridge for BaGPipe BGP VPN.
 
         Creates MPLS bridge, and links it to the integration and tunnel
@@ -421,41 +422,36 @@ class BaGPipeBGPAgent(HTTPClientBase,
                       {"mpls_br": mpls_br})
             exit(1)
 
-        if self.agent_type == q_const.AGENT_TYPE_OVS:
-            # patch ports for traffic from tun to mpls
-            self.patch_tun_to_mpls_ofport = self.tun_br.add_patch_port(
-                cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port,
-                cfg.CONF.BAGPIPE.mpls_from_tun_peer_patch_port)
-            self.patch_mpls_from_tun_ofport = self.mpls_br.add_patch_port(
-                cfg.CONF.BAGPIPE.mpls_from_tun_peer_patch_port,
-                cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port)
+        # patch ports for traffic from tun to mpls
+        self.patch_tun_to_mpls_ofport = self.tun_br.add_patch_port(
+            cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port,
+            cfg.CONF.BAGPIPE.mpls_from_tun_peer_patch_port)
+        self.patch_mpls_from_tun_ofport = self.mpls_br.add_patch_port(
+            cfg.CONF.BAGPIPE.mpls_from_tun_peer_patch_port,
+            cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port)
 
-            # patch ports for traffic from mpls to tun
-            self.patch_mpls_to_tun_ofport = self.mpls_br.add_patch_port(
-                cfg.CONF.BAGPIPE.mpls_to_tun_peer_patch_port,
-                cfg.CONF.BAGPIPE.tun_from_mpls_peer_patch_port)
-            self.patch_tun_from_mpls_ofport = self.tun_br.add_patch_port(
-                cfg.CONF.BAGPIPE.tun_from_mpls_peer_patch_port,
-                cfg.CONF.BAGPIPE.mpls_to_tun_peer_patch_port)
+        # patch ports for traffic from mpls to tun
+        self.patch_mpls_to_tun_ofport = self.mpls_br.add_patch_port(
+            cfg.CONF.BAGPIPE.mpls_to_tun_peer_patch_port,
+            cfg.CONF.BAGPIPE.tun_from_mpls_peer_patch_port)
+        self.patch_tun_from_mpls_ofport = self.tun_br.add_patch_port(
+            cfg.CONF.BAGPIPE.tun_from_mpls_peer_patch_port,
+            cfg.CONF.BAGPIPE.mpls_to_tun_peer_patch_port)
 
-            if (int(self.patch_tun_to_mpls_ofport) < 0 or
-                    int(self.patch_mpls_from_tun_ofport) < 0 or
-                    int(self.patch_mpls_to_tun_ofport) < 0 or
-                    int(self.patch_tun_from_mpls_ofport) < 0):
-                LOG.error("Failed to create OVS patch port. Cannot have "
-                          "MPLS enabled on this agent, since this version "
-                          "of OVS does not support patch ports. "
-                          "Agent terminated!")
-                exit(1)
+        if (int(self.patch_tun_to_mpls_ofport) < 0 or
+                int(self.patch_mpls_from_tun_ofport) < 0 or
+                int(self.patch_mpls_to_tun_ofport) < 0 or
+                int(self.patch_tun_from_mpls_ofport) < 0):
+            LOG.error("Failed to create OVS patch port. Cannot have "
+                      "MPLS enabled on this agent, since this version "
+                      "of OVS does not support patch ports. "
+                      "Agent terminated!")
+            exit(1)
 
-            self._connect_tun_mpls_bridges()
+        # In br-tun, redirect all traffic from VMs toward default gateway MAC
+        # address to the MPLS bridge.  Redirect traffic from the MPLS bridge to
+        # br-int.
 
-    def _connect_tun_mpls_bridges(self):
-        """
-        In br-tun, redirect all traffic from VMs toward default gateway MAC
-        address to the MPLS bridge.  Redirect traffic from the MPLS bridge to
-        br-int.
-        """
         # priority >0 is needed or we hit the rule redirecting unicast to
         # the UCAST_TO_TUN table
         self.tun_br.add_flow(
