@@ -57,6 +57,13 @@ How to use ?
 
 * install and configure bagpipe-bgp_ on each compute node, with a peering to at least one common BGP Route Reflector: 
 
+  * enable the devstack plugin for bagpipe-bgp by adding this to `local.conf`: ::
+
+	enable_plugin bagpipe-bgp https://github.com/Orange-OpenSource/bagpipe-bgp.git
+	BAGPIPE_DATAPLANE_DRIVER_EVPN = LinuxVXLANDataplaneDriver
+        # IP of your route reflector or BGP router, or fakeRR:
+        BAGPIPE_BGP_PEERS=1.2.3.4
+
   * for two compute nodes, you can use the FakeRR provided in bagpipe-bgp_
   * for more than two compute nodes, you can use a commercial E-VPN implementation (e.g. vendors participating in `EANTC interop testing on E-VPN <http://www.eantc.de/fileadmin/eantc/downloads/events/2011-2015/MPLSSDN2015/EANTC-MPLSSDN2015-WhitePaper_online.pdf>`_)
   * (work is in progress to allow `OpenContrail BGP stack <https://github.com/Juniper/contrail-controller/tree/master/src/bgp>`_ to be used for BGP Route Reflection)
