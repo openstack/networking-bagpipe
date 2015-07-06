@@ -60,7 +60,7 @@ How to use ?
   * enable the devstack plugin for bagpipe-bgp by adding this to `local.conf`: ::
 
         enable_plugin bagpipe-bgp https://github.com/Orange-OpenSource/bagpipe-bgp.git
-        BAGPIPE_DATAPLANE_DRIVER_EVPN=LinuxVXLANDataplaneDriver
+        BAGPIPE_DATAPLANE_DRIVER_EVPN=linux_vxlan.LinuxVXLANDataplaneDriver
         # IP of your route reflector or BGP router, or fakeRR:
         BAGPIPE_BGP_PEERS=1.2.3.4
 
