@@ -34,35 +34,35 @@ How to use ?
 
 * enable the devstack plugin by adding this to `local.conf`: ::
 
-	enable_plugin networking-bagpipe-l2 git@github.com:stackforge/networking-bagpipe-l2.git
+    enable_plugin networking-bagpipe-l2 git@github.com:stackforge/networking-bagpipe-l2.git
 
 * use the following options in devstack ``local.conf``: ::
 
-	Q_PLUGIN=ml2
-	Q_AGENT=bagpipe-linuxbridge
-	Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan,vxlan,route_target
-	Q_ML2_PLUGIN_MECHANISM_DRIVERS=bagpipe
-	
-	[[post-config|/$Q_PLUGIN_CONF_FILE]]
-	[ml2]
-	tenant_network_types=route_target
-	
-	[ml2_type_route_target]
-	# E-VPN route target ranges
-	rt_nn_ranges = 100:119,500:519
-	
-	[ml2_bagpipe]
-	# Data Center AS number
-	as_number = 64512
+    Q_PLUGIN=ml2
+    Q_AGENT=bagpipe-linuxbridge
+    Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan,vxlan,route_target
+    Q_ML2_PLUGIN_MECHANISM_DRIVERS=bagpipe
+
+    [[post-config|/$Q_PLUGIN_CONF_FILE]]
+    [ml2]
+    tenant_network_types=route_target
+
+    [ml2_type_route_target]
+    # E-VPN route target ranges
+    rt_nn_ranges = 100:119,500:519
+
+    [ml2_bagpipe]
+    # Data Center AS number
+    as_number = 64512
 
 * install and configure bagpipe-bgp_ on each compute node, with a peering to at least one common BGP Route Reflector: 
 
   * enable the devstack plugin for bagpipe-bgp by adding this to `local.conf`: ::
 
-	enable_plugin bagpipe-bgp https://github.com/Orange-OpenSource/bagpipe-bgp.git
-	BAGPIPE_DATAPLANE_DRIVER_EVPN = LinuxVXLANDataplaneDriver
-        # IP of your route reflector or BGP router, or fakeRR:
-        BAGPIPE_BGP_PEERS=1.2.3.4
+    enable_plugin bagpipe-bgp https://github.com/Orange-OpenSource/bagpipe-bgp.git
+    BAGPIPE_DATAPLANE_DRIVER_EVPN=LinuxVXLANDataplaneDriver
+    # IP of your route reflector or BGP router, or fakeRR:
+    BAGPIPE_BGP_PEERS=1.2.3.4
 
   * for two compute nodes, you can use the FakeRR provided in bagpipe-bgp_
   * for more than two compute nodes, you can use a commercial E-VPN implementation (e.g. vendors participating in `EANTC interop testing on E-VPN <http://www.eantc.de/fileadmin/eantc/downloads/events/2011-2015/MPLSSDN2015/EANTC-MPLSSDN2015-WhitePaper_online.pdf>`_)
