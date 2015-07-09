@@ -28,11 +28,12 @@ from oslo_log import log as logging
 
 from oslo_concurrency import lockutils
 
+from oslo_service import loopingcall
+
 from neutron.agent.common import config
 from neutron.agent.common import ovs_lib
 from neutron.common import exceptions as q_exc
 from neutron.common import constants as q_const
-from neutron.openstack.common import loopingcall
 
 from neutron.common import topics
 
@@ -42,7 +43,7 @@ from networking_bagpipe_l2.rpc.client import topics_BAGPIPE
 from networking_bagpipe_l2.agent.bgpvpn import rpc_agent as bgpvpn_agent_rpc
 from networking_bagpipe_l2.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
 
-from neutron.plugins.openvswitch.common import constants
+from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants
 
 LOG = logging.getLogger(__name__)
 

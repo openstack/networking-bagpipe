@@ -22,16 +22,20 @@ from oslo_config import cfg
 
 from oslo_log import log as logging
 
+from oslo_service import service
+
 from neutron.common import config as common_config
-from neutron.common import utils as q_utils
+from neutron.common import utils as n_utils
 from neutron.common import constants
 
 from neutron.i18n import _LE, _LI
 
 from neutron.plugins.common import constants as p_const
 
-from neutron.plugins.linuxbridge.agent.linuxbridge_neutron_agent import \
-    LinuxBridgeNeutronAgentRPC, LinuxBridgeManager
+from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
+    import LinuxBridgeNeutronAgentRPC
+from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
+    import LinuxBridgeManager
 
 from networking_bagpipe_l2.agent import bagpipe_bgp_agent
 
@@ -79,10 +83,8 @@ def main():
     common_config.init(sys.argv[1:])
 
     common_config.setup_logging()
-
-    # maybe what is below is not needed for bagpipe-l2
     try:
-        interface_mappings = q_utils.parse_mappings(
+        interface_mappings = n_utils.parse_mappings(
             cfg.CONF.LINUX_BRIDGE.physical_interface_mappings)
     except ValueError as e:
         LOG.error(_LE("Parsing physical_interface_mappings failed: %s. "
@@ -94,8 +96,8 @@ def main():
     agent = BaGPipeLinuxBridgeNeutronAgentRPC(interface_mappings,
                                               polling_interval)
     LOG.info(_LI("Agent initialized successfully, now running... "))
-    agent.daemon_loop()
-    sys.exit(0)
+    launcher = service.launch(cfg.CONF, agent)
+    launcher.wait()
 
 
 if __name__ == "__main__":
