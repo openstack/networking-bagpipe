@@ -30,11 +30,11 @@ its bagpipe driver.
 How to use ?
 ------------
 
-* install devstack, and point your local.conf to Kilo RC2 or later
+* install devstack (stable/kilo branch)
 
 * enable the devstack plugin by adding this to `local.conf`: ::
 
-    enable_plugin networking-bagpipe-l2 git@github.com:stackforge/networking-bagpipe-l2.git
+    enable_plugin networking-bagpipe-l2 git@github.com:stackforge/networking-bagpipe-l2.git stable/kilo
 
 * use the following options in devstack ``local.conf``: ::
 
