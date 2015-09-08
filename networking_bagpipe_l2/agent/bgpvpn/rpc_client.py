@@ -39,38 +39,38 @@ class BGPVPNAgentNotifyApi(object):
         target = oslo_messaging.Target(topic=topic, version='1.0')
         self.client = n_rpc.get_client(target)
 
-    # BGP VPN connection CRUD notifications
+    # BGP VPN CRUD notifications
     # --------------------------------------
-    def _notification_fanout(self, context, method, bgpvpn_connection):
-        LOG.debug(_('Fanout notify BGP VPN connection agents at %(topic)s '
-                    'the message %(method)s with %(bgpvpn_connection)s'),
+    def _notification_fanout(self, context, method, bgpvpn):
+        LOG.debug(_('Fanout notify BGP VPN agents at %(topic)s '
+                    'the message %(method)s with %(bgpvpn)s'),
                   {'topic': self.topic_bgpvpn_update,
                    'method': method,
-                   'bgpvpn_connection': bgpvpn_connection})
+                   'bgpvpn': bgpvpn})
 
         cctxt = self.client.prepare(topic=self.topic_bgpvpn_update,
                                     fanout=True)
-        cctxt.cast(context, method, bgpvpn_connection=bgpvpn_connection)
+        cctxt.cast(context, method, bgpvpn=bgpvpn)
 
-    def create_bgpvpn_connection(self, context, bgpvpn_connection):
+    def create_bgpvpn(self, context, bgpvpn):
         return self._notification_fanout(context,
-                                         'create_bgpvpn_connection',
-                                         bgpvpn_connection)
+                                         'create_bgpvpn',
+                                         bgpvpn)
 
-    def update_bgpvpn_connection(self, context, bgpvpn_connection):
+    def update_bgpvpn(self, context, bgpvpn):
         return self._notification_fanout(context,
-                                         'update_bgpvpn_connection',
-                                         bgpvpn_connection)
+                                         'update_bgpvpn',
+                                         bgpvpn)
 
-    def delete_bgpvpn_connection(self, context, bgpvpn_connection):
+    def delete_bgpvpn(self, context, bgpvpn):
         return self._notification_fanout(context,
-                                         'delete_bgpvpn_connection',
-                                         bgpvpn_connection)
+                                         'delete_bgpvpn',
+                                         bgpvpn)
 
-    # Port attach/detach on/from BGP VPN network notifications
+    # Port attach/detach on/from BGP VPN notifications
     # ---------------------------------------------------------
     def _notification_host(self, context, method, port_bgpvpn_info, host):
-        LOG.debug(_('Notify BGP VPN connection agent %(host)s at %(topic)s '
+        LOG.debug(_('Notify BGP VPN agent %(host)s at %(topic)s '
                     'the message %(method)s with %(port_bgpvpn_info)s'),
                   {'host': host,
                    'topic': '%s.%s' % (self.topic_bgpvpn_update, host),
@@ -81,13 +81,11 @@ class BGPVPNAgentNotifyApi(object):
                                     server=host)
         cctxt.cast(context, method, port_bgpvpn_info=port_bgpvpn_info)
 
-    def attach_port_on_bgpvpn_network(self, context, port_bgpvpn_info,
-                                      host=None):
+    def attach_port_on_bgpvpn(self, context, port_bgpvpn_info, host=None):
         if port_bgpvpn_info:
-            self._notification_host(context, 'attach_port_on_bgpvpn_network',
+            self._notification_host(context, 'attach_port_on_bgpvpn',
                                     port_bgpvpn_info, host)
 
-    def detach_port_from_bgpvpn_network(self, context, port_bgpvpn_info,
-                                        host=None):
-        self._notification_host(context, 'detach_port_from_bgpvpn_network',
+    def detach_port_from_bgpvpn(self, context, port_bgpvpn_info, host=None):
+        self._notification_host(context, 'detach_port_from_bgpvpn',
                                 port_bgpvpn_info, host)

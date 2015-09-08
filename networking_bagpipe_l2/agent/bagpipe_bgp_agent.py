@@ -103,7 +103,7 @@ class HTTPClientBase(object):
         LOG.debug("BaGPipe BGP component client request: %s %s [%s]" %
                   (method, action, str(body)))
 
-        if type(body) is dict:
+        if isinstance(body, dict):
             body = json.dumps(body)
         try:
             headers = {'User-Agent': self.client_name,
@@ -614,7 +614,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             LOG.error("Can't detach port from BaGPipe BGP "
                       "component: %s", str(e))
 
-    # BGP VPN connection callbacks
+    # BGP VPN callbacks
     # -----------------------------
     def _update_local_port_bgpvpn_details(self, network_id, index,
                                           ipvpn_bgpvpn, evpn_bgpvpn):
@@ -630,9 +630,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         return attachment
 
-    def _attach_all_ports_on_bgpvpn_network(self, network_id, ipvpn_bgpvpn,
-                                            evpn_bgpvpn):
-        # Attach all ports on BaGPipe-BGP for to the specified BGP VPN network
+    def _attach_all_ports_on_bgpvpn(self, network_id, ipvpn_bgpvpn,
+                                    evpn_bgpvpn):
+        # Attach all ports on BaGPipe-BGP for to the specified BGP VPN
 
         LOG.debug("Attaching all BGP registered attachments on BGP VPN "
                   "network %s with %s - %s" %
@@ -648,9 +648,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
             self._do_local_port_bgpvpn_plug(updated_attachment)
 
-    def _detach_all_ports_from_bgpvpn_network(self, network_id, ipvpn_bgpvpn,
-                                              evpn_bgpvpn):
-        # Detach all ports from BaGPipe-BGP for the specified BGP VPN network
+    def _detach_all_ports_from_bgpvpn(self, network_id, ipvpn_bgpvpn,
+                                      evpn_bgpvpn):
+        # Detach all ports from BaGPipe-BGP for the specified BGP VPN
 
         LOG.debug("Detaching all BGP registered attachments from BGP VPN "
                   "network %s" % network_id)
@@ -663,7 +663,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
     def _do_local_port_bgpvpn_plug(self, local_port_details):
         # Send local port attach request to BaGPipe BGP component if plugged
-        # on a BGP VPN network.
+        # on a BGP VPN.
 
         if 'evpn_bgpvpn' in local_port_details:
             local_port_evpn_details = (
@@ -680,7 +680,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
     def _do_local_port_bgpvpn_unplug(self, network_id, index,
                                      ipvpn_bgpvpn=None, evpn_bgpvpn=None):
         # Send local port detach request to BaGPipe BGP if plugged
-        # on a BGP VPN network and update BGP registered attachments list.
+        # on a BGP VPN and update BGP registered attachments list.
 
         local_port_details = self.reg_attachments[network_id][index]
 
@@ -761,66 +761,64 @@ class BaGPipeBGPAgent(HTTPClientBase,
             except BaGPipeBGPException:
                 pass
 
-    def create_bgpvpn_connection(self, context, bgpvpn_connection):
-        LOG.debug("create_bgpvpn_connection received with details %s",
-                  bgpvpn_connection)
-        net_uuid = bgpvpn_connection['network_id']
+    def create_bgpvpn(self, context, bgpvpn):
+        LOG.debug("create_bgpvpn received with details %s",
+                  bgpvpn)
+        net_uuid = bgpvpn['network_id']
         ipvpn_bgpvpn = (
-            bgpvpn_connection['l3vpn'] if 'l3vpn' in bgpvpn_connection else {}
+            bgpvpn['l3vpn'] if 'l3vpn' in bgpvpn else {}
         )
         evpn_bgpvpn = (
-            bgpvpn_connection['l2vpn'] if 'l2vpn' in bgpvpn_connection else {}
+            bgpvpn['l2vpn'] if 'l2vpn' in bgpvpn else {}
         )
 
-        self._attach_all_ports_on_bgpvpn_network(net_uuid, ipvpn_bgpvpn,
-                                                 evpn_bgpvpn)
+        self._attach_all_ports_on_bgpvpn(net_uuid, ipvpn_bgpvpn,
+                                         evpn_bgpvpn)
 
-    def update_bgpvpn_connection(self, context, bgpvpn_connection):
-        LOG.debug("update_bgpvpn_connection received with details %s",
-                  bgpvpn_connection)
-        net_uuid = bgpvpn_connection['network_id']
+    def update_bgpvpn(self, context, bgpvpn):
+        LOG.debug("update_bgpvpn received with details %s",
+                  bgpvpn)
+        net_uuid = bgpvpn['network_id']
         ipvpn_bgpvpn = (
-            bgpvpn_connection['l3vpn'] if 'l3vpn' in bgpvpn_connection else {}
+            bgpvpn['l3vpn'] if 'l3vpn' in bgpvpn else {}
         )
         evpn_bgpvpn = (
-            bgpvpn_connection['l2vpn'] if 'l2vpn' in bgpvpn_connection else {}
+            bgpvpn['l2vpn'] if 'l2vpn' in bgpvpn else {}
         )
 
-        if 'old_network_id' in bgpvpn_connection:
-            old_net_uuid = bgpvpn_connection['old_network_id']
+        if 'old_network_id' in bgpvpn:
+            old_net_uuid = bgpvpn['old_network_id']
             if net_uuid is None:
-                self._detach_all_ports_from_bgpvpn_network(old_net_uuid,
-                                                           ipvpn_bgpvpn,
-                                                           evpn_bgpvpn)
-            else:
-                if old_net_uuid is not None:
-                    self._detach_all_ports_from_bgpvpn_network(old_net_uuid,
-                                                               ipvpn_bgpvpn,
-                                                               evpn_bgpvpn)
-
-                self._attach_all_ports_on_bgpvpn_network(net_uuid,
-                                                         ipvpn_bgpvpn,
-                                                         evpn_bgpvpn)
-        else:
-            # Only route targets have been updated
-            self._attach_all_ports_on_bgpvpn_network(net_uuid,
-                                                     ipvpn_bgpvpn,
-                                                     evpn_bgpvpn)
-
-    def delete_bgpvpn_connection(self, context, bgpvpn_connection):
-        LOG.debug("delete_bgpvpn_connection received with details %s",
-                  bgpvpn_connection)
-        net_uuid = bgpvpn_connection['network_id']
-        ipvpn_bgpvpn = (
-            bgpvpn_connection['l3vpn'] if 'l3vpn' in bgpvpn_connection else {}
-        )
-        evpn_bgpvpn = (
-            bgpvpn_connection['l2vpn'] if 'l2vpn' in bgpvpn_connection else {}
-        )
-
-        self._detach_all_ports_from_bgpvpn_network(net_uuid,
+                self._detach_all_ports_from_bgpvpn(old_net_uuid,
                                                    ipvpn_bgpvpn,
                                                    evpn_bgpvpn)
+            else:
+                if old_net_uuid is not None:
+                    self._detach_all_ports_from_bgpvpn(old_net_uuid,
+                                                       ipvpn_bgpvpn,
+                                                       evpn_bgpvpn)
+
+                self._attach_all_ports_on_bgpvpn(net_uuid,
+                                                 ipvpn_bgpvpn,
+                                                 evpn_bgpvpn)
+        else:
+            # Only route targets have been updated
+            self._attach_all_ports_on_bgpvpn(net_uuid,
+                                             ipvpn_bgpvpn,
+                                             evpn_bgpvpn)
+
+    def delete_bgpvpn(self, context, bgpvpn):
+        LOG.debug("delete_bgpvpn received with details %s",
+                  bgpvpn)
+        net_uuid = bgpvpn['network_id']
+        ipvpn_bgpvpn = (
+            bgpvpn['l3vpn'] if 'l3vpn' in bgpvpn else {}
+        )
+        evpn_bgpvpn = (
+            bgpvpn['l2vpn'] if 'l2vpn' in bgpvpn else {}
+        )
+
+        self._detach_all_ports_from_bgpvpn(net_uuid, ipvpn_bgpvpn, evpn_bgpvpn)
 
     def bgpvpn_port_attach(self, context, port_bgpvpn_info):
         LOG.debug("bgpvpn_port_attach received with port info: %s",

@@ -24,28 +24,27 @@ class BGPVPNAgentRpcCallBackMixin(object):
     """Mix-in to support BGP VPN notifications in agent implementations"""
 
     @abc.abstractmethod
-    def create_bgpvpn_connection(self, context, bgpvpn_connection):
+    def create_bgpvpn(self, context, bgpvpn):
         """Handle RPC fanout cast from service plugin to create a BGP VPN"""
         pass
 
     @abc.abstractmethod
-    def update_bgpvpn_connection(self, context, bgpvpn_connection):
+    def update_bgpvpn(self, context, bgpvpn):
         """Handle RPC fanout cast from service plugin to update a BGP VPN"""
         pass
 
     @abc.abstractmethod
-    def delete_bgpvpn_connection(self, context, bgpvpn_connection):
+    def delete_bgpvpn(self, context, bgpvpn):
         """Handle RPC fanout cast from service plugin to delete a BGP VPN"""
         pass
 
-    def attach_port_on_bgpvpn_network(self, context, port_bgpvpn_info,
-                                      host=None):
-        """Handle RPC cast from service plugin to attach port on BGP VPN"""
+    def attach_port_on_bgpvpn(self, context, port_bgpvpn_info, host=None):
+        """Handle RPC cast from service plugin to attach port on a BGP VPN"""
         if not host or host == cfg.CONF.host:
             self.bgpvpn_port_attach(context, port_bgpvpn_info)
 
-    def detach_port_from_bgpvpn_network(self, context, port_bgpvpn_info,
-                                        host=None):
+    def detach_port_from_bgpvpn(self, context, port_bgpvpn_info,
+                                host=None):
         """Handle RPC cast from service plugin to detach port from BGP VPN"""
         if not host or host == cfg.CONF.host:
             self.bgpvpn_port_detach(context, port_bgpvpn_info)
