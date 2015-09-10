@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import six
+
 from oslo.config import cfg
 
 from oslo_log import log
@@ -44,7 +46,7 @@ route_target_opts = [
 
 cfg.CONF.register_opts(route_target_opts, "ml2_type_route_target")
 
-# TODO: find a clean way to not collide in the segment type namespace
+# TODO(tmorin): find a clean way to not collide in the segment type namespace
 TYPE_ROUTE_TARGET = 'route_target'
 
 
@@ -181,8 +183,7 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
                 LOG.warning(_("Route Target number %s not found"), rt_nn)
 
     def _sync_route_target_allocations(self):
-        """Synchronize route_target_allocations table with configured tunnel
-        ranges."""
+        """Synchronize route_target_allocations table with configured ranges"""
 
         # Determine current configured allocatable route targets
         rt_nns = set()
@@ -193,7 +194,7 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
                             "%(rt_nn_min)s:%(rt_nn_max)s"),
                           {'rt_nn_min': rt_nn_min, 'rt_nn_max': rt_nn_max})
             else:
-                rt_nns |= set(xrange(rt_nn_min, rt_nn_max + 1))
+                rt_nns |= set(six.moves.range(rt_nn_min, rt_nn_max + 1))
 
         session = db_api.get_session()
         with session.begin(subtransactions=True):

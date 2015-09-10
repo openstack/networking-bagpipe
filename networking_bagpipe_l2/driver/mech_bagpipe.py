@@ -1,4 +1,19 @@
-from oslo.config import cfg
+# Copyright (c) 2015 Orange.
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+from oslo_config import cfg
 
 from oslo_log import log
 
@@ -28,7 +43,8 @@ cfg.CONF.register_opts(ml2_bagpipe_opts, "ml2_bagpipe")
 
 
 def get_network_info_for_port(session, port_id):
-    """
+    """Get Port network informations from DB
+
     Get network informations (MAC, IP and gateway addresses and
     subnet mask) from database associated to a port
     """
@@ -49,7 +65,10 @@ def get_network_info_for_port(session, port_id):
 
 
 class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
-    """
+    """ML2 Mechanism driver for bagpipe-bgp
+
+    This mechanism driver uses RPCs toward compute node agents to trigger
+    the attachment of VM ports in E-VPN VPN instances.
     """
 
     def __init__(self):
@@ -90,9 +109,7 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         return (segment[api.NETWORK_TYPE] == TYPE_ROUTE_TARGET)
 
     def _get_network_info_for_port(self, port_id):
-        """
-        Get MAC, IP and Gateway IP addresses informations for a specific port
-        """
+        """Get MAC, IP and Gw IP addresses informations for a specific port"""
         session = db_api.get_session()
         (mac_address, ip_address, cidr, gateway_ip) = (
             get_network_info_for_port(session, port_id)
@@ -103,8 +120,8 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
                 'gateway_ip': gateway_ip}
 
     def _retrieve_bagpipe_network_info_for_port(self, port_id, segment):
-        """
-        Retrieve BaGPipe network informations for a specific port
+        """Retrieve BaGPipe network informations for a specific port
+
         {
             'network_id': <UUID>,
             'mac_address': '00:00:de:ad:be:ef',
