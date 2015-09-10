@@ -23,13 +23,13 @@ from neutron.common import log
 
 @six.add_metaclass(abc.ABCMeta)
 class BaGPipeAgentRpcCallBackMixin(object):
-    """
-    Mix-in to support BaGPipe notifications in agent implementations.
-    """
+    """Mix-in to support BaGPipe notifications in agent implementations"""
+
     @log.log
     def attach_port_on_bagpipe_network(self, context, port_bagpipe_info,
                                        host=None):
-        """
+        """Attach port RPC
+
         Handle RPC cast from BaGPipe ML2 mechanism driver to attach port on
         BaGPipe network.
         """
@@ -39,7 +39,8 @@ class BaGPipeAgentRpcCallBackMixin(object):
     @log.log
     def detach_port_from_bagpipe_network(self, context, port_bagpipe_info,
                                          host=None):
-        """
+        """Detach Port RPC
+
         Handle RPC cast from BaGPipe ML2 mechanism driver to detach port from
         BaGPipe network.
         """

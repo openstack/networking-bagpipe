@@ -25,17 +25,18 @@ from oslo_log import log as logging
 from oslo_service import service
 
 from neutron.common import config as common_config
-from neutron.common import utils as n_utils
 from neutron.common import constants
+from neutron.common import utils as n_utils
 
-from neutron.i18n import _LE, _LI
+from neutron.i18n import _LE
+from neutron.i18n import _LI
 
 from neutron.plugins.common import constants as p_const
 
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
-    import LinuxBridgeNeutronAgentRPC
-from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
+from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
+    import LinuxBridgeNeutronAgentRPC
 
 from networking_bagpipe_l2.agent import bagpipe_bgp_agent
 

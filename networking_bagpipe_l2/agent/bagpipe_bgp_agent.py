@@ -32,9 +32,9 @@ from oslo_service import loopingcall
 
 from neutron.agent.common import config
 from neutron.agent.common import ovs_lib
-from neutron.common import exceptions as q_exc
-from neutron.common import constants as q_const
 
+from neutron.common import constants as q_const
+from neutron.common import exceptions as q_exc
 from neutron.common import topics
 
 from networking_bagpipe_l2.rpc import agent as bagpipe_agent_rpc
@@ -47,8 +47,7 @@ from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants
 
 LOG = logging.getLogger(__name__)
 
-# TODO: To be replaced, hard coded for test purpose
-DEFAULT_GATEWAY_MAC = "00:00:de:ad:be:ef"
+DEFAULT_GATEWAY_MAC = "00:00:5e:00:43:64"
 
 bagpipe_bgp_opts = [
     cfg.IntOpt('ping_interval', default=10,
@@ -87,14 +86,11 @@ class BaGPipeBGPException(q_exc.NeutronException):
 
 
 class HTTPClientBase(object):
-    """
-    An HTTP client base class
-    """
+    """An HTTP client base class"""
 
     def __init__(self, host="127.0.0.1", port=8082,
                  client_name="HTTP client base"):
-        """
-        Create a new HTTP client
+        """Create a new HTTP client
 
         :param host: HTTP server IP address
         :param port: HTTP server port
@@ -128,7 +124,7 @@ class HTTPClientBase(object):
                     "An HTTP operation has failed on BaGPipe BGP component."
                 )
                 raise BaGPipeBGPException(reason=reason)
-        except (socket.error, IOError), e:
+        except (socket.error, IOError) as e:
             reason = "Failed to connect to BaGPipe BGP component: %s" % str(e)
             raise BaGPipeBGPException(reason=reason)
 
@@ -149,9 +145,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                       bagpipe_agent_rpc.BaGPipeAgentRpcCallBackMixin,
                       bgpvpn_agent_rpc.BGPVPNAgentRpcCallBackMixin
                       ):
-    """
-    Implements BaGPipe BGP component REST service client
-    """
+    """Implements a BaGPipe-BGP REST client"""
 
     # BaGPipe BGP component status
     BAGPIPEBGP_UP = 'UP'
@@ -160,8 +154,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
     def __init__(self, agent_type, br_mgr=None,
                  int_br=None, tun_br=None, patch_int_ofport=0,
                  local_vlan_map={}, setup_entry_for_arp_reply=None):
-        """
-        Create a new BaGPipe BGP component REST service client.
+        """Create a new BaGPipe-BGP REST service client.
 
         :param agent_type: BaGPipe BGP agent type (Linux bridge or OVS)
         :param br_mgr: Linux Bridge manager
@@ -199,7 +192,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
         self._start_bagpipe_bgp_status_polling(self.ping_interval)
 
     def _check_bagpipe_bgp_status(self):
-        """
+        """Trigger refresh on bagpipe-bgp restarts
+
         Check if BaGPipe BGP component has restarted while sending ping request
         to detect sequence number change.
         If a restart is detected, re-send all registered attachments to BaGPipe
@@ -224,8 +218,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                              "BGP component")
                     LOG.debug("Registered attachments list: %s" %
                               self.reg_attachments)
-                    for network_id, attachment_list in (
-                            self.reg_attachments.iteritems()):
+                    for _, attachment_list in self.reg_attachments.iteritems():
                         if attachment_list:
                             for attachment in attachment_list:
                                 self._do_local_port_bagpipe_plug(attachment)
@@ -236,19 +229,16 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 self.bagpipe_bgp_status = self.BAGPIPEBGP_DOWN
 
     def _start_bagpipe_bgp_status_polling(self, ping_interval=10):
-        """
-        Start BaGPipe BGP component status polling at regular interval.
-        """
+        # Start BaGPipe BGP component status polling at regular interval
         status_loop = loopingcall.FixedIntervalLoopingCall(
             self._check_bagpipe_bgp_status)
         status_loop.start(interval=ping_interval,
                           initial_delay=ping_interval)  # TM: why not zero ?
 
     def _get_reg_attachment_for_port(self, network_id, local_port_id):
-        """
-        Retrieve local port index and details in BGP registered attachments
-        list for the specified network and port identifiers
-        """
+        # Retrieve local port index and details in BGP registered attachments
+        # list for the specified network and port identifiers
+
         LOG.debug("Getting local port details for port %s on network %s" %
                   (local_port_id, network_id))
 
@@ -270,10 +260,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
     @lockutils.synchronized('bagpipe-bgp-agent')
     def _remove_reg_attachment_for_index(self, network_id, index):
-        """
-        Remove local port details at index in BGP registered attachments list
-        for the specified network
-        """
+        # Remove local port details at index in BGP registered attachments list
+        # for the specified network
+
         LOG.debug(
             "Removing attachment %s", self.reg_attachments[network_id][index]
         )
@@ -368,35 +357,29 @@ class BaGPipeBGPAgent(HTTPClientBase,
     # BaGPipe BGP component REST API requests
     # ----------------------------------------
     def request_ping(self):
-        """
-        Send ping request to BaGPipe BGP component to get sequence number
-        """
+        """Send ping request to BaGPipe BGP component to get sequence number"""
         try:
             response = self.get('ping')
             LOG.debug("BaGPipe BGP component PING response received with "
                       "sequence number %s" % response)
             return response
-        except BaGPipeBGPException, e:
+        except BaGPipeBGPException as e:
             LOG.warning(str(e))
             return -1
 
     def send_attach_local_port(self, local_port_details):
-        """
-        Send local port attach request to BaGPipe BGP component if running
-        """
+        """Send local port attach request to BaGPipe-BGP if running"""
         if self.bagpipe_bgp_status is self.BAGPIPEBGP_UP:
             try:
                 self.post('attach_localport', local_port_details)
                 LOG.debug("Local port has been attached on BGP component with "
                           "details %s" % local_port_details)
-            except BaGPipeBGPException, e:
+            except BaGPipeBGPException as e:
                 LOG.error("Can't attach local port on BaGPipe BGP "
                           "component: %s", str(e))
 
     def send_detach_local_port(self, local_port_details):
-        """
-        Send local port detach request to BaGPipe BGP component if running
-        """
+        """Send local port detach request to BaGPipe-BGP if running"""
         if self.bagpipe_bgp_status is self.BAGPIPEBGP_UP:
             try:
                 self.post('detach_localport', local_port_details)
@@ -537,10 +520,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
     # BaGPipe RPC callbacks
     # ----------------------
     def _do_local_port_bagpipe_plug(self, local_port_details):
-        """
-        Send local port attach request to BaGPipe BGP component if plugged on a
-        BaGPipe network.
-        """
+        # Send local port attach request to BaGPipe BGP if plugged on a BaGPipe
+        # network.
+
         if 'evpn' in local_port_details:
             local_port_evpn_details = (
                 self._get_local_port_with_evpn_details(local_port_details)
@@ -548,10 +530,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
             self.send_attach_local_port(local_port_evpn_details)
 
     def _do_local_port_bagpipe_unplug(self, network_id, index):
-        """
-        Send local port detach request to BaGPipe BGP component if plugged on a
-        BaGPipe network and update BGP registered attachments list
-        """
+        # Send local port detach request to BaGPipe BGP if plugged on
+        # a BaGPipe network and update BGP registered attachments list
+
         local_port_details = self.reg_attachments[network_id][index]
 
         if 'evpn' in local_port_details:
@@ -626,8 +607,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         # Detach port from BaGPipe BGP component
         LOG.debug("Detaching port %s from BaGPipe BGP component", port_id)
         try:
-            index, details = self._get_reg_attachment_for_port(net_uuid,
-                                                               port_id)
+            index, _ = self._get_reg_attachment_for_port(net_uuid, port_id)
             self._do_local_port_bagpipe_unplug(net_uuid, index)
             self._remove_reg_attachment_for_index(net_uuid, index)
         except BGPAttachmentNotFound as e:
@@ -652,15 +632,13 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
     def _attach_all_ports_on_bgpvpn_network(self, network_id, ipvpn_bgpvpn,
                                             evpn_bgpvpn):
-        """
-        Attach all ports on BaGPipe BGP component corresponding to the
-        specified BGP VPN network
-        """
+        # Attach all ports on BaGPipe-BGP for to the specified BGP VPN network
+
         LOG.debug("Attaching all BGP registered attachments on BGP VPN "
                   "network %s with %s - %s" %
                   (network_id, ipvpn_bgpvpn, evpn_bgpvpn))
 
-        for index, details in enumerate(self.reg_attachments[network_id]):
+        for index, _ in enumerate(self.reg_attachments[network_id]):
             updated_attachment = (
                 self._update_local_port_bgpvpn_details(network_id,
                                                        index,
@@ -672,24 +650,21 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
     def _detach_all_ports_from_bgpvpn_network(self, network_id, ipvpn_bgpvpn,
                                               evpn_bgpvpn):
-        """
-        Detach all ports from BaGPipe BGP component corresponding to
-        the specified BGP VPN network
-        """
+        # Detach all ports from BaGPipe-BGP for the specified BGP VPN network
+
         LOG.debug("Detaching all BGP registered attachments from BGP VPN "
                   "network %s" % network_id)
 
-        for index, details in enumerate(self.reg_attachments[network_id]):
+        for index, _ in enumerate(self.reg_attachments[network_id]):
             self._do_local_port_bgpvpn_unplug(network_id,
                                               index,
                                               ipvpn_bgpvpn,
                                               evpn_bgpvpn)
 
     def _do_local_port_bgpvpn_plug(self, local_port_details):
-        """
-        Send local port attach request to BaGPipe BGP component if plugged on a
-        BGP VPN network.
-        """
+        # Send local port attach request to BaGPipe BGP component if plugged
+        # on a BGP VPN network.
+
         if 'evpn_bgpvpn' in local_port_details:
             local_port_evpn_details = (
                 self._get_local_port_with_evpn_details(local_port_details)
@@ -704,12 +679,13 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
     def _do_local_port_bgpvpn_unplug(self, network_id, index,
                                      ipvpn_bgpvpn=None, evpn_bgpvpn=None):
-        """
-        Send local port detach request to BaGPipe BGP component if plugged on a
-        BGP VPN network and update BGP registered attachments list.
-        """
+        # Send local port detach request to BaGPipe BGP if plugged
+        # on a BGP VPN network and update BGP registered attachments list.
+
         local_port_details = self.reg_attachments[network_id][index]
 
+        # TODO(tmorin): factor out the two cases for ipvpn and evpn
+        # TODO(tmorin): check error handling on bagpipe-bgp exceptions
         if 'ipvpn_bgpvpn' in local_port_details:
             try:
                 if ipvpn_bgpvpn:

@@ -28,9 +28,7 @@ topics_BAGPIPE = "bagpipe-l2"
 
 
 class BaGPipeAgentNotifyAPI(object):
-    """
-    Base class for BaGPipe ML2 mech driver notification to agent RPC API.
-    """
+    """Base class for BaGPipe ML2 mech driver notification to agent RPC API"""
 
     def __init__(self, topic=topics.AGENT):
         self.topic = topic
@@ -54,7 +52,7 @@ class BaGPipeAgentNotifyAPI(object):
 
         cctxt = self.client.prepare(topic=self.topic_bagpipe_update,
                                     fanout=True)
-        # TODO: per-host topics
+        # TODO(tmorin): per-host topics
         # topic = '%s.%s' % (self.topic_bagpipe_update, host)
         # cctxt = self.client.prepare(topic=topic, fanout=True) # fanout=False?
         cctxt.cast(context, method, port_bagpipe_info=port_bagpipe_info)

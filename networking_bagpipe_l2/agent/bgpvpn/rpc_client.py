@@ -27,9 +27,7 @@ topics_BAGPIPE_BGPVPN = "bagpipe-bgpvpn"
 
 
 class BGPVPNAgentNotifyApi(object):
-    """
-    Base class for BGP VPN Service Plugin notification to agent RPC API.
-    """
+    """Base class for BGP VPN Service Plugin notification to agent RPC API."""
 
     def __init__(self, topic=topics.AGENT):
         self.topic = topic
@@ -78,7 +76,7 @@ class BGPVPNAgentNotifyApi(object):
                    'topic': '%s.%s' % (self.topic_bgpvpn_update, host),
                    'method': method,
                    'port_bgpvpn_info': port_bgpvpn_info})
-        # TODO: per-host topics ?
+
         cctxt = self.client.prepare(topic=self.topic_bgpvpn_update,
                                     server=host)
         cctxt.cast(context, method, port_bgpvpn_info=port_bgpvpn_info)
