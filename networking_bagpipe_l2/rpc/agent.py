@@ -18,14 +18,14 @@ import abc
 from oslo_config import cfg
 import six
 
-from neutron.common import log
+from oslo_log.helpers import log_method_call as log
 
 
 @six.add_metaclass(abc.ABCMeta)
 class BaGPipeAgentRpcCallBackMixin(object):
     """Mix-in to support BaGPipe notifications in agent implementations"""
 
-    @log.log
+    @log
     def attach_port_on_bagpipe_network(self, context, port_bagpipe_info,
                                        host=None):
         """Attach port RPC
@@ -36,7 +36,7 @@ class BaGPipeAgentRpcCallBackMixin(object):
         if not host or host == cfg.CONF.host:
             self.bagpipe_port_attach(context, port_bagpipe_info)
 
-    @log.log
+    @log
     def detach_port_from_bagpipe_network(self, context, port_bagpipe_info,
                                          host=None):
         """Detach Port RPC
