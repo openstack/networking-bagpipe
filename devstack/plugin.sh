@@ -24,4 +24,3 @@ fi
 
 set +x
 $xtrace
-

@@ -5,7 +5,7 @@ networking-bagpipe-l2
 Mechanism driver for Neutron ML2 plugin using BGP E-VPNs/IP VPNs as a backend
 
 * Free software: Apache license
-* Source: http://git.openstack.org/cgit/stackforge/networking-bagpipe-l2
+* Source: http://git.openstack.org/cgit/openstack/networking-bagpipe-l2
 * Bugs: http://bugs.launchpad.net/bagpipe-l2
 
 Overview
@@ -32,15 +32,15 @@ How to use ?
 
 * install devstack (whether stable/kilo or master)
 
-* enable the devstack plugin by adding this to `local.conf`:
+* enable the devstack plugin by adding this to ``local.conf``:
 
     * to use the Kilo stable branch::
 
-        enable_plugin networking-bagpipe-l2 git@github.com:stackforge/networking-bagpipe-l2.git stable/kilo
+        enable_plugin networking-bagpipe-l2 https://git.openstack.org/openstack/networking-bagpipe-l2.git stable/kilo
 
     * to use the development branch::
 
-        enable_plugin networking-bagpipe-l2 git@github.com:stackforge/networking-bagpipe-l2.git master
+        enable_plugin networking-bagpipe-l2 https://git.openstack.org/openstack/networking-bagpipe-l2.git master
 
 * use the following options in devstack ``local.conf``: ::
 
@@ -74,8 +74,8 @@ How to use ?
   * for more than two compute nodes, you can use a commercial E-VPN implementation (e.g. vendors participating in `EANTC interop testing on E-VPN <http://www.eantc.de/fileadmin/eantc/downloads/events/2011-2015/MPLSSDN2015/EANTC-MPLSSDN2015-WhitePaper_online.pdf>`_)
   * (work is in progress to allow `OpenContrail BGP stack <https://github.com/Juniper/contrail-controller/tree/master/src/bgp>`_ to be used for BGP Route Reflection)
 
-Note well: unless you cloned a devstack more recent than 2015-04-20, you will need to ``git clone git@github.com:stackforge/networking-bgpvpn.git`` in /opt/stack manually before doing a ./stack.sh (see https://review.openstack.org/#/c/168796 )
+Note well: unless you cloned a devstack more recent than 2015-04-20, you will need to ``git clone https://git.openstack.org/openstack/networking-bgpvpn.git`` in /opt/stack manually before doing a ./stack.sh (see https://review.openstack.org/#/c/168796 )
 
 .. _bagpipe-bgp: https://github.com/Orange-OpenSource/bagpipe-bgp
-.. _bgpvpn: https://github.com/stackforge/networking-bgpvpn
+.. _bgpvpn: https://github.com/openstack/networking-bgpvpn
 
