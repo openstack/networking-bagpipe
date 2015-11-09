@@ -37,11 +37,11 @@ from neutron.common import constants as q_const
 from neutron.common import exceptions as q_exc
 from neutron.common import topics
 
-from networking_bagpipe_l2.rpc import agent as bagpipe_agent_rpc
-from networking_bagpipe_l2.rpc.client import topics_BAGPIPE
+from networking_bagpipe.rpc import agent as bagpipe_agent_rpc
+from networking_bagpipe.rpc.client import topics_BAGPIPE
 
-from networking_bagpipe_l2.agent.bgpvpn import rpc_agent as bgpvpn_agent_rpc
-from networking_bagpipe_l2.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
+from networking_bagpipe.agent.bgpvpn import rpc_agent as bgpvpn_agent_rpc
+from networking_bagpipe.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
 
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants
 

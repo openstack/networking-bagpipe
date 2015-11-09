@@ -13,14 +13,14 @@
 #    under the License.
 #
 
-"""start networking_bagpipe_l2 chain
-Revision ID: start_networking_bagpipe_l2
+"""start networking_bagpipe chain
+Revision ID: start_networking_bagpipe
 Revises: None
 Create Date: 2015-10-28 18:04:17.265514
 """
 
 # revision identifiers, used by Alembic.
-revision = 'start_networking_bagpipe_l2'
+revision = 'start_networking_bagpipe'
 down_revision = None
 
 
