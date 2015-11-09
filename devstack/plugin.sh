@@ -8,7 +8,7 @@ if [[ "$1" == "source" ]]; then
 	# no-op
 	:
 elif [[ "$1" == "stack" && "$2" == "install" ]]; then
-	setup_develop $NETWORKING_BAGPIPE_L2_DIR
+	setup_develop $NETWORKING_BAGPIPE_DIR
 elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
 	#no-op
 	:

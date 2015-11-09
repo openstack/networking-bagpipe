@@ -38,7 +38,7 @@ from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeNeutronAgentRPC
 
-from networking_bagpipe_l2.agent import bagpipe_bgp_agent
+from networking_bagpipe.agent import bagpipe_bgp_agent
 
 LOG = logging.getLogger(__name__)
 

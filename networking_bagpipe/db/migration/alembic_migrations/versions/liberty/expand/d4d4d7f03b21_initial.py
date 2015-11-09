@@ -15,7 +15,7 @@
 
 """contract initial
 Revision ID: d4d4d7f03b21
-Revises: start_networking_bagpipe_l2
+Revises: start_networking_bagpipe
 Create Date: 2015-10-28 17:35:11.000000
 """
 
@@ -26,7 +26,7 @@ from neutron.db.migration import cli
 
 # revision identifiers, used by Alembic.
 revision = 'd4d4d7f03b21'
-down_revision = 'start_networking_bagpipe_l2'
+down_revision = 'start_networking_bagpipe'
 branch_labels = (cli.EXPAND_BRANCH,)
 
 

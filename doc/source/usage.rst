@@ -2,6 +2,6 @@
 Usage
 =====
 
-To use networking-bagpipe-l2 in a project::
+To use networking-bagpipe in a project::
 
-    import networking_bagpipe_l2
+    import networking_bagpipe

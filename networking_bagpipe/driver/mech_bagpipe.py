@@ -29,8 +29,8 @@ from neutron.plugins.common import constants as p_constants
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
 
-from networking_bagpipe_l2.driver.type_route_target import TYPE_ROUTE_TARGET
-from networking_bagpipe_l2.rpc import client as bagpipe_rpc_client
+from networking_bagpipe.driver.type_route_target import TYPE_ROUTE_TARGET
+from networking_bagpipe.rpc import client as bagpipe_rpc_client
 
 LOG = log.getLogger(__name__)
 
