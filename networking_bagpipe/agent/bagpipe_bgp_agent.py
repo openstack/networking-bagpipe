@@ -12,7 +12,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 import itertools
 
 import socket
@@ -20,7 +19,10 @@ import socket
 import httplib2
 import json
 
+from copy import deepcopy
+
 from collections import defaultdict
+from collections import OrderedDict
 
 from oslo.config import cfg
 
@@ -47,14 +49,27 @@ LOG = logging.getLogger(__name__)
 
 DEFAULT_GATEWAY_MAC = "00:00:5e:00:43:64"
 
+BAGPIPE_NOTIFIER = 'bagpipe'
+BGPVPN_NOTIFIER = 'bgpvpn'
+BAGPIPE_NOTIFIERS = [BAGPIPE_NOTIFIER, BGPVPN_NOTIFIER]
+
+EVPN = 'evpn'
+IPVPN = 'ipvpn'
+VPN_TYPES = [EVPN, IPVPN]
+
+BGPVPN_L2 = 'l2vpn'
+BGPVPN_L3 = 'l3vpn'
+BGPVPN_TYPES = [BGPVPN_L2, BGPVPN_L3]
+BGPVPN_TYPES_MAP = {BGPVPN_L2: EVPN, BGPVPN_L3: IPVPN}
+
 bagpipe_bgp_opts = [
     cfg.IntOpt('ping_interval', default=10,
-               help=_("The number of seconds the BGP component client will "
+               help=_("The number of seconds the bagpipe-bgp client will "
                       "wait between polling for restart detection.")),
     cfg.StrOpt('bagpipe_bgp_ip', default='127.0.0.1',
-               help=_("BGP component REST service IP address.")),
+               help=_("bagpipe-bgp REST service IP address.")),
     cfg.IntOpt('bagpipe_bgp_port', default=8082,
-               help=_("BGP component REST service IP port.")),
+               help=_("bagpipe-bgp REST service IP port.")),
     cfg.StrOpt('mpls_bridge', default='br-mpls',
                help=_("OVS MPLS bridge to use")),
     cfg.StrOpt('tun_to_mpls_peer_patch_port', default='patch-to-mpls',
@@ -79,7 +94,7 @@ class BGPAttachmentNotFound(q_exc.NotFound):
 
 
 class BaGPipeBGPException(q_exc.NeutronException):
-    message = "An exception occurred when calling BaGPipe BGP component \
+    message = "An exception occurred when calling bagpipe-bgp \
                REST service: %(reason)s"
 
 
@@ -98,7 +113,7 @@ class HTTPClientBase(object):
         self.client_name = client_name
 
     def do_request(self, method, action, body=None):
-        LOG.debug("BaGPipe BGP component client request: %s %s [%s]" %
+        LOG.debug("bagpipe-bgp client request: %s %s [%s]" %
                   (method, action, str(body)))
 
         if type(body) is dict:
@@ -111,7 +126,7 @@ class HTTPClientBase(object):
 
             http = httplib2.Http()
             response, content = http.request(uri, method, body, headers)
-            LOG.debug("BaGPipe BGP component returns [%s:%s]" %
+            LOG.debug("bagpipe-bgp returns [%s:%s]" %
                       (str(response.status), content))
 
             if response.status == 200:
@@ -119,11 +134,11 @@ class HTTPClientBase(object):
                     return json.loads(content)
             else:
                 reason = (
-                    "An HTTP operation has failed on BaGPipe BGP component."
+                    "An HTTP operation has failed on bagpipe-bgp."
                 )
                 raise BaGPipeBGPException(reason=reason)
         except (socket.error, IOError) as e:
-            reason = "Failed to connect to BaGPipe BGP component: %s" % str(e)
+            reason = "Failed to connect to bagpipe-bgp: %s" % str(e)
             raise BaGPipeBGPException(reason=reason)
 
     def get(self, action):
@@ -145,16 +160,16 @@ class BaGPipeBGPAgent(HTTPClientBase,
                       ):
     """Implements a BaGPipe-BGP REST client"""
 
-    # BaGPipe BGP component status
+    # bagpipe-bgp status
     BAGPIPEBGP_UP = 'UP'
     BAGPIPEBGP_DOWN = 'DOWN'
 
     def __init__(self, agent_type, br_mgr=None,
                  int_br=None, tun_br=None, patch_int_ofport=0,
-                 local_vlan_map={}, setup_entry_for_arp_reply=None):
+                 local_vlan_map=None, setup_entry_for_arp_reply=None):
         """Create a new BaGPipe-BGP REST service client.
 
-        :param agent_type: BaGPipe BGP agent type (Linux bridge or OVS)
+        :param agent_type: bagpipe-bgp agent type (Linux bridge or OVS)
         :param br_mgr: Linux Bridge manager
         :param int_br: OVS integration bridge
         :param tun_br: OVS tunnel bridge
@@ -174,60 +189,64 @@ class BaGPipeBGPAgent(HTTPClientBase,
         self.int_br = int_br
         self.tun_br = tun_br
         self.patch_int_ofport = patch_int_ofport
-        self.local_vlan_map = local_vlan_map
+        if local_vlan_map is not None:
+                self.local_vlan_map = local_vlan_map
+        else:
+                self.local_vlan_map = {}
         self.setup_entry_for_arp_reply = setup_entry_for_arp_reply
 
         self.ping_interval = cfg.CONF.BAGPIPE.ping_interval
 
         self.reg_attachments = defaultdict(list)
+        self.bgpvpn_network2vpnInfo = dict()
         self.bagpipe_bgp_status = self.BAGPIPEBGP_DOWN
         self.seq_num = 0
 
         if self.agent_type == q_const.AGENT_TYPE_OVS:
             self.setup_mpls_br(cfg.CONF.BAGPIPE.mpls_bridge)
 
-        # Starts a greenthread for BaGPipe BGP component status polling
+        # Starts a greenthread for bagpipe-bgp status polling
         self._start_bagpipe_bgp_status_polling(self.ping_interval)
 
     def _check_bagpipe_bgp_status(self):
         """Trigger refresh on bagpipe-bgp restarts
 
-        Check if BaGPipe BGP component has restarted while sending ping request
+        Check if bagpipe-bgp has restarted while sending ping request
         to detect sequence number change.
-        If a restart is detected, re-send all registered attachments to BaGPipe
-        BGP component.
+        If a restart is detected, re-send all registered attachments to
+        bagpipe-bgp.
         """
         new_seq_num = self.request_ping()
 
-        # Check BaGPipe BGP component restart
+        # Check bagpipe-bgp restart
         if new_seq_num != self.seq_num:
             if new_seq_num != -1:
                 if self.seq_num != 0:
-                    LOG.warning("BaGPipe BGP component restart detected...")
+                    LOG.warning("bagpipe-bgp restart detected...")
                 else:
-                    LOG.info("BaGPipe BGP component successfully detected")
+                    LOG.info("bagpipe-bgp successfully detected")
 
                 self.seq_num = new_seq_num
                 self.bagpipe_bgp_status = self.BAGPIPEBGP_UP
 
-                # Re-send all registered attachments to BGP component
+                # Re-send all registered attachments to bagpipe-bgp
                 if self.reg_attachments:
-                    LOG.info("Sending all registered attachments to BaGPipe "
-                             "BGP component")
+                    LOG.info("Sending all registered attachments to "
+                             "bagpipe-bgp")
                     LOG.debug("Registered attachments list: %s" %
                               self.reg_attachments)
-                    for _, attachment_list in self.reg_attachments.iteritems():
+                    for network_id, attachment_list in (
+                            self.reg_attachments.iteritems()):
                         if attachment_list:
                             for attachment in attachment_list:
-                                self._do_local_port_bagpipe_plug(attachment)
-                                self._do_local_port_bgpvpn_plug(attachment)
+                                self._do_local_port_plug(attachment)
                 else:
-                    LOG.info("No attachment to send to BaGPipe BGP component")
+                    LOG.info("No attachment to send to bagpipe-bgp")
             else:
                 self.bagpipe_bgp_status = self.BAGPIPEBGP_DOWN
 
     def _start_bagpipe_bgp_status_polling(self, ping_interval=10):
-        # Start BaGPipe BGP component status polling at regular interval
+        # Start bagpipe-bgp status polling at regular interval
         status_loop = loopingcall.FixedIntervalLoopingCall(
             self._check_bagpipe_bgp_status)
         status_loop.start(interval=ping_interval,
@@ -256,109 +275,136 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         return index, details
 
-    @lockutils.synchronized('bagpipe-bgp-agent')
-    def _remove_reg_attachment_for_index(self, network_id, index):
-        # Remove local port details at index in BGP registered attachments list
-        # for the specified network
+    def _ovs_check_net_in_lvm(self, network_uuid, func):
+        if (self.agent_type == q_const.AGENT_TYPE_OVS and
+                network_uuid not in self.local_vlan_map):
+            LOG.error("network %s not yet in OVS Local VLAN map, cannot "
+                      "act on %s", network_uuid, func)
+            return False
+        else:
+            return True
 
-        LOG.debug(
-            "Removing attachment %s", self.reg_attachments[network_id][index]
-        )
-        if not any(key in self.reg_attachments[network_id][index]
-                   for key in ('evpn', 'evpn_bgpvpn', 'ipvpn_bgpvpn')):
-            LOG.debug("Deleting attachment...")
-            del self.reg_attachments[network_id][index]
-
-            # Check if removing last registered attachment
-            if not self.reg_attachments[network_id]:
-                LOG.debug("No attachment on network, deleting...")
-                del self.reg_attachments[network_id]
-
-    def _concatenate_route_target(self, route_target1, route_target2):
-        return dict([(k, list(route_target1[k]).append(route_target2[k]))
-                    for k in route_target1 if k in route_target2])
-
-    def _remove_route_target(self, route_target1, route_target2):
-        return dict([(k, [rt for rt in route_target1[k]
-                          if rt not in route_target2[k]])
-                    for k in route_target1 if k in route_target2])
-
-    def _copy_local_port_and_network_details(self, local_port_details):
+    def _copy_local_port_common_details(self, local_port_details):
         local_port_copy = {}
-        for key in ('local_port', 'mac_address', 'ip_address', 'gateway_ip'):
+        for key in ['local_port']:
             local_port_copy[key] = local_port_details[key]
 
-        if 'linuxbr' in local_port_details:
-            local_port_copy['linuxbr'] = local_port_details['linuxbr']
+        for optional in ['linuxbr']:
+            if optional in local_port_details:
+                local_port_copy[optional] = local_port_details[optional]
 
         return local_port_copy
 
-    def _get_local_port_with_evpn_details(self, local_port_details,
-                                          evpn_bgpvpn=None):
-        local_port_evpn_details = (
-            self._copy_local_port_and_network_details(local_port_details)
-        )
-        local_port_evpn_details['vpn_instance_id'] = (
-            '%s_evpn' % local_port_details['vpn_instance_id']
-        )
-        local_port_evpn_details['vpn_type'] = 'evpn'
+    def _copy_notifier_vpn_details(self, notifier_details):
+        notifier_copy = {}
+        for key in ['mac_address', 'ip_address', 'gateway_ip',
+                    'import_rt', 'export_rt']:
+            notifier_copy[key] = notifier_details[key]
 
-        if 'evpn_bgpvpn' in local_port_details:
-            if evpn_bgpvpn:
-                local_port_evpn_details.update(evpn_bgpvpn)
+        for optional in ['readvertise', 'attract_traffic']:
+            if optional in notifier_details:
+                notifier_copy[optional] = notifier_details[optional]
+
+        return notifier_copy
+
+    def _populate_vpntype_ipaddress2details(self, vpn_type, notifier,
+                                            local_port_details,
+                                            vpntype_ipaddress2details):
+        # (used only as a helper for _get_local_port_plug_details)
+        # will populate vpntype_ipaddress2details dict
+
+        if (notifier in local_port_details and
+                vpn_type in local_port_details[notifier] and
+                'import_rt' in local_port_details[notifier][vpn_type] and
+                'export_rt' in local_port_details[notifier][vpn_type]):
+            notifier_details = local_port_details[notifier][vpn_type]
+            LOG.debug("Notifier %s details: %s" % (vpn_type,
+                                                   notifier_details))
+
+            if ((vpn_type, notifier_details['ip_address']) in
+                    vpntype_ipaddress2details):
+                plug_details = vpntype_ipaddress2details[
+                    (vpn_type, notifier_details['ip_address'])
+                    ]
+
+                plug_details['import_rt'] += notifier_details['import_rt']
+                plug_details['export_rt'] += notifier_details['export_rt']
+
+                vpntype_ipaddress2details[
+                    (vpn_type, notifier_details['ip_address'])
+                    ].update(plug_details)
             else:
-                if 'evpn' in local_port_details:
-                    evpn_details = (
-                        self._concatenate_route_target(
-                            local_port_details['evpn'],
-                            local_port_details['evpn_bgpvpn']
-                        )
-                    )
-                    local_port_evpn_details.update(evpn_details)
-                else:
-                    local_port_evpn_details.update(
-                        local_port_details['evpn_bgpvpn']
-                    )
-        else:
-            if 'evpn' in local_port_details:
-                local_port_evpn_details.update(local_port_details['evpn'])
+                plug_details = {
+                    'vpn_type': vpn_type,
+                    'vpn_instance_id': '%s_%s' %
+                    (local_port_details['vpn_instance_id'], vpn_type),
+                }
 
-        LOG.debug('Local port E-VPN details %s' % local_port_evpn_details)
-        return local_port_evpn_details
+                plug_details.update(
+                    self._copy_local_port_common_details(local_port_details))
 
-    def _get_local_port_with_ipvpn_details(self, local_port_details,
-                                           ipvpn_bgpvpn=None):
-        local_port_ipvpn_details = (
-            self._copy_local_port_and_network_details(local_port_details)
-        )
-        local_port_ipvpn_details['vpn_instance_id'] = (
-            '%s_ipvpn' % local_port_details['vpn_instance_id']
-        )
-        local_port_ipvpn_details['vpn_type'] = 'ipvpn'
+                if 'ipvpn' == vpn_type:
+                    for vpntype_ipaddress in vpntype_ipaddress2details:
+                        if 'evpn' in vpntype_ipaddress:
+                            plug_details['local_port'] = {'evpn': {
+                                'id': '%s_evpn' %
+                                local_port_details['vpn_instance_id']}
+                                }
 
-        # Check if ipvpn has to be plugged into an evpn
-        if any(key in local_port_details for key in ('evpn', 'evpn_bgpvpn')):
-            LOG.debug("IP-VPN has to be plugged into E-VPN")
-            local_port_ipvpn_details['local_port'] = (
-                {'evpn': {
-                    'id': '%s_evpn' % local_port_details['vpn_instance_id']}}
-            )
+                plug_details.update(self._copy_notifier_vpn_details(
+                    notifier_details))
 
-        if ipvpn_bgpvpn:
-            local_port_ipvpn_details.update(ipvpn_bgpvpn)
-        else:
-            local_port_ipvpn_details.update(local_port_details['ipvpn_bgpvpn'])
+                vpntype_ipaddress2details[(vpn_type,
+                                           notifier_details['ip_address'])
+                                          ] = deepcopy(plug_details)
 
-        LOG.debug('Local port IP-VPN details %s' % local_port_ipvpn_details)
-        return local_port_ipvpn_details
+            if 'static_routes' in notifier_details:
+                for static_route in notifier_details['static_routes']:
+                    plug_details['ip_address'] = static_route
+                    plug_details.update({'advertise_subnet': True})
+                    vpntype_ipaddress2details[
+                        (vpn_type, static_route)] = deepcopy(plug_details)
 
-    # BaGPipe BGP component REST API requests
+    def _get_local_port_plug_details(self, local_port_details, vpn_types=None,
+                                     notifiers=None):
+        # Construct plug details list for specified notifiers corresponding to
+        # port
+
+        all_plug_details = {}
+        vpntype_ipaddress2details = OrderedDict()
+
+        plug_types = vpn_types if vpn_types else VPN_TYPES
+        plug_notifiers = notifiers if notifiers else BAGPIPE_NOTIFIERS
+
+        for (vpn_type, notifier) in [
+                (x, y) for x in plug_types for y in plug_notifiers]:
+            self._populate_vpntype_ipaddress2details(vpn_type,
+                                                     notifier,
+                                                     local_port_details,
+                                                     vpntype_ipaddress2details)
+
+        LOG.debug('Local port (VPN type, IP address) map details %s' %
+                  vpntype_ipaddress2details)
+
+        for (vpntype_ipaddress, plug_details) in (vpntype_ipaddress2details.
+                                                  iteritems()):
+            if vpntype_ipaddress[0] in all_plug_details:
+                all_plug_details[vpntype_ipaddress[0]].append(plug_details)
+            else:
+                all_plug_details[vpntype_ipaddress[0]] = list([plug_details])
+
+        LOG.debug('Local port %s details %s' % (local_port_details['port_id'],
+                                                all_plug_details))
+
+        return all_plug_details
+
+    # bagpipe-bgp REST API requests
     # ----------------------------------------
     def request_ping(self):
-        """Send ping request to BaGPipe BGP component to get sequence number"""
+        """Send ping request to bagpipe-bgp to get sequence number"""
         try:
             response = self.get('ping')
-            LOG.debug("BaGPipe BGP component PING response received with "
+            LOG.debug("bagpipe-bgp PING response received with "
                       "sequence number %s" % response)
             return response
         except BaGPipeBGPException as e:
@@ -370,26 +416,29 @@ class BaGPipeBGPAgent(HTTPClientBase,
         if self.bagpipe_bgp_status is self.BAGPIPEBGP_UP:
             try:
                 self.post('attach_localport', local_port_details)
-                LOG.debug("Local port has been attached on BGP component with "
+                LOG.debug("Local port has been attached to bagpipe-bgp with "
                           "details %s" % local_port_details)
             except BaGPipeBGPException as e:
-                LOG.error("Can't attach local port on BaGPipe BGP "
-                          "component: %s", str(e))
+                LOG.error("Can't attach local port on bagpipe-bgp: %s", str(e))
+        else:
+            LOG.debug("Local port not yet attached to bagpipe-bgp (not up)")
 
     def send_detach_local_port(self, local_port_details):
         """Send local port detach request to BaGPipe-BGP if running"""
         if self.bagpipe_bgp_status is self.BAGPIPEBGP_UP:
             try:
                 self.post('detach_localport', local_port_details)
-                LOG.debug("Local port has been detached from BaGPipe BGP "
-                          "component with details %s" % local_port_details)
+                LOG.debug("Local port has been detached from bagpipe-bgp "
+                          "with details %s" % local_port_details)
             except BaGPipeBGPException as e:
-                LOG.error("Can't detach local port from BaGPipe BGP "
-                          "component: %s", str(e))
+                LOG.error("Can't detach local port from bagpipe-bgp: %s",
+                          str(e))
                 raise
+        else:
+            LOG.debug("Local port not yet detached from bagpipe-bgp (not up)")
 
     def setup_mpls_br(self, mpls_br):
-        '''Setup the MPLS bridge for BaGPipe BGP VPN.
+        '''Setup the MPLS bridge for bagpipe-bgp.
 
         Creates MPLS bridge, and links it to the integration and tunnel
         bridges using patch ports.
@@ -447,26 +496,22 @@ class BaGPipeBGPAgent(HTTPClientBase,
         self.tun_br.add_flow(in_port=self.patch_tun_from_mpls_ofport,
                              actions="output:%s" % self.patch_int_ofport)
 
-    def _get_port_details_for_attach(self, port_id, net_uuid):
-        details = {
-            'port_id': port_id,
-            'vpn_instance_id': net_uuid
-        }
+    def _get_local_port_for_attach(self, port_id, net_uuid):
         if self.agent_type == q_const.AGENT_TYPE_LINUXBRIDGE:
             port_name = self.br_mgr.get_tap_device_name(port_id)
             bridge_name = self.br_mgr.get_bridge_name(net_uuid)
 
-            details.update({
+            details = {
                 'linuxbr': bridge_name,
                 'local_port': {
                     'linuxif': port_name
                 }
-            })
+            }
         elif self.agent_type == q_const.AGENT_TYPE_OVS:
             port = self.int_br.get_vif_port_by_id(port_id)
             lvm = self.local_vlan_map[net_uuid]
 
-            details.update({
+            details = {
                 'local_port': {
                     'linuxif': port.port_name,
                     'ovs': {
@@ -476,77 +521,174 @@ class BaGPipeBGPAgent(HTTPClientBase,
                         'vlan': lvm.vlan
                     }
                 }
-            })
+            }
 
         return details
 
-    @lockutils.synchronized('bagpipe-bgp-agent')
-    def _add_local_port_details(self, network_id, port_id, port_info):
-        # Update local port details to registered attachments list
-        try:
-            index, details = self._get_reg_attachment_for_port(network_id,
-                                                               port_id)
+    def _copy_port_network_details(self, port_details):
+        network_details = {}
+        for key in ['ip_address', 'mac_address', 'gateway_ip']:
+            network_details[key] = port_details[key]
 
-            # Update local port details with BaGPipe informations
-            if 'evpn' in port_info:
-                details['evpn'] = port_info['evpn']
+        return network_details
 
-            # Update local port details with BGP VPN informations
-            if 'l3vpn' in port_info:
-                details['ipvpn_bgpvpn'] = port_info['l3vpn']
+    def _format_port_details(self, port_details, notifier=None):
+        """Format port details as follows:
 
-            if 'l2vpn' in port_info:
-                details['evpn_bgpvpn'] = port_info['l2vpn']
+        {
+            mac_address: <PORT_MAC>,
+            ip_address: <PORT_IP>,
+            gateway_ip: <PORT_GATEWAY>,
+            evpn | ipvpn: {
+                import_rts: [<ASN:NN>],
+                export_rts: [<ASN:NN>]
+            }
+        }
 
-            self.reg_attachments[network_id][index] = details
-        except BGPAttachmentNotFound:
-            # Add local port details to registered attachments list
-            details = self._get_port_details_for_attach(port_id, network_id)
+        to
 
-            if 'l3vpn' in port_info:
-                port_info['ipvpn_bgpvpn'] = port_info.pop('l3vpn')
-
-            if 'l2vpn' in port_info:
-                port_info['evpn_bgpvpn'] = port_info.pop('l2vpn')
-
-            # Route targets, IP, MAC, and gateway information is passed as-is
-            details.update(port_info)
-            self.reg_attachments[network_id].append(details)
-        finally:
-            return details
-
-    # BaGPipe RPC callbacks
-    # ----------------------
-    def _do_local_port_bagpipe_plug(self, local_port_details):
-        # Send local port attach request to BaGPipe BGP if plugged on a BaGPipe
-        # network.
-
-        if 'evpn' in local_port_details:
-            local_port_evpn_details = (
-                self._get_local_port_with_evpn_details(local_port_details)
-            )
-            self.send_attach_local_port(local_port_evpn_details)
-
-    def _do_local_port_bagpipe_unplug(self, network_id, index):
-        # Send local port detach request to BaGPipe BGP if plugged on
-        # a BaGPipe network and update BGP registered attachments list
-
-        local_port_details = self.reg_attachments[network_id][index]
-
-        if 'evpn' in local_port_details:
-            try:
-                local_port_evpn_details = (
-                    self._get_local_port_with_evpn_details(local_port_details)
+        {
+            evpn | ipvpn: {
+                mac_address: <PORT_MAC>,
+                ip_address: <PORT_IP>,
+                gateway_ip: <PORT_GATEWAY>,
+                import_rts: [<ASN:NN>],
+                export_rts: [<ASN:NN>]
+            }
+        }
+        """
+        copy_details = deepcopy(port_details)
+        formatted_details = {}
+        for vpn_type in VPN_TYPES:
+            if vpn_type in copy_details:
+                formatted_details[vpn_type] = copy_details.pop(vpn_type)
+                formatted_details[vpn_type].update(copy_details)
+            elif notifier and notifier == BGPVPN_NOTIFIER:
+                formatted_details[vpn_type] = (
+                    self._copy_port_network_details(copy_details)
                 )
-                self.send_detach_local_port(local_port_evpn_details)
 
-                # Remove local port BaGPipe informations from local port
-                # details in registered attachments list, only if no exception
-                # occurred on BaGPipe BGP
-                del local_port_details['evpn']
-                self.reg_attachments[network_id][index] = local_port_details
-            except BaGPipeBGPException:
-                pass
+        return formatted_details
+
+    @lockutils.synchronized('bagpipe-bgp-agent')
+    def _add_local_port_details(self, notifier, network_id, port_id,
+                                port_info):
+        """Create/update local port details in registered attachments list
+
+        As follows:
+        {
+            port_id: <PORT_UUID>,
+            vpn_instance_id: <NETWORK_UUID|PORT_UUID>,
+            local_port: {
+                linuxif: <PORT_NAME>,
+
+                # Optional parameter only used in OVS agent
+                ovs: {
+                    plugged: True,
+                    port_number: <PATCH_MPLS_FROM_TUN_OFPORT>,
+                    to_vm_port_number: <PATCH_MPLS_TO_TUN_OFPORT>,
+                    vlan: <LOCAL_VLAN_IDENTIFIER>
+                }
+            }
+
+            # Optional parameter only used in Linux Bridge agent
+            linuxbr: <LINUX_BRIDGE_NAME>,
+
+            bagpipe: {
+                evpn | ipvpn: {
+                    mac_address: <PORT_MAC>,
+                    ip_address: <PORT_IP>,
+                    gateway_ip: <PORT_GATEWAY>,
+                    import_rts: [<ASN:NN>, ...],
+                    export_rts: [<ASN:NN>, ...]
+                }
+            },
+            bgpvpn: {
+                evpn | ipvpn: {
+                    mac_address: <PORT_MAC>,
+                    ip_address: <PORT_IP>,
+                    gateway_ip: <PORT_GATEWAY>,
+                    import_rts: [<ASN:NN>, ...],
+                    export_rts: [<ASN:NN>, ...]
+                }
+            }
+        }
+
+        and return formatted port details to notifier for plug/unplug action.
+        """
+        try:
+            # Update local port details to registered attachments list
+            index, port_details = self._get_reg_attachment_for_port(network_id,
+                                                                    port_id)
+
+            # Format port details from notified informations
+            formatted_details = self._format_port_details(port_info, notifier)
+
+            if notifier in port_details:
+                port_details[notifier].update(formatted_details)
+            else:
+                port_details[notifier] = formatted_details
+
+            self.reg_attachments[network_id][index] = port_details
+        except BGPAttachmentNotFound:
+            LOG.info("Adding local port to attachments list")
+            # Add local port details to registered attachments list
+            port_details = {'port_id': port_id}
+
+            # Update with bagpipe-bgp local_port details depending on
+            # agent type
+            port_details.update(self._get_local_port_for_attach(port_id,
+                                                                network_id))
+
+            if 'vpn_instance_id' not in port_info:
+                port_details['vpn_instance_id'] = network_id
+            else:
+                port_details['vpn_instance_id'] = (
+                    port_info.pop('vpn_instance_id'))
+
+            # Format port details from notified informations
+            port_details[notifier] = self._format_port_details(port_info,
+                                                               notifier)
+            self.reg_attachments[network_id].append(port_details)
+        finally:
+            LOG.debug("Updated attachments list: %s" %
+                      self.reg_attachments[network_id])
+
+        return port_details
+
+    @lockutils.synchronized('bagpipe-bgp-agent')
+    def _remove_local_port_details_for_index(self, net_id, index,
+                                             notifier, delete=True):
+        """Remove/update notifier local port details in reg_attachments
+
+        Remove/update notifier local port details at this index in BGP
+        registered attachments list for the specified network, only if no
+        exception occurred on bagpipe-bgp.
+        """
+        if (notifier in self.reg_attachments[net_id][index]):
+            if notifier == BGPVPN_NOTIFIER and not delete:
+                bgpvpn_reg_attachment = (
+                    self.reg_attachments[net_id][index][notifier]
+                )
+                for vpn_type in VPN_TYPES:
+                    if vpn_type in bgpvpn_reg_attachment:
+                        for rt_type in ['import_rt', 'export_rt']:
+                            if rt_type in bgpvpn_reg_attachment[vpn_type]:
+                                del bgpvpn_reg_attachment[vpn_type][rt_type]
+            elif delete:
+                del self.reg_attachments[net_id][index][notifier]
+
+            LOG.debug("Checking to remove attachment: %s",
+                      self.reg_attachments[net_id][index])
+            if not any(key in self.reg_attachments[net_id][index]
+                       for key in BAGPIPE_NOTIFIERS):
+                LOG.debug("Deleting attachment...")
+                del self.reg_attachments[net_id][index]
+
+                # Check if removing last registered attachment
+                if not self.reg_attachments[net_id]:
+                    LOG.debug("No attachment on network, deleting...")
+                    del self.reg_attachments[net_id]
 
     def setup_rpc(self, endpoints, connection, main_topic):
 
@@ -578,23 +720,56 @@ class BaGPipeBGPAgent(HTTPClientBase,
         # we now need to trigger consumption on new server...
         connection.consume_in_threads()
 
+    def _do_local_port_plug(self, local_port_details):
+        """Send local port attach request to bagpipe-bgp."""
+        all_plug_details = (
+            self._get_local_port_plug_details(local_port_details)
+        )
+
+        # First plug E-VPNs because they could be plugged into IP-VPNs
+        for vpn_type in VPN_TYPES:
+            if vpn_type in all_plug_details:
+                for plug_detail in all_plug_details[vpn_type]:
+                    self.send_attach_local_port(plug_detail)
+
+    def _do_local_port_unplug(self, local_port_details, vpn_types=None,
+                              notifiers=None):
+        """Send local port detach request to bagpipe-bgp."""
+        all_unplug_details = (
+            self._get_local_port_plug_details(local_port_details,
+                                              vpn_types=vpn_types,
+                                              notifiers=notifiers)
+        )
+
+        # First unplug IP-VPNs because E-VPNs could be plugged into them
+        for vpn_type in VPN_TYPES[::-1]:
+            if vpn_type in all_unplug_details:
+                for unplug_detail in all_unplug_details[vpn_type]:
+                    self.send_detach_local_port(unplug_detail)
+
+    # BaGPipe RPC callbacks
+    # ----------------------
     def bagpipe_port_attach(self, context, port_bagpipe_info):
         LOG.debug("bagpipe_port_attach received with port info: %s",
                   port_bagpipe_info)
         port_id = port_bagpipe_info.pop('id')
         net_uuid = port_bagpipe_info.pop('network_id')
 
+        if not self._ovs_check_net_in_lvm(net_uuid, 'bagpipe_port_attach'):
+            return
+
         # Add/Update local port details in registered attachments list
-        port_details = self._add_local_port_details(net_uuid,
+        port_details = self._add_local_port_details(BAGPIPE_NOTIFIER,
+                                                    net_uuid,
                                                     port_id,
                                                     port_bagpipe_info)
 
-        # Attach port on BaGPipe BGP component
+        # Attach port on bagpipe-bgp
         LOG.debug(
-            "Attaching port %s on BaGPipe BGP component with details %s",
-            port_details['local_port']['linuxif'], port_details)
+            "Attaching BaGPipe L2 port %s on bagpipe-bgp with "
+            "details %s", port_details['local_port']['linuxif'], port_details)
 
-        self._do_local_port_bagpipe_plug(port_details)
+        self._do_local_port_plug(port_details)
 
     def bagpipe_port_detach(self, context, port_bagpipe_info):
         LOG.debug("bagpipe_port_detach received with port info %s",
@@ -602,229 +777,104 @@ class BaGPipeBGPAgent(HTTPClientBase,
         port_id = port_bagpipe_info['id']
         net_uuid = port_bagpipe_info['network_id']
 
-        # Detach port from BaGPipe BGP component
-        LOG.debug("Detaching port %s from BaGPipe BGP component", port_id)
+        # Detach port from bagpipe-bgp
+        LOG.debug("Detaching port %s from bagpipe-bgp", port_id)
         try:
-            index, _ = self._get_reg_attachment_for_port(net_uuid, port_id)
-            self._do_local_port_bagpipe_unplug(net_uuid, index)
-            self._remove_reg_attachment_for_index(net_uuid, index)
+            index, port_details = self._get_reg_attachment_for_port(net_uuid,
+                                                                    port_id)
         except BGPAttachmentNotFound as e:
-            LOG.error("Can't detach port from BaGPipe BGP "
-                      "component: %s", str(e))
+            LOG.error("bagpipe-bgp agent inconsistent for BaGPipe L2 or "
+                      "updated with another detach: %s", str(e))
+        else:
+            try:
+                self._do_local_port_unplug(port_details)
+            except BaGPipeBGPException as e:
+                LOG.error("Can't detach port from bagpipe-bgp: %s", str(e))
+            finally:
+                self._remove_local_port_details_for_index(net_uuid, index,
+                                                          BAGPIPE_NOTIFIER)
 
-    # BGP VPN connection callbacks
+    # BGPVPN callbacks
     # -----------------------------
     def _update_local_port_bgpvpn_details(self, network_id, index,
-                                          ipvpn_bgpvpn, evpn_bgpvpn):
+                                          evpn, ipvpn):
         attachment = self.reg_attachments[network_id][index]
 
-        if ipvpn_bgpvpn:
-            attachment['ipvpn_bgpvpn'] = ipvpn_bgpvpn
+        if evpn:
+            if EVPN in attachment[BGPVPN_NOTIFIER]:
+                attachment[BGPVPN_NOTIFIER][EVPN].update(evpn)
 
-        if evpn_bgpvpn:
-            attachment['evpn_bgpvpn'] = evpn_bgpvpn
+        if ipvpn:
+            if IPVPN in attachment[BGPVPN_NOTIFIER]:
+                attachment[BGPVPN_NOTIFIER][IPVPN].update(ipvpn)
 
         self.reg_attachments[network_id][index] = attachment
 
         return attachment
 
-    def _attach_all_ports_on_bgpvpn_network(self, network_id, ipvpn_bgpvpn,
-                                            evpn_bgpvpn):
-        # Attach all ports on BaGPipe-BGP for to the specified BGP VPN network
+    def _attach_all_ports_on_bgpvpn(self, network_id, bgpvpn):
+        # Attach all ports on BaGPipe-BGP for to the specified BGP VPN
 
         LOG.debug("Attaching all BGP registered attachments on BGP VPN "
-                  "network %s with %s - %s" %
-                  (network_id, ipvpn_bgpvpn, evpn_bgpvpn))
+                  "network %s with %s" % (network_id, bgpvpn))
+
+        evpn = bgpvpn.get(EVPN, bgpvpn.get(BGPVPN_L2))
+        ipvpn = bgpvpn.get(IPVPN, bgpvpn.get(BGPVPN_L3))
 
         for index, _ in enumerate(self.reg_attachments[network_id]):
             updated_attachment = (
-                self._update_local_port_bgpvpn_details(network_id,
-                                                       index,
-                                                       ipvpn_bgpvpn,
-                                                       evpn_bgpvpn)
+                self._update_local_port_bgpvpn_details(network_id, index,
+                                                       evpn, ipvpn)
             )
 
-            self._do_local_port_bgpvpn_plug(updated_attachment)
+            self._do_local_port_plug(updated_attachment)
 
-    def _detach_all_ports_from_bgpvpn_network(self, network_id, ipvpn_bgpvpn,
-                                              evpn_bgpvpn):
-        # Detach all ports from BaGPipe-BGP for the specified BGP VPN network
+    def _detach_all_ports_from_bgpvpn(self, network_id):
+        # Detach all ports from BaGPipe-BGP for the specified BGP VPN
 
         LOG.debug("Detaching all BGP registered attachments from BGP VPN "
                   "network %s" % network_id)
 
-        for index, _ in enumerate(self.reg_attachments[network_id]):
-            self._do_local_port_bgpvpn_unplug(network_id,
-                                              index,
-                                              ipvpn_bgpvpn,
-                                              evpn_bgpvpn)
-
-    def _do_local_port_bgpvpn_plug(self, local_port_details):
-        # Send local port attach request to BaGPipe BGP component if plugged
-        # on a BGP VPN network.
-
-        if 'evpn_bgpvpn' in local_port_details:
-            local_port_evpn_details = (
-                self._get_local_port_with_evpn_details(local_port_details)
-            )
-            self.send_attach_local_port(local_port_evpn_details)
-
-        if 'ipvpn_bgpvpn' in local_port_details:
-            local_port_ipvpn_details = (
-                self._get_local_port_with_ipvpn_details(local_port_details)
-            )
-            self.send_attach_local_port(local_port_ipvpn_details)
-
-    def _do_local_port_bgpvpn_unplug(self, network_id, index,
-                                     ipvpn_bgpvpn=None, evpn_bgpvpn=None):
-        # Send local port detach request to BaGPipe BGP if plugged
-        # on a BGP VPN network and update BGP registered attachments list.
-
-        local_port_details = self.reg_attachments[network_id][index]
-
-        # TODO(tmorin): factor out the two cases for ipvpn and evpn
-        # TODO(tmorin): check error handling on bagpipe-bgp exceptions
-        if 'ipvpn_bgpvpn' in local_port_details:
+        for index, port_details in enumerate(self.reg_attachments[network_id]):
             try:
-                if ipvpn_bgpvpn:
-                    local_port_ipvpn_details = (
-                        self._get_local_port_with_ipvpn_details(
-                            local_port_details,
-                            ipvpn_bgpvpn)
-                    )
-                else:
-                    local_port_ipvpn_details = (
-                        self._get_local_port_with_ipvpn_details(
-                            local_port_details
-                        )
-                    )
-                    ipvpn_bgpvpn = local_port_details['ipvpn_bgpvpn']
+                self._do_local_port_unplug(port_details,
+                                           notifiers=[BGPVPN_NOTIFIER])
+            except BaGPipeBGPException as e:
+                LOG.error("Can't detach port from bagpipe-bgp: %s", str(e))
+            finally:
+                self._remove_local_port_details_for_index(network_id, index,
+                                                          BGPVPN_NOTIFIER,
+                                                          delete=False)
 
-                self.send_detach_local_port(local_port_ipvpn_details)
+    def create_bgpvpn(self, context, bgpvpn):
+        LOG.debug("create_bgpvpn received with details %s", bgpvpn)
+        self.update_bgpvpn(context, bgpvpn)
 
-                # Remove local port BGP VPN informations from local port
-                # details in registered attachments list, only if no exception
-                # occurred on BaGPipe BGP
-                updated_ipvpn = (
-                    self._remove_route_target(
-                        local_port_details['ipvpn_bgpvpn'],
-                        ipvpn_bgpvpn
-                    )
-                )
+    def update_bgpvpn(self, context, bgpvpn):
+        LOG.debug("update_bgpvpn received with details %s", bgpvpn)
+        net_uuid = bgpvpn['network_id']
+        self._attach_all_ports_on_bgpvpn(net_uuid, bgpvpn)
 
-                if updated_ipvpn['import_rt'] or updated_ipvpn['export_rt']:
-                    local_port_details['ipvpn_bgpvpn'] = updated_ipvpn
-                else:
-                    del local_port_details['ipvpn_bgpvpn']
-
-                self.reg_attachments[network_id][index] = local_port_details
-            except BaGPipeBGPException:
-                pass
-
-        if 'evpn_bgpvpn' in local_port_details:
-            try:
-                if evpn_bgpvpn:
-                    local_port_evpn_details = (
-                        self._get_local_port_with_evpn_details(
-                            local_port_details,
-                            evpn_bgpvpn
-                        )
-                    )
-                else:
-                    local_port_evpn_details = (
-                        self._get_local_port_with_evpn_details(
-                            local_port_details
-                        )
-                    )
-                    evpn_bgpvpn = local_port_details['evpn_bgpvpn']
-
-                self.send_detach_local_port(local_port_evpn_details)
-
-                # Remove local port BGP VPN informations from local port
-                # details in registered attachments list, only if no exception
-                # occurred on BaGPipe BGP
-                updated_evpn = (
-                    self._remove_route_target(
-                        local_port_details['evpn_bgpvpn'],
-                        evpn_bgpvpn
-                    )
-                )
-
-                if updated_evpn['import_rt'] or updated_evpn['export_rt']:
-                    local_port_details['evpn_bgpvpn'] = updated_evpn
-                else:
-                    del local_port_details['evpn_bgpvpn']
-
-                self.reg_attachments[network_id][index] = local_port_details
-            except BaGPipeBGPException:
-                pass
-
-    def create_bgpvpn_connection(self, context, bgpvpn_connection):
-        LOG.debug("create_bgpvpn_connection received with details %s",
-                  bgpvpn_connection)
-        net_uuid = bgpvpn_connection['network_id']
-        ipvpn_bgpvpn = (
-            bgpvpn_connection['l3vpn'] if 'l3vpn' in bgpvpn_connection else {}
-        )
-        evpn_bgpvpn = (
-            bgpvpn_connection['l2vpn'] if 'l2vpn' in bgpvpn_connection else {}
-        )
-
-        self._attach_all_ports_on_bgpvpn_network(net_uuid, ipvpn_bgpvpn,
-                                                 evpn_bgpvpn)
-
-    def update_bgpvpn_connection(self, context, bgpvpn_connection):
-        LOG.debug("update_bgpvpn_connection received with details %s",
-                  bgpvpn_connection)
-        net_uuid = bgpvpn_connection['network_id']
-        ipvpn_bgpvpn = (
-            bgpvpn_connection['l3vpn'] if 'l3vpn' in bgpvpn_connection else {}
-        )
-        evpn_bgpvpn = (
-            bgpvpn_connection['l2vpn'] if 'l2vpn' in bgpvpn_connection else {}
-        )
-
-        if 'old_network_id' in bgpvpn_connection:
-            old_net_uuid = bgpvpn_connection['old_network_id']
-            if net_uuid is None:
-                self._detach_all_ports_from_bgpvpn_network(old_net_uuid,
-                                                           ipvpn_bgpvpn,
-                                                           evpn_bgpvpn)
-            else:
-                if old_net_uuid is not None:
-                    self._detach_all_ports_from_bgpvpn_network(old_net_uuid,
-                                                               ipvpn_bgpvpn,
-                                                               evpn_bgpvpn)
-
-                self._attach_all_ports_on_bgpvpn_network(net_uuid,
-                                                         ipvpn_bgpvpn,
-                                                         evpn_bgpvpn)
-        else:
-            # Only route targets have been updated
-            self._attach_all_ports_on_bgpvpn_network(net_uuid,
-                                                     ipvpn_bgpvpn,
-                                                     evpn_bgpvpn)
-
-    def delete_bgpvpn_connection(self, context, bgpvpn_connection):
-        LOG.debug("delete_bgpvpn_connection received with details %s",
-                  bgpvpn_connection)
-        net_uuid = bgpvpn_connection['network_id']
-        ipvpn_bgpvpn = (
-            bgpvpn_connection['l3vpn'] if 'l3vpn' in bgpvpn_connection else {}
-        )
-        evpn_bgpvpn = (
-            bgpvpn_connection['l2vpn'] if 'l2vpn' in bgpvpn_connection else {}
-        )
-
-        self._detach_all_ports_from_bgpvpn_network(net_uuid,
-                                                   ipvpn_bgpvpn,
-                                                   evpn_bgpvpn)
+    def delete_bgpvpn(self, context, bgpvpn):
+        LOG.debug("delete_bgpvpn received with details %s", bgpvpn)
+        net_uuid = bgpvpn['network_id']
+        self._detach_all_ports_from_bgpvpn(net_uuid)
 
     def bgpvpn_port_attach(self, context, port_bgpvpn_info):
         LOG.debug("bgpvpn_port_attach received with port info: %s",
                   port_bgpvpn_info)
-        port_id = port_bgpvpn_info['id']
-        net_uuid = port_bgpvpn_info['network_id']
+        port_id = port_bgpvpn_info.pop('id')
+        net_uuid = port_bgpvpn_info.pop('network_id')
+
+        # Map l2vpn, l3vpn keys to evpn, ipvpn ones
+        for bgpvpn_type in BGPVPN_TYPES:
+            if bgpvpn_type in port_bgpvpn_info:
+                port_bgpvpn_info[BGPVPN_TYPES_MAP[bgpvpn_type]] = (
+                    port_bgpvpn_info.pop(bgpvpn_type)
+                )
+
+        if not self._ovs_check_net_in_lvm(net_uuid, 'bgpvpn_port_attach'):
+            return
 
         if self.agent_type == q_const.AGENT_TYPE_OVS:
             lvm = self.local_vlan_map[net_uuid]
@@ -833,17 +883,18 @@ class BaGPipeBGPAgent(HTTPClientBase,
                                            DEFAULT_GATEWAY_MAC,
                                            port_bgpvpn_info['gateway_ip'])
 
-        # Add/Update port BGP VPN details in registered attachments list
-        port_details = self._add_local_port_details(net_uuid,
+        # Add/Update port BGPVPN details in registered attachments list
+        port_details = self._add_local_port_details(BGPVPN_NOTIFIER,
+                                                    net_uuid,
                                                     port_id,
                                                     port_bgpvpn_info)
 
-        # Attach port on BaGPipe BGP component
-        LOG.debug("Attaching BGP VPN port %s on BaGPipe BGP component with "
+        # Attach port on bagpipe-bgp
+        LOG.debug("Attaching BGPVPN port %s on bagpipe-bgp with "
                   "details %s" %
                   (port_details['local_port']['linuxif'], port_details))
 
-        self._do_local_port_bgpvpn_plug(port_details)
+        self._do_local_port_plug(port_details)
 
     def bgpvpn_port_detach(self, context, port_bgpvpn_info):
         LOG.debug("bgpvpn_port_detach received with port info: %s",
@@ -851,15 +902,23 @@ class BaGPipeBGPAgent(HTTPClientBase,
         port_id = port_bgpvpn_info['id']
         net_uuid = port_bgpvpn_info['network_id']
 
-        # Detach BGP VPN port from BaGPipe BGP component
-        LOG.debug("Detaching BGP VPN port %s from BaGPipe BGP component",
+        # Detach BGPVPN port from bagpipe-bgp
+        LOG.debug("Detaching BGPVPN port %s from bagpipe-bgp",
                   port_id)
 
         # Retrieve local port details index in BGP registered attachment list
         try:
-            index, _ = self._get_reg_attachment_for_port(net_uuid, port_id)
-            self._do_local_port_bgpvpn_unplug(net_uuid, index)
-            self._remove_reg_attachment_for_index(net_uuid, index)
+            index, details = self._get_reg_attachment_for_port(net_uuid,
+                                                               port_id)
         except BGPAttachmentNotFound as e:
-            LOG.error("Can't detach BGP VPN port from BaGPipe BGP "
-                      "component: %s", str(e))
+            LOG.error("bagpipe-bgp agent inconsistent for BGP VPN or "
+                      "updated with another detach: %s", str(e))
+        else:
+            try:
+                self._do_local_port_unplug(details)
+            except BaGPipeBGPException as e:
+                LOG.error("Can't detach BGPVPN port from bagpipe-bgp %s",
+                          str(e))
+            finally:
+                self._remove_local_port_details_for_index(net_uuid, index,
+                                                          BGPVPN_NOTIFIER)
