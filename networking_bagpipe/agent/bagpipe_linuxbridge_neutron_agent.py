@@ -76,8 +76,9 @@ class BaGPipeLinuxBridgeNeutronAgentRPC(LinuxBridgeNeutronAgentRPC):
 
         self.bgp_agent.setup_rpc(self.endpoints, self.connection, self.topic)
 
-    def setup_linux_bridge(self, interface_mappings):
-        self.br_mgr = LinuxBridgeManagerBaGPipeL2(interface_mappings)
+    def setup_linux_bridge(self, bridge_mappings, interface_mappings):
+        self.br_mgr = LinuxBridgeManagerBaGPipeL2(bridge_mappings,
+                                                  interface_mappings)
 
 
 def main():
@@ -93,9 +94,21 @@ def main():
         sys.exit(1)
     LOG.info(_LI("Interface mappings: %s"), interface_mappings)
 
+    try:
+        bridge_mappings = n_utils.parse_mappings(
+            cfg.CONF.LINUX_BRIDGE.bridge_mappings)
+    except ValueError as e:
+        LOG.error(_LE("Parsing bridge_mappings failed: %s. "
+                      "Agent terminated!"), e)
+        sys.exit(1)
+    LOG.info(_LI("Bridge mappings: %s"), bridge_mappings)
+
     polling_interval = cfg.CONF.AGENT.polling_interval
-    agent = BaGPipeLinuxBridgeNeutronAgentRPC(interface_mappings,
-                                              polling_interval)
+    quitting_rpc_timeout = cfg.CONF.AGENT.quitting_rpc_timeout
+    agent = BaGPipeLinuxBridgeNeutronAgentRPC(bridge_mappings,
+                                              interface_mappings,
+                                              polling_interval,
+                                              quitting_rpc_timeout)
     LOG.info(_LI("Agent initialized successfully, now running... "))
     launcher = service.launch(cfg.CONF, agent)
     launcher.wait()
