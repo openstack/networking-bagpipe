@@ -1,12 +1,12 @@
-=====================
-networking-bagpipe-l2
-=====================
+==================
+networking-bagpipe
+==================
 
 Mechanism driver for Neutron ML2 plugin using BGP E-VPNs/IP VPNs as a backend
 
 * Free software: Apache license
-* Source: http://git.openstack.org/cgit/stackforge/networking-bagpipe-l2
-* Bugs: http://bugs.launchpad.net/bagpipe-l2
+* Source: http://git.openstack.org/cgit/openstack/networking-bagpipe
+* Bugs: http://bugs.launchpad.net/bagpipe
 
 Overview
 --------
@@ -34,7 +34,7 @@ How to use ?
 
 * enable the devstack plugin by adding this to `local.conf`: ::
 
-    enable_plugin networking-bagpipe-l2 git@github.com:stackforge/networking-bagpipe-l2.git stable/kilo
+    enable_plugin networking-bagpipe git@github.com:openstack/networking-bagpipe.git stable/kilo
 
 * use the following options in devstack ``local.conf``: ::
 

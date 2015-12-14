@@ -13,23 +13,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from alembic import op
-import sqlalchemy as sa
+from neutron.db.migration.cli import *  # noqa
 
 
-# revision identifiers, used by Alembic.
-revision = 'start_networking_bagpipe_l2'
-down_revision = None
-
-
-def upgrade():
-    op.create_table(
-        'ml2_route_target_allocations',
-        sa.Column('rt_nn', sa.Integer, nullable=False,
-                  autoincrement=False),
-        sa.Column('allocated', sa.Boolean, nullable=False),
-        sa.PrimaryKeyConstraint('rt_nn'))
-
-
-def downgrade():
-    op.drop_table('ml2_route_target_allocations')
+def main():
+    config = alembic_config.Config(
+        os.path.join(os.path.dirname(__file__), 'alembic.ini'))
+    config.set_main_option('script_location',
+                           ('networking_bagpipe.db.migration:'
+                            'alembic_migrations'))
+    config.neutron_config = CONF
+    CONF()
+    CONF.command.func(config, CONF.command.name)

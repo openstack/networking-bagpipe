@@ -12,7 +12,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import pbr.version
+"""
+test_networking_bagpipe
+----------------------------------
 
-__version__ = pbr.version.VersionInfo(
-    'networking_bagpipe_l2').version_string()
+Tests for `networking_bagpipe` module.
+"""
+
+from networking_bagpipe.tests import base
+
+
+class TestNetworking_bagpipe(base.TestCase):
+
+    def test_something(self):
+        pass

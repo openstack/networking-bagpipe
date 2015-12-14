@@ -1,7 +1,7 @@
-NETWORKING_BAGPIPE_L2_DIR=$DEST/networking-bagpipe-l2
-BAGPIPE_L2_AGENT=bagpipe-linuxbridge
-BAGPIPE_L2_AGENT_BINARY="$NEUTRON_BIN_DIR/neutron-bagpipe-linuxbridge-agent"
+NETWORKING_BAGPIPE_DIR=$DEST/networking-bagpipe
+BAGPIPE_AGENT=bagpipe-linuxbridge
+BAGPIPE_AGENT_BINARY="$NEUTRON_BIN_DIR/neutron-bagpipe-linuxbridge-agent"
 
 # agent settings
-Q_AGENT=${Q_AGENT:-${BAGPIPE_L2_AGENT}}
+Q_AGENT=${Q_AGENT:-${BAGPIPE_AGENT}}
 
