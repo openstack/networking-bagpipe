@@ -16,6 +16,8 @@
 import contextlib
 import mock
 
+from oslo_config import cfg
+
 from oslo_utils import uuidutils
 
 from neutron.common import constants as q_const
@@ -1408,6 +1410,7 @@ class TestBaGPipeBGPAgentLinuxBridge(base.BaseTestCase,
                                      TestBaGPipeBGPAgentMixin):
 
     def setUp(self):
+        cfg.CONF.set_override('enable_vxlan', False, 'VXLAN')
         super(TestBaGPipeBGPAgentLinuxBridge, self).setUp()
 
         self.bridge_mappings = {}
