@@ -46,15 +46,12 @@ class BaGPipeAgentNotifyAPI(object):
         LOG.debug('Notify BaGPipe ML2 plugin agent %(host)s at %(topic)s '
                   'the message %(method)s with %(port_bagpipe_info)s',
                   {'host': host,
-                   'topic': '%s.%s' % (self.topic_bagpipe_update, host),
+                   'topic': self.topic_bagpipe_update,
                    'method': method,
                    'port_bagpipe_info': port_bagpipe_info})
 
         cctxt = self.client.prepare(topic=self.topic_bagpipe_update,
-                                    fanout=True)
-        # TODO(tmorin): per-host topics
-        # topic = '%s.%s' % (self.topic_bagpipe_update, host)
-        # cctxt = self.client.prepare(topic=topic, fanout=True) # fanout=False?
+                                    server=True)
         cctxt.cast(context, method, port_bagpipe_info=port_bagpipe_info)
 
     def attach_port_on_bagpipe_network(self, context, port_bagpipe_info,
