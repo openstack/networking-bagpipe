@@ -71,8 +71,6 @@ class BagpipeAgentExtension(agent_extension.AgentCoreResourceExtension):
         self.bagpipe_bgp_agent = bagpipe_bgp_agent.BaGPipeBGPAgent(
             constants.AGENT_TYPE_LINUXBRIDGE)
 
-        self.bagpipe_bgp_agent.setup_rpc(connection)
-
     def handle_port(self, context, data):
         pass
 

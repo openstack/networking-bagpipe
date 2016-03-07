@@ -38,7 +38,6 @@ from networking_bagpipe.agent.bagpipe_bgp_agent import VPN_TYPES
 from neutron.common import constants as q_const
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
-from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent
 
 from neutron.tests import base
 
@@ -76,10 +75,11 @@ PORT21 = {'id': uuidutils.generate_uuid(),
 NETWORK2 = {'id': uuidutils.generate_uuid(),
             'gateway_ip': '20.0.0.1'}
 
-LVM_VLAN1 = ovs_neutron_agent.LocalVLANMapping(1, None, None, None, None)
-LVM_VLAN2 = ovs_neutron_agent.LocalVLANMapping(2, None, None, None, None)
-LOCAL_VLAN_MAP = {NETWORK1['id']: LVM_VLAN1,
-                  NETWORK2['id']: LVM_VLAN2}
+LOCAL_VLAN_MAP = {}
+LOCAL_VLAN_MAP[PORT10['id']] = 31
+LOCAL_VLAN_MAP[PORT11['id']] = 31
+LOCAL_VLAN_MAP[PORT20['id']] = 52
+LOCAL_VLAN_MAP[PORT21['id']] = 52
 
 BAGPIPE_EVPN_RT1 = {'import_rt': ['BAGPIPE_EVPN:1'],
                     'export_rt': ['BAGPIPE_EVPN:1']}
@@ -1421,7 +1421,8 @@ class TestBaGPipeBGPAgentLinuxBridge(base.BaseTestCase,
         self.bridge_mappings = {}
         self.interface_mappings = {}
 
-        self.agent = BaGPipeBGPAgent(q_const.AGENT_TYPE_LINUXBRIDGE)
+        self.agent = BaGPipeBGPAgent(q_const.AGENT_TYPE_LINUXBRIDGE,
+                                     mock.Mock())
 
     def _get_expected_local_port(self, network_id, port_id, vif_name):
         local_port = dict(
@@ -1462,18 +1463,21 @@ class TestBaGPipeBGPAgentOVS(base.BaseTestCase,
             mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'add_patch_port', side_effect=PATCH_MPLS_OFPORTS)):
             self.agent = BaGPipeBGPAgent(q_const.AGENT_TYPE_OVS,
+                                         mock.Mock(),
                                          int_br=self.mock_int_br,
-                                         tun_br=self.mock_tun_br,
-                                         local_vlan_map=LOCAL_VLAN_MAP)
+                                         tun_br=self.mock_tun_br)
+            self.agent.get_local_vlan = (
+                lambda port: LOCAL_VLAN_MAP.get(port)
+            )
 
     def _get_expected_local_port(self, network_id, port_id, vif_name):
-        lvm = self.agent.local_vlan_map[network_id]
+        vlan = self.agent.get_local_vlan(port_id)
         local_port = dict(
             linuxif=vif_name,
             ovs=dict(plugged=True,
                      port_number=PATCH_MPLS_FROM_TUN_OFPORT,
                      to_vm_port_number=PATCH_MPLS_TO_TUN_OFPORT,
-                     vlan=lvm.vlan)
+                     vlan=vlan)
         )
 
         return local_port, None

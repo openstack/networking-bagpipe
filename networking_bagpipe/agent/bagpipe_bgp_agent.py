@@ -182,22 +182,14 @@ class BaGPipeBGPAgent(HTTPClientBase,
     BAGPIPEBGP_UP = 'UP'
     BAGPIPEBGP_DOWN = 'DOWN'
 
-    def __init__(self, agent_type,
-                 int_br=None, tun_br=None, patch_int_ofport=0,
-                 local_vlan_map=None, setup_entry_for_arp_reply=None):
+    def __init__(self, agent_type, connection, int_br=None, tun_br=None):
 
         """Create a new BaGPipe-BGP REST service client.
 
         :param agent_type: bagpipe-bgp agent type (Linux bridge or OVS)
-        :param br_mgr: Linux Bridge manager
+        :param connection: RPC Connection
         :param int_br: OVS integration bridge
         :param tun_br: OVS tunnel bridge
-        :param patch_int_ofport: Patch port linking OVS integration and
-                                 tunnel bridges
-        :param local_vlan_map: OVS agent LocalVLANMapping objects list, that
-                               tracks (vlan, lsw_id, vif_ids) mapping
-        :param setup_entry_for_arp_reply: OVS agent method that set ARP
-                                          responder entry
         """
         super(BaGPipeBGPAgent,
               self).__init__(cfg.CONF.BAGPIPE.bagpipe_bgp_ip,
@@ -212,21 +204,31 @@ class BaGPipeBGPAgent(HTTPClientBase,
         self.bagpipe_bgp_status = self.BAGPIPEBGP_DOWN
         self.seq_num = 0
 
+        # OVS-specific variables:
         if self.agent_type == n_const.AGENT_TYPE_OVS:
             self.int_br = int_br
             self.tun_br = tun_br
-            # TODO(tmorin): will be removed once the OVS agent extension is
-            # complete (patch_int_ofport, local_vlan_map), along with the
-            # related code in this class
-            if patch_int_ofport:
-                self.patch_int_ofport = patch_int_ofport
-            else:
-                self.patch_int_ofport = self.tun_br.get_port_ofport(
-                    cfg.CONF.OVS.tun_peer_patch_port)
-
-            self.local_vlan_map = local_vlan_map
-
             self.setup_mpls_br(cfg.CONF.BAGPIPE.mpls_bridge)
+
+        # RPC setpup
+        if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
+            connection.create_consumer(topics.get_topic_name(topics.AGENT,
+                                                             topics_BAGPIPE,
+                                                             topics.UPDATE,
+                                                             cfg.CONF.host),
+                                       [self], fanout=False)
+        else:
+            LOG.info("bagpipe-l2 RPCs disabled for OVS bridge")
+
+        connection.create_consumer(topics.get_topic_name(topics.AGENT,
+                                                         topics_BAGPIPE_BGPVPN,
+                                                         topics.UPDATE),
+                                   [self], fanout=True)
+        connection.create_consumer(topics.get_topic_name(topics.AGENT,
+                                                         topics_BAGPIPE_BGPVPN,
+                                                         topics.UPDATE,
+                                                         cfg.CONF.host),
+                                   [self], fanout=False)
 
         # Starts a greenthread for bagpipe-bgp status polling
         self._start_bagpipe_bgp_status_polling(self.ping_interval)
@@ -297,15 +299,6 @@ class BaGPipeBGPAgent(HTTPClientBase,
             raise BGPAttachmentNotFound(local_port=local_port_id)
 
         return index, details
-
-    def _ovs_check_net_in_lvm(self, network_uuid, port_id, func):
-        if (self.agent_type == n_const.AGENT_TYPE_OVS and
-                self.get_local_vlan(network_uuid, port_id) is None):
-            LOG.error("network %s not yet in OVS Local VLAN map, cannot "
-                      "act on %s", network_uuid, func)
-            return False
-        else:
-            return True
 
     def _copy_local_port_common_details(self, local_port_details):
         local_port_copy = {}
@@ -506,31 +499,26 @@ class BaGPipeBGPAgent(HTTPClientBase,
         # address to the MPLS bridge.  Redirect traffic from the MPLS bridge to
         # br-int.
 
+        patch_int_ofport = self.tun_br.get_port_ofport(
+            cfg.CONF.OVS.tun_peer_patch_port)
+
         # priority >0 is needed or we hit the rule redirecting unicast to
         # the UCAST_TO_TUN table
         self.tun_br.add_flow(
             table=constants.PATCH_LV_TO_TUN,
             priority=1,
-            in_port=self.patch_int_ofport,
+            in_port=patch_int_ofport,
             dl_dst=DEFAULT_GATEWAY_MAC,
             actions="output:%s" % self.patch_tun_to_mpls_ofport
         )
 
         self.tun_br.add_flow(in_port=self.patch_tun_from_mpls_ofport,
-                             actions="output:%s" % self.patch_int_ofport)
+                             actions="output:%s" % patch_int_ofport)
 
-    def get_local_vlan(self, net_uuid, port_id):
-        vlan = None
-        if self.local_vlan_map:
-            lvm = self.local_vlan_map.get(net_uuid)
-            vlan = lvm.vlan
-
-        if vlan is None:
-            vif_port = self.int_br.get_vifs_by_ids([port_id])[port_id]
-            port_tag_dict = self.int_br.get_port_tag_dict()
-            vlan = port_tag_dict[vif_port.port_name]
-
-        return vlan
+    def get_local_vlan(self, port_id):
+        vif_port = self.int_br.get_vifs_by_ids([port_id])[port_id]
+        port_tag_dict = self.int_br.get_port_tag_dict()
+        return port_tag_dict[vif_port.port_name]
 
     def _get_local_port_for_attach(self, port_id, net_uuid):
         if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
@@ -545,7 +533,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             }
         elif self.agent_type == n_const.AGENT_TYPE_OVS:
             port = self.int_br.get_vif_port_by_id(port_id)
-            vlan = self.get_local_vlan(net_uuid, port_id)
+            vlan = self.get_local_vlan(port_id)
 
             details = {
                 'local_port': {
@@ -726,27 +714,6 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     LOG.debug("No attachment on network, deleting...")
                     del self.reg_attachments[net_id]
 
-    def setup_rpc(self, connection):
-
-        if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
-            connection.create_consumer(topics.get_topic_name(topics.AGENT,
-                                                             topics_BAGPIPE,
-                                                             topics.UPDATE,
-                                                             cfg.CONF.host),
-                                       [self], fanout=False)
-        else:
-            LOG.info("bagpipe-l2 RPCs disabled for OVS bridge")
-
-        connection.create_consumer(topics.get_topic_name(topics.AGENT,
-                                                         topics_BAGPIPE_BGPVPN,
-                                                         topics.UPDATE),
-                                   [self], fanout=True)
-        connection.create_consumer(topics.get_topic_name(topics.AGENT,
-                                                         topics_BAGPIPE_BGPVPN,
-                                                         topics.UPDATE,
-                                                         cfg.CONF.host),
-                                   [self], fanout=False)
-
     def _do_local_port_plug(self, local_port_details):
         """Send local port attach request to bagpipe-bgp."""
         all_plug_details = (
@@ -781,10 +748,6 @@ class BaGPipeBGPAgent(HTTPClientBase,
                   port_bagpipe_info)
         port_id = port_bagpipe_info.pop('id')
         net_uuid = port_bagpipe_info.pop('network_id')
-
-        if not self._ovs_check_net_in_lvm(net_uuid, port_id,
-                                          'bagpipe_port_attach'):
-            return
 
         # Add/Update local port details in registered attachments list
         port_details = self._add_local_port_details(BAGPIPE_NOTIFIER,
@@ -901,12 +864,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     port_bgpvpn_info.pop(bgpvpn_type)
                 )
 
-        if not self._ovs_check_net_in_lvm(net_uuid, port_id,
-                                          'bgpvpn_port_attach'):
-            return
-
         if self.agent_type == n_const.AGENT_TYPE_OVS:
-            vlan = self.get_local_vlan(net_uuid, port_id)
+            vlan = self.get_local_vlan(port_id)
             # Add ARP responder entry for default gateway in OVS tunnel bridge
             ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply(
                 DummyOVSAgent(),
