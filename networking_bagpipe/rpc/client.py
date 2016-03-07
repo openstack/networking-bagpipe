@@ -51,7 +51,7 @@ class BaGPipeAgentNotifyAPI(object):
                    'port_bagpipe_info': port_bagpipe_info})
 
         cctxt = self.client.prepare(topic=self.topic_bagpipe_update,
-                                    server=True)
+                                    server=host)
         cctxt.cast(context, method, port_bagpipe_info=port_bagpipe_info)
 
     def attach_port_on_bagpipe_network(self, context, port_bagpipe_info,
