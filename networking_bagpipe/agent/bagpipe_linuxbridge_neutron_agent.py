@@ -24,61 +24,60 @@ from oslo_log import log as logging
 
 from oslo_service import service
 
+from networking_bagpipe.agent import bagpipe_bgp_agent
+from networking_bagpipe.driver.type_route_target import TYPE_ROUTE_TARGET
+
+from neutron._i18n import _LE
+from neutron._i18n import _LI
+
+from neutron.agent.l2 import agent_extension
+
 from neutron.common import config as common_config
 from neutron.common import constants
 from neutron.common import utils as n_utils
 
-from neutron.i18n import _LE
-from neutron.i18n import _LI
-
-from neutron.plugins.common import constants as p_const
-
+from neutron.plugins.ml2.drivers.agent import _common_agent as ca
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
-from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
-    import LinuxBridgeNeutronAgentRPC
-
-from networking_bagpipe.agent import bagpipe_bgp_agent
 
 LOG = logging.getLogger(__name__)
 
-
-class LinuxBridgeManagerBaGPipeL2(LinuxBridgeManager):
-
-    def add_tap_interface(self, network_id, network_type, physical_network,
-                          segmentation_id, tap_device_name):
-
-        # We want to override the following in LinuxBridgeManager:
-        #   if network_type == p_const.TYPE_LOCAL:
-        #       self.ensure_local_bridge(network_id)
-        # so that it also applies to TYPE_ROUTE_TARGET:
-        # Let's cheat (a little bit only):
-        return LinuxBridgeManager.add_tap_interface(self, network_id,
-                                                    p_const.TYPE_LOCAL,  # <--
-                                                    physical_network,
-                                                    segmentation_id,
-                                                    tap_device_name)
+LB_BAGPIPE_AGENT_BINARY = 'neutron-bagpipe-linuxbridge-agent'
 
 
-class BaGPipeLinuxBridgeNeutronAgentRPC(LinuxBridgeNeutronAgentRPC):
+class LinuxBridgeManagerBaGPipe(LinuxBridgeManager):
 
-    def __init__(self, *args, **kwargs):
-        # Creates an HTTP client for BaGPipe BGP component REST service
-        # super __init__ will call .setup_rpc which we override
-        # to add bgp_agent as a client
-        super(BaGPipeLinuxBridgeNeutronAgentRPC, self).__init__(*args,
-                                                                **kwargs)
+    def ensure_physical_in_bridge(self, network_id,
+                                  network_type,
+                                  physical_network,
+                                  segmentation_id):
 
-        self.bgp_agent = (bagpipe_bgp_agent.BaGPipeBGPAgent(
-            constants.AGENT_TYPE_LINUXBRIDGE,
-            br_mgr=self.br_mgr)
-        )
+        if network_type == TYPE_ROUTE_TARGET:
+            bridge_name = self.get_bridge_name(network_id)
+            return self.ensure_bridge(bridge_name)
 
-        self.bgp_agent.setup_rpc(self.endpoints, self.connection, self.topic)
+        return (super(LinuxBridgeManagerBaGPipe, self)
+                .ensure_physical_in_bridge(network_id,
+                                           network_type,
+                                           physical_network,
+                                           segmentation_id))
 
-    def setup_linux_bridge(self, bridge_mappings, interface_mappings):
-        self.br_mgr = LinuxBridgeManagerBaGPipeL2(bridge_mappings,
-                                                  interface_mappings)
+
+class BagpipeAgentExtension(agent_extension.AgentCoreResourceExtension):
+
+    def initialize(self, connection, driver_type):
+
+        # Create an HTTP client for BaGPipe BGP component REST service
+        self.bagpipe_bgp_agent = bagpipe_bgp_agent.BaGPipeBGPAgent(
+            constants.AGENT_TYPE_LINUXBRIDGE)
+
+        self.bagpipe_bgp_agent.setup_rpc(connection)
+
+    def handle_port(self, context, data):
+        pass
+
+    def delete_port(self, context, data):
+        pass
 
 
 def main():
@@ -103,16 +102,13 @@ def main():
         sys.exit(1)
     LOG.info(_LI("Bridge mappings: %s"), bridge_mappings)
 
+    manager = LinuxBridgeManagerBaGPipe(bridge_mappings, interface_mappings)
+
     polling_interval = cfg.CONF.AGENT.polling_interval
     quitting_rpc_timeout = cfg.CONF.AGENT.quitting_rpc_timeout
-    agent = BaGPipeLinuxBridgeNeutronAgentRPC(bridge_mappings,
-                                              interface_mappings,
-                                              polling_interval,
-                                              quitting_rpc_timeout)
+    agent = ca.CommonAgentLoop(manager, polling_interval, quitting_rpc_timeout,
+                               constants.AGENT_TYPE_LINUXBRIDGE,
+                               LB_BAGPIPE_AGENT_BINARY)
     LOG.info(_LI("Agent initialized successfully, now running... "))
     launcher = service.launch(cfg.CONF, agent)
     launcher.wait()
-
-
-if __name__ == "__main__":
-    main()

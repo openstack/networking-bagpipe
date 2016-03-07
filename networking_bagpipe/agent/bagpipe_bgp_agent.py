@@ -12,8 +12,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import itertools
-
 import socket
 
 import httplib2
@@ -32,20 +30,27 @@ from oslo_concurrency import lockutils
 
 from oslo_service import loopingcall
 
-from neutron.agent.common import config
-from neutron.agent.common import ovs_lib
-
-from neutron.common import constants as q_const
-from neutron.common import exceptions as q_exc
-from neutron.common import topics
-
 from networking_bagpipe.rpc import agent as bagpipe_agent_rpc
 from networking_bagpipe.rpc.client import topics_BAGPIPE
 
 from networking_bagpipe.agent.bgpvpn import rpc_agent as bgpvpn_agent_rpc
 from networking_bagpipe.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
 
+from neutron.agent.common import config
+from neutron.agent.common import ovs_lib
+
+from neutron.common import exceptions as q_exc
+from neutron.common import topics
+
+from neutron_lib import constants as n_const
+
+from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
+    import LinuxBridgeManager
+from neutron.plugins.ml2.drivers.openvswitch.agent.common import config\
+    as ovs_config
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants
+from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent
+
 
 LOG = logging.getLogger(__name__)
 
@@ -87,7 +92,9 @@ bagpipe_bgp_opts = [
                help=_("OVS Peer patch port in MPLS bridge to tunnel bridge "
                       "(traffic from tunnel bridge)")),
 ]
+
 cfg.CONF.register_opts(bagpipe_bgp_opts, "BAGPIPE")
+cfg.CONF.register_opts(ovs_config.ovs_opts, "OVS")
 config.register_agent_state_opts_helper(cfg.CONF)
 
 
@@ -156,6 +163,15 @@ class HTTPClientBase(object):
         return self.do_request("DELETE", action)
 
 
+class DummyOVSAgent(ovs_neutron_agent.OVSNeutronAgent):
+    # this class is used only to 'borrow' setup_entry_for_arp_reply
+    # from OVSNeutronAgent
+    arp_responder_enabled = True
+
+    def __init__(self):
+        pass
+
+
 class BaGPipeBGPAgent(HTTPClientBase,
                       bagpipe_agent_rpc.BaGPipeAgentRpcCallBackMixin,
                       bgpvpn_agent_rpc.BGPVPNAgentRpcCallBackMixin
@@ -166,9 +182,10 @@ class BaGPipeBGPAgent(HTTPClientBase,
     BAGPIPEBGP_UP = 'UP'
     BAGPIPEBGP_DOWN = 'DOWN'
 
-    def __init__(self, agent_type, br_mgr=None,
+    def __init__(self, agent_type,
                  int_br=None, tun_br=None, patch_int_ofport=0,
                  local_vlan_map=None, setup_entry_for_arp_reply=None):
+
         """Create a new BaGPipe-BGP REST service client.
 
         :param agent_type: bagpipe-bgp agent type (Linux bridge or OVS)
@@ -187,15 +204,6 @@ class BaGPipeBGPAgent(HTTPClientBase,
                              cfg.CONF.BAGPIPE.bagpipe_bgp_port, agent_type)
 
         self.agent_type = agent_type
-        self.br_mgr = br_mgr
-        self.int_br = int_br
-        self.tun_br = tun_br
-        self.patch_int_ofport = patch_int_ofport
-        if local_vlan_map is not None:
-                self.local_vlan_map = local_vlan_map
-        else:
-                self.local_vlan_map = {}
-        self.setup_entry_for_arp_reply = setup_entry_for_arp_reply
 
         self.ping_interval = cfg.CONF.BAGPIPE.ping_interval
 
@@ -204,7 +212,20 @@ class BaGPipeBGPAgent(HTTPClientBase,
         self.bagpipe_bgp_status = self.BAGPIPEBGP_DOWN
         self.seq_num = 0
 
-        if self.agent_type == q_const.AGENT_TYPE_OVS:
+        if self.agent_type == n_const.AGENT_TYPE_OVS:
+            self.int_br = int_br
+            self.tun_br = tun_br
+            # TODO(tmorin): will be removed once the OVS agent extension is
+            # complete (patch_int_ofport, local_vlan_map), along with the
+            # related code in this class
+            if patch_int_ofport:
+                self.patch_int_ofport = patch_int_ofport
+            else:
+                self.patch_int_ofport = self.tun_br.get_port_ofport(
+                    cfg.CONF.OVS.tun_peer_patch_port)
+
+            self.local_vlan_map = local_vlan_map
+
             self.setup_mpls_br(cfg.CONF.BAGPIPE.mpls_bridge)
 
         # Starts a greenthread for bagpipe-bgp status polling
@@ -237,7 +258,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                              "bagpipe-bgp")
                     LOG.debug("Registered attachments list: %s" %
                               self.reg_attachments)
-                    for network_id, attachment_list in (
+                    for _, attachment_list in (
                             self.reg_attachments.iteritems()):
                         if attachment_list:
                             for attachment in attachment_list:
@@ -277,9 +298,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         return index, details
 
-    def _ovs_check_net_in_lvm(self, network_uuid, func):
-        if (self.agent_type == q_const.AGENT_TYPE_OVS and
-                network_uuid not in self.local_vlan_map):
+    def _ovs_check_net_in_lvm(self, network_uuid, port_id, func):
+        if (self.agent_type == n_const.AGENT_TYPE_OVS and
+                self.get_local_vlan(network_uuid, port_id) is None):
             LOG.error("network %s not yet in OVS Local VLAN map, cannot "
                       "act on %s", network_uuid, func)
             return False
@@ -498,10 +519,23 @@ class BaGPipeBGPAgent(HTTPClientBase,
         self.tun_br.add_flow(in_port=self.patch_tun_from_mpls_ofport,
                              actions="output:%s" % self.patch_int_ofport)
 
+    def get_local_vlan(self, net_uuid, port_id):
+        vlan = None
+        if self.local_vlan_map:
+            lvm = self.local_vlan_map.get(net_uuid)
+            vlan = lvm.vlan
+
+        if vlan is None:
+            vif_port = self.int_br.get_vifs_by_ids([port_id])[port_id]
+            port_tag_dict = self.int_br.get_port_tag_dict()
+            vlan = port_tag_dict[vif_port.port_name]
+
+        return vlan
+
     def _get_local_port_for_attach(self, port_id, net_uuid):
-        if self.agent_type == q_const.AGENT_TYPE_LINUXBRIDGE:
-            port_name = self.br_mgr.get_tap_device_name(port_id)
-            bridge_name = self.br_mgr.get_bridge_name(net_uuid)
+        if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
+            port_name = LinuxBridgeManager.get_tap_device_name(port_id)
+            bridge_name = LinuxBridgeManager.get_bridge_name(net_uuid)
 
             details = {
                 'linuxbr': bridge_name,
@@ -509,9 +543,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     'linuxif': port_name
                 }
             }
-        elif self.agent_type == q_const.AGENT_TYPE_OVS:
+        elif self.agent_type == n_const.AGENT_TYPE_OVS:
             port = self.int_br.get_vif_port_by_id(port_id)
-            lvm = self.local_vlan_map[net_uuid]
+            vlan = self.get_local_vlan(net_uuid, port_id)
 
             details = {
                 'local_port': {
@@ -520,7 +554,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                         'plugged': True,
                         'port_number': self.patch_mpls_from_tun_ofport,
                         'to_vm_port_number': self.patch_mpls_to_tun_ofport,
-                        'vlan': lvm.vlan
+                        'vlan': vlan
                     }
                 }
             }
@@ -692,35 +726,26 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     LOG.debug("No attachment on network, deleting...")
                     del self.reg_attachments[net_id]
 
-    def setup_rpc(self, endpoints, connection, main_topic):
+    def setup_rpc(self, connection):
 
-        endpoints.append(self)
+        if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
+            connection.create_consumer(topics.get_topic_name(topics.AGENT,
+                                                             topics_BAGPIPE,
+                                                             topics.UPDATE,
+                                                             cfg.CONF.host),
+                                       [self], fanout=False)
+        else:
+            LOG.info("bagpipe-l2 RPCs disabled for OVS bridge")
 
-        # This mimics code in neutron.agent.rpc that create_consumers,
-        # code which we can not easily extend/reuse for our purpose yet
-        # (another alternative would be to make setup_rpc extensible
-        #  for additional consumers)
-
-        prefix = main_topic
-        topic_details = [[topics_BAGPIPE, topics.UPDATE, cfg.CONF.host],
-                         [topics_BAGPIPE_BGPVPN, topics.UPDATE, cfg.CONF.host]
-                         ]
-
-        # what is below is a copy-paste from rpc.create_consumers
-        # we just skip create_connection
-        for details in topic_details:
-            topic, operation, node_name = itertools.islice(
-                itertools.chain(details, [None]), 3)
-
-            topic_name = topics.get_topic_name(prefix, topic, operation)
-            connection.create_consumer(topic_name, endpoints, fanout=True)
-            if node_name:
-                node_topic_name = '%s.%s' % (topic_name, node_name)
-                connection.create_consumer(node_topic_name,
-                                           endpoints,
-                                           fanout=False)
-        # we now need to trigger consumption on new server...
-        connection.consume_in_threads()
+        connection.create_consumer(topics.get_topic_name(topics.AGENT,
+                                                         topics_BAGPIPE_BGPVPN,
+                                                         topics.UPDATE),
+                                   [self], fanout=True)
+        connection.create_consumer(topics.get_topic_name(topics.AGENT,
+                                                         topics_BAGPIPE_BGPVPN,
+                                                         topics.UPDATE,
+                                                         cfg.CONF.host),
+                                   [self], fanout=False)
 
     def _do_local_port_plug(self, local_port_details):
         """Send local port attach request to bagpipe-bgp."""
@@ -757,7 +782,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
         port_id = port_bagpipe_info.pop('id')
         net_uuid = port_bagpipe_info.pop('network_id')
 
-        if not self._ovs_check_net_in_lvm(net_uuid, 'bagpipe_port_attach'):
+        if not self._ovs_check_net_in_lvm(net_uuid, port_id,
+                                          'bagpipe_port_attach'):
             return
 
         # Add/Update local port details in registered attachments list
@@ -875,15 +901,20 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     port_bgpvpn_info.pop(bgpvpn_type)
                 )
 
-        if not self._ovs_check_net_in_lvm(net_uuid, 'bgpvpn_port_attach'):
+        if not self._ovs_check_net_in_lvm(net_uuid, port_id,
+                                          'bgpvpn_port_attach'):
             return
 
-        if self.agent_type == q_const.AGENT_TYPE_OVS:
-            lvm = self.local_vlan_map[net_uuid]
+        if self.agent_type == n_const.AGENT_TYPE_OVS:
+            vlan = self.get_local_vlan(net_uuid, port_id)
             # Add ARP responder entry for default gateway in OVS tunnel bridge
-            self.setup_entry_for_arp_reply(self.tun_br, 'add', lvm.vlan,
-                                           DEFAULT_GATEWAY_MAC,
-                                           port_bgpvpn_info['gateway_ip'])
+            ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply(
+                DummyOVSAgent(),
+                self.tun_br,
+                'add',
+                vlan,
+                DEFAULT_GATEWAY_MAC,
+                port_bgpvpn_info['gateway_ip'])
 
         # Add/Update port BGPVPN details in registered attachments list
         port_details = self._add_local_port_details(BGPVPN_NOTIFIER,
@@ -918,6 +949,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         else:
             try:
                 self._do_local_port_unplug(details)
+                # TODO(tmorin): remove gateway ARP responder flow
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach BGPVPN port from bagpipe-bgp %s",
                           str(e))

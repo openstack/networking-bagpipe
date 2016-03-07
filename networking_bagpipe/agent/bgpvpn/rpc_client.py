@@ -73,7 +73,7 @@ class BGPVPNAgentNotifyApi(object):
         LOG.debug(_('Notify BGP VPN agent %(host)s at %(topic)s '
                     'the message %(method)s with %(port_bgpvpn_info)s'),
                   {'host': host,
-                   'topic': '%s.%s' % (self.topic_bgpvpn_update, host),
+                   'topic': self.topic_bgpvpn_update,
                    'method': method,
                    'port_bgpvpn_info': port_bgpvpn_info})
 

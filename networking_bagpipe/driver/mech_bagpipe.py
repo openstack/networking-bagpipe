@@ -32,6 +32,9 @@ from neutron.plugins.ml2.drivers import mech_agent
 from networking_bagpipe.driver.type_route_target import TYPE_ROUTE_TARGET
 from networking_bagpipe.rpc import client as bagpipe_rpc_client
 
+from sqlalchemy.orm import exc
+
+
 LOG = log.getLogger(__name__)
 
 ml2_bagpipe_opts = [
@@ -40,6 +43,10 @@ ml2_bagpipe_opts = [
 ]
 
 cfg.CONF.register_opts(ml2_bagpipe_opts, "ml2_bagpipe")
+
+
+class NoNetworkInfoForPort(Exception):
+    pass
 
 
 def get_network_info_for_port(session, port_id):
@@ -51,17 +58,21 @@ def get_network_info_for_port(session, port_id):
     LOG.debug("get_network_info_for_port() called for port %s" % port_id)
 
     with session.begin(subtransactions=True):
-        net_info = (session.
-                    query(models_v2.Port.mac_address,
-                          models_v2.IPAllocation.ip_address,
-                          models_v2.Subnet.cidr,
-                          models_v2.Subnet.gateway_ip).
-                    join(models_v2.IPAllocation).
-                    join(models_v2.Subnet,
-                         models_v2.IPAllocation.subnet_id ==
-                         models_v2.Subnet.id).
-                    filter(models_v2.Port.id == port_id).one())
-        return net_info
+        try:
+            net_info = (session.
+                        query(models_v2.Port.mac_address,
+                              models_v2.IPAllocation.ip_address,
+                              models_v2.Subnet.cidr,
+                              models_v2.Subnet.gateway_ip).
+                        join(models_v2.IPAllocation).
+                        join(models_v2.Subnet,
+                             models_v2.IPAllocation.subnet_id ==
+                             models_v2.Subnet.id).
+                        filter(models_v2.Subnet.ip_version == 4).
+                        filter(models_v2.Port.id == port_id).one())
+            return net_info
+        except exc.NoResultFound:
+            raise NoNetworkInfoForPort(port_id)
 
 
 class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
@@ -119,7 +130,7 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
                 'ip_address': ip_address + cidr[cidr.index('/'):],
                 'gateway_ip': gateway_ip}
 
-    def _retrieve_bagpipe_network_info_for_port(self, port_id, segment):
+    def _retrieve_bagpipe_net_info_for_port(self, port_id, segment):
         """Retrieve BaGPipe network informations for a specific port
 
         {
@@ -188,15 +199,19 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
                               {'port': port['id'], 'agent': agent_host})
                     return
 
-                bagpipe_network_info = (
-                    self._retrieve_bagpipe_network_info_for_port(port['id'],
+                try:
+                    bagpipe_network_info = (
+                        self._retrieve_bagpipe_net_info_for_port(port['id'],
                                                                  segment)
-                )
-                port_bagpipe_info.update(bagpipe_network_info)
-                self.agent_notify.attach_port_on_bagpipe_network(
-                    self.rpc_ctx,
-                    port_bagpipe_info, agent_host
-                )
+                    )
+                    port_bagpipe_info.update(bagpipe_network_info)
+                    self.agent_notify.attach_port_on_bagpipe_network(
+                        self.rpc_ctx,
+                        port_bagpipe_info, agent_host
+                    )
+                except NoNetworkInfoForPort:
+                    LOG.warning("No network info for port %s (v6 only?),"
+                                " not attached!", port['id'])
             elif context.status == const.PORT_STATUS_DOWN:
                 self.agent_notify.detach_port_from_bagpipe_network(
                     self.rpc_ctx,

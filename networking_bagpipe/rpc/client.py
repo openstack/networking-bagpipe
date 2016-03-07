@@ -30,16 +30,12 @@ topics_BAGPIPE = "bagpipe-l2"
 class BaGPipeAgentNotifyAPI(object):
     """Base class for BaGPipe ML2 mech driver notification to agent RPC API"""
 
-    def __init__(self, topic=topics.AGENT):
-        self.topic = topic
-
-        # FIXME: should use a name in neutron.common.topics namespace
-        # topics.BAGPIPE instead of topics_BAGPIPE
-        self.topic_bagpipe_update = topics.get_topic_name(self.topic,
+    def __init__(self):
+        self.topic_bagpipe_update = topics.get_topic_name(topics.AGENT,
                                                           topics_BAGPIPE,
                                                           topics.UPDATE)
 
-        target = oslo_messaging.Target(topic=topic, version='1.0')
+        target = oslo_messaging.Target(topic=topics.AGENT, version='1.0')
         self.client = n_rpc.get_client(target)
 
     def _notification_host(self, context, method, port_bagpipe_info, host):
@@ -61,6 +57,9 @@ class BaGPipeAgentNotifyAPI(object):
                                     'attach_port_on_bagpipe_network',
                                     port_bagpipe_info,
                                     host)
+        else:
+            LOG.warning("attach_port_on_bagpipe_network called without"
+                        " a host")
 
     def detach_port_from_bagpipe_network(self, context, port_bagpipe_info,
                                          host=None):
@@ -69,3 +68,6 @@ class BaGPipeAgentNotifyAPI(object):
                                     'detach_port_from_bagpipe_network',
                                     port_bagpipe_info,
                                     host)
+        else:
+            LOG.warning("detach_port_from_bagpipe_network called without"
+                        " a host")
