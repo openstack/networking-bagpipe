@@ -5,3 +5,7 @@ BAGPIPE_L2_AGENT_BINARY="$NEUTRON_BIN_DIR/neutron-bagpipe-linuxbridge-agent"
 # agent settings
 Q_AGENT=${Q_AGENT:-${BAGPIPE_L2_AGENT}}
 
+source $NETWORKING_BAGPIPE_DIR/bagpipe-bgp/devstack/settings
+
+
+
