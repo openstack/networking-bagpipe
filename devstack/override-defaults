@@ -1,2 +1,9 @@
 NETWORKING_BAGPIPE_DIR=$DEST/networking-bagpipe
 ln -sf $NETWORKING_BAGPIPE_DIR/devstack/agent $TOP_DIR/lib/neutron_plugins/bagpipe-linuxbridge_agent
+
+pushd $NETWORKING_BAGPIPE_DIR
+git_timed submodule init
+git_timed submodule sync --recursive
+git_timed submodule update --init --recursive
+popd
+
