@@ -24,7 +24,10 @@ if [[ "$1" == "clean" ]]; then
     :
 fi
 
-source $NETWORKING_BAGPIPE_DIR/devstack/plugin.sh $1 $2
+if [[ -d "$BAGPIPE_DIR" ]]; then
+    echo "Running bagpipe-bgp devstack plugin..."
+    source $BAGPIPE_DIR/devstack/plugin.sh $1 $2
+fi
 
 set +x
 $xtrace
