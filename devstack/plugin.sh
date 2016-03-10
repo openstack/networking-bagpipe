@@ -10,7 +10,7 @@ if [[ "$1" == "source" ]]; then
 elif [[ "$1" == "stack" && "$2" == "install" ]]; then
     setup_develop $NETWORKING_BAGPIPE_DIR
 elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
-    if is_service_enabled q-agt -a [[ "$Q_AGENT" == "bagpipe-linuxbridge" ]; then
+    if is_service_enabled q-agt && [[ "$Q_AGENT" == "bagpipe-linuxbridge" ]]; then
         echo_summary "Configuring linuxbridge agent for bagpipe"
         iniadd /$Q_PLUGIN_CONF_FILE agent extensions bagpipe
         iniset /$Q_PLUGIN_CONF_FILE vxlan enable_vxlan False
