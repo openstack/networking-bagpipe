@@ -1,6 +1,8 @@
 NETWORKING_BAGPIPE_DIR=$DEST/networking-bagpipe
 ln -sf $NETWORKING_BAGPIPE_DIR/devstack/agent $TOP_DIR/lib/neutron_plugins/bagpipe-linuxbridge_agent
 
+[[ "$DEVSTACK_PLUGINS" =~ "bagpipe-bgp" ]] && die "Using 'enable_plugin bagpipe-bgp ...' in local.conf is not supported anymore, networking-bagpipe now fetches bagpipe-bgp as a git submodule"
+
 pushd $NETWORKING_BAGPIPE_DIR
 git_timed submodule init
 git_timed submodule sync --recursive
