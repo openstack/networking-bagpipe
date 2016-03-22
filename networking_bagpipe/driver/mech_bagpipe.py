@@ -168,17 +168,6 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         orig = context.original
         agent_host = context.host
 
-        segment = context.bottom_bound_segment
-
-        if not segment:
-            LOG.warning(("Port %(port)s updated by agent %(agent)s "
-                         "isn't bound to any segment"),
-                        {'port': port['id'], 'agent': agent_host})
-            return
-
-        port_bagpipe_info = {'id': port['id'],
-                             'network_id': port['network_id']}
-
         if (context.host != context.original_host and
                 context.status == const.PORT_STATUS_ACTIVE and
                 not self.migrated_ports.get(orig['id'])):
@@ -188,7 +177,17 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             self.migrated_ports[orig['id']] = (
                 (orig, context.original_host))
         elif context.status != context.original_status:
+            port_bagpipe_info = {'id': port['id'],
+                                 'network_id': port['network_id']}
+
             if context.status == const.PORT_STATUS_ACTIVE:
+                segment = context.bottom_bound_segment
+                if not segment:
+                    LOG.debug(("Port %(port)s updated by agent %(agent)s "
+                               "isn't bound to any segment"),
+                              {'port': port['id'], 'agent': agent_host})
+                    return
+
                 bagpipe_network_info = (
                     self._retrieve_bagpipe_network_info_for_port(port['id'],
                                                                  segment)
