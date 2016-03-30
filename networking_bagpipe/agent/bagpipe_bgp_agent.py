@@ -281,21 +281,22 @@ class BaGPipeBGPAgent(HTTPClientBase,
         # Retrieve local port index and details in BGP registered attachments
         # list for the specified network and port identifiers
 
-        LOG.debug("Getting local port details for port %s on network %s" %
+        LOG.debug("Getting registered attachment for port %s on network %s" %
                   (local_port_id, network_id))
 
         index = -1
         details = None
         for i, attachment in enumerate(self.reg_attachments[network_id]):
             if (attachment['port_id'] == local_port_id):
-                LOG.debug("Local port details found at index %s: %s" %
+                LOG.debug("Registered attachment found at index %s: %s" %
                           (i, attachment))
                 index = i
                 details = attachment
                 break
 
         if index == -1:
-            LOG.info("No details found for local port %s", local_port_id)
+            LOG.info("No registered attachment found for port %s",
+                     local_port_id)
             raise BGPAttachmentNotFound(local_port=local_port_id)
 
         return index, details
@@ -516,7 +517,14 @@ class BaGPipeBGPAgent(HTTPClientBase,
                              actions="output:%s" % patch_int_ofport)
 
     def get_local_vlan(self, port_id):
-        vif_port = self.int_br.get_vifs_by_ids([port_id])[port_id]
+        vif_port = self.int_br.get_vif_port_by_id(port_id)
+        if vif_port is None:
+            LOG.info("port by ids: %s",
+                     self.int_br.get_vifs_by_ids(
+                         list(self.int_br.get_vif_port_set())
+                         )
+                     )
+            raise Exception("port %s not found on int_br (%s)", port_id)
         port_tag_dict = self.int_br.get_port_tag_dict()
         return port_tag_dict[vif_port.port_name]
 
@@ -525,7 +533,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             port_name = LinuxBridgeManager.get_tap_device_name(port_id)
             bridge_name = LinuxBridgeManager.get_bridge_name(net_uuid)
 
-            details = {
+            return {
                 'linuxbr': bridge_name,
                 'local_port': {
                     'linuxif': port_name
@@ -533,21 +541,22 @@ class BaGPipeBGPAgent(HTTPClientBase,
             }
         elif self.agent_type == n_const.AGENT_TYPE_OVS:
             port = self.int_br.get_vif_port_by_id(port_id)
-            vlan = self.get_local_vlan(port_id)
+            try:
+                vlan = self.get_local_vlan(port_id)
 
-            details = {
-                'local_port': {
-                    'linuxif': port.port_name,
-                    'ovs': {
-                        'plugged': True,
-                        'port_number': self.patch_mpls_from_tun_ofport,
-                        'to_vm_port_number': self.patch_mpls_to_tun_ofport,
-                        'vlan': vlan
+                return {
+                    'local_port': {
+                        'linuxif': port.port_name,
+                        'ovs': {
+                            'plugged': True,
+                            'port_number': self.patch_mpls_from_tun_ofport,
+                            'to_vm_port_number': self.patch_mpls_to_tun_ofport,
+                            'vlan': vlan
+                        }
                     }
                 }
-            }
-
-        return details
+            except Exception as e:
+                LOG.error("could not find vlan for port %s: %s", port_id, e)
 
     def _copy_port_network_details(self, port_details):
         network_details = {}
@@ -681,12 +690,12 @@ class BaGPipeBGPAgent(HTTPClientBase,
         return port_details
 
     @lockutils.synchronized('bagpipe-bgp-agent')
-    def _remove_local_port_details_for_index(self, net_id, index,
-                                             notifier, delete=True):
-        """Remove/update notifier local port details in reg_attachments
+    def _remove_registered_attachment(self, net_id, index,
+                                      notifier, delete=True):
+        """Remove/update a registered attachment for a notifier
 
-        Remove/update notifier local port details at this index in BGP
-        registered attachments list for the specified network, only if no
+        Remove/update notifier registered attachment at this index
+        for the specified network, only if no
         exception occurred on bagpipe-bgp.
         """
         if (notifier in self.reg_attachments[net_id][index]):
@@ -782,8 +791,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach port from bagpipe-bgp: %s", str(e))
             finally:
-                self._remove_local_port_details_for_index(net_uuid, index,
-                                                          BAGPIPE_NOTIFIER)
+                self._remove_registered_attachment(net_uuid, index,
+                                                   BAGPIPE_NOTIFIER)
 
     # BGPVPN callbacks
     # -----------------------------
@@ -833,9 +842,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach port from bagpipe-bgp: %s", str(e))
             finally:
-                self._remove_local_port_details_for_index(network_id, index,
-                                                          BGPVPN_NOTIFIER,
-                                                          delete=False)
+                self._remove_registered_attachment(network_id, index,
+                                                   BGPVPN_NOTIFIER,
+                                                   delete=False)
 
     def create_bgpvpn(self, context, bgpvpn):
         LOG.debug("create_bgpvpn received with details %s", bgpvpn)
@@ -903,8 +912,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
             index, details = self._get_reg_attachment_for_port(net_uuid,
                                                                port_id)
         except BGPAttachmentNotFound as e:
-            LOG.error("bagpipe-bgp agent inconsistent for BGP VPN or "
-                      "updated with another detach: %s", str(e))
+            LOG.warning("BGPVPN port detach, but no previous attachment found:"
+                        " %s", str(e))
         else:
             try:
                 self._do_local_port_unplug(details)
@@ -913,5 +922,5 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 LOG.error("Can't detach BGPVPN port from bagpipe-bgp %s",
                           str(e))
             finally:
-                self._remove_local_port_details_for_index(net_uuid, index,
-                                                          BGPVPN_NOTIFIER)
+                self._remove_registered_attachment(net_uuid, index,
+                                                   BGPVPN_NOTIFIER)
