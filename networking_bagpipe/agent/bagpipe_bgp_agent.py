@@ -524,7 +524,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                          list(self.int_br.get_vif_port_set())
                          )
                      )
-            raise Exception("port %s not found on int_br (%s)", port_id)
+            raise Exception("port %s not found on int-br" % port_id)
         port_tag_dict = self.int_br.get_port_tag_dict()
         return port_tag_dict[vif_port.port_name]
 
