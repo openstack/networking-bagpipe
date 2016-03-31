@@ -485,19 +485,19 @@ class TestBaGPipeBGPAgentMixin(object):
         dummy_port11 = DummyPort(NETWORK1, PORT11).__dict__
 
         dummy_bgpvpn1 = DummyBGPVPN(NETWORK1,
-                                    evpn=BGPVPN_EVPN_RT10).__dict__
+                                    ipvpn=BGPVPN_IPVPN_RT100).__dict__
 
         with mock.patch.object(self.agent,
                                'send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(EVPN,
+                self._mock_send_expected_call(IPVPN,
                                               dummy_port10,
                                               self.DUMMY_VIF10,
-                                              others_rts=BGPVPN_EVPN_RT10),
-                self._mock_send_expected_call(EVPN,
+                                              others_rts=BGPVPN_IPVPN_RT100),
+                self._mock_send_expected_call(IPVPN,
                                               dummy_port11,
                                               self.DUMMY_VIF11,
-                                              others_rts=BGPVPN_EVPN_RT10)
+                                              others_rts=BGPVPN_IPVPN_RT100)
             ]
 
             self.agent.bgpvpn_port_attach(None, dummy_port10)
@@ -640,15 +640,15 @@ class TestBaGPipeBGPAgentMixin(object):
 
     def test_delete_bgpvpn_had_plugged_ports(self):
         dummy_port10 = DummyPort(NETWORK1, PORT10,
-                                 evpn=BGPVPN_EVPN_RT10).__dict__
+                                 ipvpn=BGPVPN_EVPN_RT10).__dict__
         dummy_detach10 = dict(id=PORT10['id'], network_id=NETWORK1['id'])
 
         dummy_port11 = DummyPort(NETWORK1, PORT11,
-                                 evpn=BGPVPN_EVPN_RT10).__dict__
+                                 ipvpn=BGPVPN_EVPN_RT10).__dict__
         dummy_detach11 = dict(id=PORT11['id'], network_id=NETWORK1['id'])
 
         dummy_bgpvpn1 = DummyBGPVPN(NETWORK1,
-                                    evpn=BGPVPN_EVPN_RT10).__dict__
+                                    ipvpn=BGPVPN_EVPN_RT10).__dict__
 
         with mock.patch.object(self.agent,
                                'send_detach_local_port') as send_detach_fn:
@@ -1536,108 +1536,107 @@ class TestBaGPipeBGPAgentOVS(base.BaseTestCase,
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
                 '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
                 autospec=True)
-    def test_update_bgpvpn_already_plugged_ports(self, setup_entry_fn):
+    def test_update_bgpvpn_already_plugged_ports(self, setup_gw_arp_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_update_bgpvpn_already_plugged_ports()
-            self.assertEqual(2, setup_entry_fn.call_count)
+            self.assertEqual(2, setup_gw_arp_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_update_bgpvpn_same_vpn_types(self, setup_entry_fn):
+    def test_update_bgpvpn_same_vpn_types(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_update_bgpvpn_same_vpn_types()
-            self.assertEqual(1, setup_entry_fn.call_count)
 
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
                 '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
                 autospec=True)
-    def test_update_bgpvpn_different_vpn_types(self, setup_entry_fn):
+    def test_update_bgpvpn_different_vpn_types(self, setup_gw_arp_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_update_bgpvpn_different_vpn_types()
-            self.assertEqual(1, setup_entry_fn.call_count)
+            self.assertEqual(1, setup_gw_arp_fn.call_count)
 
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
                 '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
                 autospec=True)
-    def test_delete_bgpvpn_remaining_plugged_ports(self, setup_entry_fn):
+    def test_delete_bgpvpn_remaining_plugged_ports(self, setup_gw_arp_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_delete_bgpvpn_remaining_plugged_ports()
-            self.assertEqual(2, setup_entry_fn.call_count)
 
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
                 '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
                 autospec=True)
-    def test_delete_bgpvpn_had_plugged_ports(self, setup_entry_fn):
+    def test_delete_bgpvpn_had_plugged_ports(self, setup_gw_arp_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_delete_bgpvpn_had_plugged_ports()
-            self.assertEqual(2, setup_entry_fn.call_count)
+            self.assertEqual(2, setup_gw_arp_fn.call_count)
 
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
                 '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
                 autospec=True)
-    def _test_bgpvpn_attach_single_port(self, bgpvpn, network, setup_entry_fn):
+    def _test_bgpvpn_attach_single_port(self, bgpvpn, network,
+                                        setup_gw_arp_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self)._test_bgpvpn_attach_single_port(bgpvpn, network)
-            self.assertEqual(1, setup_entry_fn.call_count)
+            LOG.warning("bgpvpn: %s", bgpvpn)
+            self.assertEqual(1 if (bgpvpn == IPVPN or
+                                   bgpvpn == BGPVPN_L3) else 0,
+                             setup_gw_arp_fn.call_count)
 
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
                 '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
                 autospec=True)
-    def test_bgpvpn_attach_same_port_different_bgpvpn(self, setup_entry_fn):
+    def test_bgpvpn_attach_same_port_different_bgpvpn(self, setup_gw_arp_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_bgpvpn_attach_same_port_different_bgpvpn()
-            self.assertEqual(2, setup_entry_fn.call_count)
+            self.assertEqual(1, setup_gw_arp_fn.call_count)
 
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
                 '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
                 autospec=True)
-    def test_bgpvpn_attach_single_port_multiple_bgpvpns(self, setup_entry_fn):
+    def test_bgpvpn_attach_single_port_multiple_bgpvpns(self, setup_gw_arp_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_bgpvpn_attach_single_port_multiple_bgpvpns()
-            self.assertEqual(1, setup_entry_fn.call_count)
+            self.assertEqual(1, setup_gw_arp_fn.call_count)
 
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
                 '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
                 autospec=True)
-    def test_bgpvpn_attach_multiple_ports_same_bgpvpn(self, setup_entry_fn):
+    def test_bgpvpn_attach_multiple_ports_same_bgpvpn(self, setup_gw_arp_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_bgpvpn_attach_multiple_ports_same_bgpvpn()
-            self.assertEqual(2, setup_entry_fn.call_count)
+            self.assertEqual(2, setup_gw_arp_fn.call_count)
 
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
                 '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
                 autospec=True)
     def test_bgpvpn_attach_multiple_ports_different_bgpvpns(self,
-                                                            setup_entry_fn):
+                                                            setup_gw_arp_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF20]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_bgpvpn_attach_multiple_ports_different_bgpvpns()
-            self.assertEqual(2, setup_entry_fn.call_count)
+            self.assertEqual(2, setup_gw_arp_fn.call_count)
 
     def _test_bgpvpn_detach_single_port(self, bgpvpn, network):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
@@ -1669,112 +1668,67 @@ class TestBaGPipeBGPAgentOVS(base.BaseTestCase,
     # Multiple simultaneous RPC notifiers tests |
     # -------------------------------------------
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_attach_single_port_evpns(self, setup_entry_fn):
+    def test_multiple_attach_single_port_evpns(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_attach_single_port_evpns()
-            self.assertEqual(1, setup_entry_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_attach_single_port_different_vpns(self, setup_entry_fn):
+    def test_multiple_attach_single_port_different_vpns(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_attach_single_port_different_vpns()
-            self.assertEqual(1, setup_entry_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_attach_multiple_ports_same_evpns(self,
-                                                       setup_entry_fn):
+    def test_multiple_attach_multiple_ports_same_evpns(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_attach_multiple_ports_same_evpns()
-            self.assertEqual(2, setup_entry_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_attach_multiple_ports_different_evpns(self,
-                                                            setup_entry_fn):
+    def test_multiple_attach_multiple_ports_different_evpns(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF20]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_attach_multiple_ports_different_evpns()
-            self.assertEqual(2, setup_entry_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_attach_multiple_ports_different_vpns(self,
-                                                           setup_entry_fn):
+    def test_multiple_attach_multiple_ports_different_vpns(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF20]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_attach_multiple_ports_different_vpns()
-            self.assertEqual(2, setup_entry_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_detach_single_port_evpns1(self, setup_entry_fn):
+    def test_multiple_detach_single_port_evpns1(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_detach_single_port_evpns1()
-            self.assertEqual(1, setup_entry_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_detach_single_port_evpns2(self, setup_entry_fn):
+    def test_multiple_detach_single_port_evpns2(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_detach_single_port_evpns2()
-            self.assertEqual(1, setup_entry_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_detach_single_port_different_vpns(self, setup_entry_fn):
+    def test_multiple_detach_single_port_different_vpns(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_detach_single_port_different_vpns()
-            self.assertEqual(1, setup_entry_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_detach_multiple_ports_same_evpns(self,
-                                                       setup_entry_fn):
+    def test_multiple_detach_multiple_ports_same_evpns(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_detach_multiple_ports_same_evpns()
-            self.assertEqual(2, setup_entry_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
-                autospec=True)
-    def test_multiple_detach_multiple_ports_different_vpns(self,
-                                                           setup_entry_fn):
+    def test_multiple_detach_multiple_ports_different_vpns(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF20]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_multiple_detach_multiple_ports_different_vpns()
-            self.assertEqual(2, setup_entry_fn.call_count)
