@@ -278,8 +278,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
                           initial_delay=ping_interval)  # TM: why not zero ?
 
     def _get_reg_attachment_for_port(self, network_id, local_port_id):
-        # Retrieve local port index and details in BGP registered attachments
-        # list for the specified network and port identifiers
+        # Retrieve local port index and attachement details in BGP
+        # registered attachments list for the specified network and port
+        # identifiers
 
         LOG.debug("Getting registered attachment for port %s on network %s" %
                   (local_port_id, network_id))
@@ -385,7 +386,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
     def _get_local_port_plug_details(self, local_port_details, vpn_types=None,
                                      notifiers=None):
         # Construct plug details list for specified notifiers corresponding to
-        # port
+        # the given port
 
         all_plug_details = {}
         vpntype_ipaddress2details = OrderedDict()
@@ -735,6 +736,23 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 for plug_detail in all_plug_details[vpn_type]:
                     self.send_attach_local_port(plug_detail)
 
+                    # for an IPVPN plug, we need to do
+                    # something more for OVS agent:
+                    if (vpn_type == IPVPN and
+                            self.agent_type == n_const.AGENT_TYPE_OVS):
+                        vlan = self.get_local_vlan(
+                            local_port_details['port_id'])
+                        gateway_ip = plug_detail['gateway_ip']
+                        # Add ARP responder entry for default gateway in
+                        # OVS tunnel bridge
+                        ovs_neutron_agent.OVSNeutronAgent.\
+                            setup_entry_for_arp_reply(DummyOVSAgent(),
+                                                      self.tun_br,
+                                                      'add',
+                                                      vlan,
+                                                      DEFAULT_GATEWAY_MAC,
+                                                      gateway_ip)
+
     def _do_local_port_unplug(self, local_port_details, vpn_types=None,
                               notifiers=None):
         """Send local port detach request to bagpipe-bgp."""
@@ -872,17 +890,6 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 port_bgpvpn_info[BGPVPN_TYPES_MAP[bgpvpn_type]] = (
                     port_bgpvpn_info.pop(bgpvpn_type)
                 )
-
-        if self.agent_type == n_const.AGENT_TYPE_OVS:
-            vlan = self.get_local_vlan(port_id)
-            # Add ARP responder entry for default gateway in OVS tunnel bridge
-            ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply(
-                DummyOVSAgent(),
-                self.tun_br,
-                'add',
-                vlan,
-                DEFAULT_GATEWAY_MAC,
-                port_bgpvpn_info['gateway_ip'])
 
         # Add/Update port BGPVPN details in registered attachments list
         port_details = self._add_local_port_details(BGPVPN_NOTIFIER,
