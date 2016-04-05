@@ -2,7 +2,7 @@
 
 # Save trace setting
 _XTRACE_NETWORKING_BAGPIPE=$(set +o | grep xtrace)
-set +o xtrace
+set -o xtrace
 
 if [[ "$1" == "source" ]]; then
     # no-op
@@ -27,6 +27,7 @@ fi
 if [[ -d "$BAGPIPE_DIR" ]]; then
     echo "Running bagpipe-bgp devstack plugin..."
     source $BAGPIPE_DIR/devstack/plugin.sh $1 $2
+    echo "After bagpipe-bgp devstack $1 $2: $?"
 fi
 
 # Restore trace setting
