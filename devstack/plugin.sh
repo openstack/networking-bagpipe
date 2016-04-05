@@ -31,4 +31,6 @@ if [[ -d "$BAGPIPE_DIR" ]]; then
 fi
 
 # Restore trace setting
+echo "Restore xtrace: ${_XTRACE_NETWORKING_BAGPIPE}"
 ${_XTRACE_NETWORKING_BAGPIPE}
+
