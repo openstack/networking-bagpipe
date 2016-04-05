@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Save trace setting
-XTRACE=$(set +o | grep xtrace)
+_XTRACE_NETWORKING_BAGPIPE=$(set +o | grep xtrace)
 set +o xtrace
 
 if [[ "$1" == "source" ]]; then
@@ -29,5 +29,5 @@ if [[ -d "$BAGPIPE_DIR" ]]; then
     source $BAGPIPE_DIR/devstack/plugin.sh $1 $2
 fi
 
-set +x
-$xtrace
+# Restore trace setting
+${_XTRACE_NETWORKING_BAGPIPE}
