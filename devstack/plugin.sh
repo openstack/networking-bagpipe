@@ -32,6 +32,4 @@ fi
 
 
 # Restore trace setting
-#echo "Restore xtrace: ${_XTRACE_NETWORKING_BAGPIPE}"
-#${_XTRACE_NETWORKING_BAGPIPE}
-set +o | grep xtrace
+${_XTRACE_NETWORKING_BAGPIPE}
