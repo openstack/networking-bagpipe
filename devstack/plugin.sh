@@ -27,10 +27,11 @@ fi
 if [[ -d "$BAGPIPE_DIR" ]]; then
     echo "Running bagpipe-bgp devstack plugin..."
     source $BAGPIPE_DIR/devstack/plugin.sh $1 $2
-    echo "After bagpipe-bgp devstack $1 $2: $?"
+    echo "$BAGPIPE_DIR/devstack/plugin.sh $1 $2: $?"
 fi
 
-# Restore trace setting
-echo "Restore xtrace: ${_XTRACE_NETWORKING_BAGPIPE}"
-${_XTRACE_NETWORKING_BAGPIPE}
 
+# Restore trace setting
+#echo "Restore xtrace: ${_XTRACE_NETWORKING_BAGPIPE}"
+#${_XTRACE_NETWORKING_BAGPIPE}
+set +o | grep xtrace
