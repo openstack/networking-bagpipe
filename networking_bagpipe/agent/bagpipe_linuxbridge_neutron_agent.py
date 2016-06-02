@@ -69,7 +69,8 @@ class BagpipeAgentExtension(agent_extension.AgentCoreResourceExtension):
 
         # Create an HTTP client for BaGPipe BGP component REST service
         self.bagpipe_bgp_agent = bagpipe_bgp_agent.BaGPipeBGPAgent(
-            constants.AGENT_TYPE_LINUXBRIDGE)
+            constants.AGENT_TYPE_LINUXBRIDGE,
+            connection)
 
     def handle_port(self, context, data):
         pass
