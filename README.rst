@@ -31,12 +31,12 @@ the specification for E-VPN is RFC7432_.
 Neutron ML2 mechanism driver
 ----------------------------
 
-The `bagpipe` mechanism driver allocates a BGP VPN identifier (called "route target") 
+The `bagpipe` mechanism driver allocates a BGP VPN identifier (called "route target")
 for each Neutron network, and will setup an E-VPN instance for each network.
 
-When a Neutron port goes up, the agent on the corresponding compute node provides 
+When a Neutron port goes up, the agent on the corresponding compute node provides
 this VPN identifier to the locally running `bagpipe-bgp`, to trigger the attachement
-of the VM tap interface to the E-VPN instance. 
+of the VM tap interface to the E-VPN instance.
 
 Once E-VPN routes are exchanged, `bagpipe-bgp` setups VXLAN forwarding state in the
 linuxbridge.
@@ -87,17 +87,26 @@ How to use the ML2 driver in devstack?
     # Data Center AS number
     as_number = 64512
 
-* install and configure bagpipe-bgp_ on each compute node, with a peering to at least one common BGP Route Reflector: 
+* configure bagpipe-bgp_ on each compute node
 
-  * enable the devstack plugin for bagpipe-bgp by adding this to `local.conf`: ::
+  * (note that with devstack, bagpipe-bgp_ is installed automatically as a git submodule of networking-bagpipe)
 
-        enable_plugin bagpipe-bgp https://github.com/Orange-OpenSource/bagpipe-bgp.git
+  * the following is needed in `local.conf` to configure bagpipe-bgp_ and start it in devstack::
+
         BAGPIPE_DATAPLANE_DRIVER_EVPN=linux_vxlan.LinuxVXLANDataplaneDriver
+
+        enable_service b-bgp
+
+  * you also need each bagpipe_bgp_ to peer with a BGP Route Reflector:
+
+     * in `local.conf`::
+
         # IP of your route reflector or BGP router, or fakeRR:
         BAGPIPE_BGP_PEERS=1.2.3.4
 
-  * for two compute nodes, you can use the FakeRR provided in bagpipe-bgp_
-  * for more than two compute nodes, you can use GoBGP_ (`sample configuration`_) or a commercial E-VPN implementation (e.g. vendors participating in `EANTC interop testing on E-VPN <http://www.eantc.de/fileadmin/eantc/downloads/events/2011-2015/MPLSSDN2015/EANTC-MPLSSDN2015-WhitePaper_online.pdf>`_)
+     * for two compute nodes, you can use the FakeRR provided in bagpipe-bgp_
+
+     * for more than two compute nodes, you can use GoBGP_ (`sample configuration`_) or a commercial E-VPN implementation (e.g. vendors participating in `EANTC interop testing on E-VPN <http://www.eantc.de/fileadmin/eantc/downloads/events/2011-2015/MPLSSDN2015/EANTC-MPLSSDN2015-WhitePaper_online.pdf>`_)
 
 How to use the networking-bgpvpn_ driver in devstack ?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
