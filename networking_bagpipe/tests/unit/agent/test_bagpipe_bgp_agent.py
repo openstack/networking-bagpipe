@@ -40,6 +40,8 @@ from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
 
 from neutron.tests import base
+from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent import (
+    ovs_test_base)
 
 import logging
 
@@ -1433,7 +1435,7 @@ class TestBaGPipeBGPAgentLinuxBridge(base.BaseTestCase,
         return local_port, linuxbr
 
 
-class TestBaGPipeBGPAgentOVS(base.BaseTestCase,
+class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
                              TestBaGPipeBGPAgentMixin):
 
     DUMMY_VIF10 = DummyVif(10, 'VIF10')
