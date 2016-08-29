@@ -33,8 +33,9 @@ from neutron._i18n import _LI
 from neutron.agent.l2 import agent_extension
 
 from neutron.common import config as common_config
-from neutron.common import constants
 from neutron.common import utils as n_utils
+
+from neutron_lib import constants as n_const
 
 from neutron.plugins.ml2.drivers.agent import _common_agent as ca
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
@@ -69,7 +70,7 @@ class BagpipeAgentExtension(agent_extension.AgentCoreResourceExtension):
 
         # Create an HTTP client for BaGPipe BGP component REST service
         self.bagpipe_bgp_agent = bagpipe_bgp_agent.BaGPipeBGPAgent(
-            constants.AGENT_TYPE_LINUXBRIDGE,
+            n_const.AGENT_TYPE_LINUXBRIDGE,
             connection)
 
     def handle_port(self, context, data):
@@ -106,7 +107,7 @@ def main():
     polling_interval = cfg.CONF.AGENT.polling_interval
     quitting_rpc_timeout = cfg.CONF.AGENT.quitting_rpc_timeout
     agent = ca.CommonAgentLoop(manager, polling_interval, quitting_rpc_timeout,
-                               constants.AGENT_TYPE_LINUXBRIDGE,
+                               n_const.AGENT_TYPE_LINUXBRIDGE,
                                LB_BAGPIPE_AGENT_BINARY)
     LOG.info(_LI("Agent initialized successfully, now running... "))
     launcher = service.launch(cfg.CONF, agent)

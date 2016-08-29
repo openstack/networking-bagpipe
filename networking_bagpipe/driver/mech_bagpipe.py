@@ -18,7 +18,6 @@ from oslo_config import cfg
 from oslo_log import log
 
 from neutron.agent import securitygroups_rpc
-from neutron.common import constants as const
 from neutron import context as n_context
 from neutron.db import api as db_api
 from neutron.db import models_v2
@@ -28,6 +27,8 @@ from neutron.plugins.common import constants as p_constants
 
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
+
+from neutron_lib import constants as n_const
 
 from networking_bagpipe.driver.type_route_target import TYPE_ROUTE_TARGET
 from networking_bagpipe.rpc import client as bagpipe_rpc_client
@@ -85,7 +86,7 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
     def __init__(self):
         sg_enabled = securitygroups_rpc.is_firewall_enabled()
         super(BaGPipeMechanismDriver, self).__init__(
-            const.AGENT_TYPE_LINUXBRIDGE,
+            n_const.AGENT_TYPE_LINUXBRIDGE,
             portbindings.VIF_TYPE_BRIDGE,
             {portbindings.CAP_PORT_FILTER: sg_enabled})
         self.agent_notify = bagpipe_rpc_client.BaGPipeAgentNotifyAPI()
@@ -180,7 +181,7 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         agent_host = context.host
 
         if (context.host != context.original_host and
-                context.status == const.PORT_STATUS_ACTIVE and
+                context.status == n_const.PORT_STATUS_ACTIVE and
                 not self.migrated_ports.get(orig['id'])):
             # Port has been migrated. We need to store the original
             # binding to send bagpipe informations for port to the
@@ -191,7 +192,7 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             port_bagpipe_info = {'id': port['id'],
                                  'network_id': port['network_id']}
 
-            if context.status == const.PORT_STATUS_ACTIVE:
+            if context.status == n_const.PORT_STATUS_ACTIVE:
                 segment = context.bottom_bound_segment
                 if not segment:
                     LOG.debug(("Port %(port)s updated by agent %(agent)s "
@@ -212,13 +213,13 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
                 except NoNetworkInfoForPort:
                     LOG.warning("No network info for port %s (v6 only?),"
                                 " not attached!", port['id'])
-            elif context.status == const.PORT_STATUS_DOWN:
+            elif context.status == n_const.PORT_STATUS_DOWN:
                 self.agent_notify.detach_port_from_bagpipe_network(
                     self.rpc_ctx,
                     port_bagpipe_info,
                     agent_host
                 )
-            elif context.status == const.PORT_STATUS_BUILD:
+            elif context.status == n_const.PORT_STATUS_BUILD:
                 orig = self.migrated_ports.pop(port['id'], None)
                 if orig:
                     # this port has been migrated: Detach from BaGPipe

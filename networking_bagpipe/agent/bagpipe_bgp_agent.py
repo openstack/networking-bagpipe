@@ -30,6 +30,8 @@ from oslo_concurrency import lockutils
 
 from oslo_service import loopingcall
 
+from networking_bagpipe._i18n import _
+
 from networking_bagpipe.rpc import agent as bagpipe_agent_rpc
 from networking_bagpipe.rpc.client import topics_BAGPIPE
 
@@ -39,16 +41,17 @@ from networking_bagpipe.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
 from neutron.agent.common import config
 from neutron.agent.common import ovs_lib
 
-from neutron.common import exceptions as q_exc
 from neutron.common import topics
 
 from neutron_lib import constants as n_const
+from neutron_lib import exceptions as n_exc
 
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import config\
     as ovs_config
-from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants
+from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants\
+    as a_const
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent
 
 
@@ -98,11 +101,11 @@ cfg.CONF.register_opts(ovs_config.ovs_opts, "OVS")
 config.register_agent_state_opts_helper(cfg.CONF)
 
 
-class BGPAttachmentNotFound(q_exc.NotFound):
+class BGPAttachmentNotFound(n_exc.NotFound):
     message = "Local port %(local_port)s details could not be found"
 
 
-class BaGPipeBGPException(q_exc.NeutronException):
+class BaGPipeBGPException(n_exc.NeutronException):
     message = "An exception occurred when calling bagpipe-bgp \
                REST service: %(reason)s"
 
@@ -260,7 +263,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                              "bagpipe-bgp")
                     LOG.debug("Registered attachments list: %s" %
                               self.reg_attachments)
-                    for _, attachment_list in (
+                    for __, attachment_list in (
                             self.reg_attachments.iteritems()):
                         if attachment_list:
                             for attachment in attachment_list:
@@ -507,7 +510,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         # priority >0 is needed or we hit the rule redirecting unicast to
         # the UCAST_TO_TUN table
         self.tun_br.add_flow(
-            table=constants.PATCH_LV_TO_TUN,
+            table=a_const.PATCH_LV_TO_TUN,
             priority=1,
             in_port=patch_int_ofport,
             dl_dst=DEFAULT_GATEWAY_MAC,
@@ -839,7 +842,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         evpn = bgpvpn.get(EVPN, bgpvpn.get(BGPVPN_L2))
         ipvpn = bgpvpn.get(IPVPN, bgpvpn.get(BGPVPN_L3))
 
-        for index, _ in enumerate(self.reg_attachments[network_id]):
+        for index, __ in enumerate(self.reg_attachments[network_id]):
             updated_attachment = (
                 self._update_local_port_bgpvpn_details(network_id, index,
                                                        evpn, ipvpn)

@@ -35,13 +35,14 @@ from networking_bagpipe.agent.bagpipe_bgp_agent import EVPN
 from networking_bagpipe.agent.bagpipe_bgp_agent import IPVPN
 from networking_bagpipe.agent.bagpipe_bgp_agent import VPN_TYPES
 
-from neutron.common import constants as q_const
+
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
-
 from neutron.tests import base
 from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent import (
     ovs_test_base)
+
+from neutron_lib import constants as n_const
 
 import logging
 
@@ -1423,7 +1424,7 @@ class TestBaGPipeBGPAgentLinuxBridge(base.BaseTestCase,
         self.bridge_mappings = {}
         self.interface_mappings = {}
 
-        self.agent = BaGPipeBGPAgent(q_const.AGENT_TYPE_LINUXBRIDGE,
+        self.agent = BaGPipeBGPAgent(n_const.AGENT_TYPE_LINUXBRIDGE,
                                      mock.Mock())
 
     def _get_expected_local_port(self, network_id, port_id, vif_name):
@@ -1464,7 +1465,7 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
                        'bridge_exists', return_value=True),
             mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'add_patch_port', side_effect=PATCH_MPLS_OFPORTS)):
-            self.agent = BaGPipeBGPAgent(q_const.AGENT_TYPE_OVS,
+            self.agent = BaGPipeBGPAgent(n_const.AGENT_TYPE_OVS,
                                          mock.Mock(),
                                          int_br=self.mock_int_br,
                                          tun_br=self.mock_tun_br)

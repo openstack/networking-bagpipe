@@ -16,7 +16,8 @@
 import mock
 
 from neutron import context
-from neutron.plugins.ml2.drivers.linuxbridge.agent.common import constants
+from neutron.plugins.ml2.drivers.linuxbridge.agent.common import constants as\
+    a_const
 from neutron.tests import base
 
 from networking_bagpipe.agent import bagpipe_linuxbridge_neutron_agent as\
@@ -33,4 +34,4 @@ class LinuxbridgeAgentExtensionTest(base.BaseTestCase):
 
     def test_initialize_linuxbridge(self):
         self.agent_ext.initialize(self.connection,
-                                  constants.EXTENSION_DRIVER_TYPE)
+                                  a_const.EXTENSION_DRIVER_TYPE)

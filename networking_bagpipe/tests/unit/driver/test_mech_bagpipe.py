@@ -15,7 +15,6 @@
 
 import mock
 
-from neutron.common import constants
 from neutron import context
 from neutron.extensions import portbindings
 from neutron.extensions import providernet as pnet
@@ -27,6 +26,8 @@ from neutron.tests.unit.plugins.ml2 import test_plugin
 
 from networking_bagpipe.driver.type_route_target import TYPE_ROUTE_TARGET
 import networking_bagpipe.rpc.client as bagpipe_rpc
+
+from neutron_lib import constants as n_consts
 
 HOST = 'bagpipe_host'
 HOST_2 = HOST + '_2'
@@ -42,7 +43,7 @@ def _get_linuxbridge_agent_dict(host, agent_type, binary,
     agent = {
         'binary': binary,
         'host': host,
-        'topic': constants.L2_AGENT_TOPIC,
+        'topic': n_consts.L2_AGENT_TOPIC,
         'agent_type': agent_type,
         'start_flag': True}
 
@@ -54,7 +55,7 @@ def _get_linuxbridge_agent_dict(host, agent_type, binary,
 
 
 def register_linuxbridge_agent(host=HOST,
-                               agent_type=constants.AGENT_TYPE_LINUXBRIDGE,
+                               agent_type=n_consts.AGENT_TYPE_LINUXBRIDGE,
                                binary='bagpipe-linuxbridge-agent',
                                bridge_mappings=None,
                                interface_mappings=None):
