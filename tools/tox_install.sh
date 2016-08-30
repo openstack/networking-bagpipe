@@ -21,6 +21,9 @@ openstack_branch=master
 
 set -e
 
+install_cmd="pip install -c$1"
+shift
+
 if [ $neutron_installed -eq 0 ]; then
     echo "ALREADY INSTALLED" > /tmp/tox_install.txt
     echo "Neutron already installed; using existing package"
@@ -33,12 +36,12 @@ elif [ -x "$ZUUL_CLONER" ]; then
         git://git.openstack.org \
         openstack/neutron
     cd openstack/neutron
-    pip install -e .
+    $install_cmd -e .
     cd "$cwd"
 else
     echo "PIP HARDCODE" > /tmp/tox_install.txt
-    pip install -U -egit+https://git.openstack.org/openstack/neutron@${openstack_branch}#egg=neutron
+    $install_cmd -U -egit+https://git.openstack.org/openstack/neutron@${openstack_branch}#egg=neutron
 fi
 
-pip install -U $*
+$install_cmd $*
 exit $?
