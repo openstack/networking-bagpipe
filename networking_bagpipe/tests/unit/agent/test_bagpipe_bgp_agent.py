@@ -207,25 +207,25 @@ class TestBaGPipeBGPAgentMixin(object):
                                    notifiers=BAGPIPE_NOTIFIERS,
                                    vpn_types=VPN_TYPES):
         if expected_size == 0:
-            self.assertTrue(network_id not in self.agent.reg_attachments,
-                            "Network %s expected to have no attachments left" %
-                            network_id)
+            self.assertNotIn(network_id, self.agent.reg_attachments,
+                             "Network %s expected to have no attachments left"
+                             % network_id)
         else:
-            self.assertTrue(network_id in self.agent.reg_attachments)
+            self.assertIn(network_id, self.agent.reg_attachments)
             attachments = self.agent.reg_attachments[network_id]
             self.assertEqual(len(attachments), expected_size,
                              "Network attachments size not as expected")
             for attachment in attachments:
                 for notifier in notifiers:
-                    self.assertTrue(notifier in attachment,
-                                    "No %s details found in attachment %s" %
-                                    (notifier, attachment))
+                    self.assertIn(notifier, attachment,
+                                  "No %s details found in attachment %s" %
+                                  (notifier, attachment))
                     for vpn_type in vpn_types:
-                        self.assertTrue(vpn_type in attachment[notifier],
-                                        "No %s %s details found in "
-                                        "attachment %s" % (notifier,
-                                                           vpn_type,
-                                                           attachment))
+                        self.assertIn(vpn_type, attachment[notifier],
+                                      "No %s %s details found in "
+                                      "attachment %s" % (notifier,
+                                                         vpn_type,
+                                                         attachment))
 
     # ----------------------------
     # BaGPipe RPC notifier tests |
