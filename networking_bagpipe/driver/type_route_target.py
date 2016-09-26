@@ -27,10 +27,10 @@ from networking_bagpipe._i18n import _LI
 from networking_bagpipe._i18n import _LW
 
 from neutron.db import api as db_api
-from neutron.db import model_base
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import helpers
 
+from neutron_lib.db import model_base
 from neutron_lib import exceptions as exc
 
 LOG = log.getLogger(__name__)
