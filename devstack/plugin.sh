@@ -15,6 +15,7 @@ elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         source $NEUTRON_DIR/devstack/lib/l2_agent
         plugin_agent_add_l2_agent_extension bagpipe
         iniset /$Q_PLUGIN_CONF_FILE vxlan enable_vxlan False
+        configure_l2_agent
     fi
 fi
 if [[ "$1" == "unstack" ]]; then
