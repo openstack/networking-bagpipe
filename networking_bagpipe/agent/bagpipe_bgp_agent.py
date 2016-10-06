@@ -20,10 +20,14 @@ import json
 from copy import deepcopy
 
 from collections import defaultdict
+from collections import namedtuple
 from collections import OrderedDict
+
+import netaddr
 
 from oslo_config import cfg
 
+from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 
 from oslo_concurrency import lockutils
@@ -54,10 +58,13 @@ from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants\
     as a_const
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent
 
+from neutron.plugins.ml2.drivers.openvswitch.agent import \
+    ovs_agent_extension_api
 
 LOG = logging.getLogger(__name__)
 
 DEFAULT_GATEWAY_MAC = "00:00:5e:00:43:64"
+FALLBACK_SRC_MAC = "00:00:5e:2a:10:00"
 
 BAGPIPE_NOTIFIER = 'bagpipe'
 BGPVPN_NOTIFIER = 'bgpvpn'
@@ -83,17 +90,23 @@ bagpipe_bgp_opts = [
     cfg.StrOpt('mpls_bridge', default='br-mpls',
                help=_("OVS MPLS bridge to use")),
     cfg.StrOpt('tun_to_mpls_peer_patch_port', default='patch-to-mpls',
-               help=_("OVS Peer patch port in tunnel bridge to MPLS bridge"
+               help=_("OVS Peer patch port in tunnel bridge to MPLS bridge "
                       "(traffic to MPLS bridge)")),
     cfg.StrOpt('tun_from_mpls_peer_patch_port', default='patch-from-mpls',
                help=_("OVS Peer patch port in tunnel bridge to MPLS bridge "
                       "(traffic from MPLS bridge)")),
     cfg.StrOpt('mpls_to_tun_peer_patch_port', default='patch-to-tun',
-               help=_("OVS Peer patch port in MPLS bridge to tunnel bridge"
+               help=_("OVS Peer patch port in MPLS bridge to tunnel bridge "
                       "(traffic to tunnel bridge)")),
     cfg.StrOpt('mpls_from_tun_peer_patch_port', default='patch-from-tun',
                help=_("OVS Peer patch port in MPLS bridge to tunnel bridge "
                       "(traffic from tunnel bridge)")),
+    cfg.StrOpt('mpls_to_int_peer_patch_port', default='patch-mpls-to-int',
+               help=_("OVS Peer patch port in MPLS bridge to int bridge "
+                      "(traffic to int bridge)")),
+    cfg.StrOpt('int_from_mpls_peer_patch_port', default='patch-int-from-mpls',
+               help=_("OVS Peer patch port in int bridge to MPLS bridge "
+                      "(traffic from MPLS bridge)")),
 ]
 
 cfg.CONF.register_opts(bagpipe_bgp_opts, "BAGPIPE")
@@ -175,6 +188,23 @@ class DummyOVSAgent(ovs_neutron_agent.OVSNeutronAgent):
         pass
 
 
+GatewayInfo = namedtuple('GatewayInfo', ['mac', 'ip'])
+NO_GW_INFO = GatewayInfo(None, None)
+
+
+def default_gw_info():
+    return GatewayInfo(mac=None, ip=None)
+
+
+def has_attachement(bgpvpn_info, vpn_type):
+    return (bgpvpn_info[vpn_type].get('import_rt') or
+            bgpvpn_info[vpn_type].get('export_rt'))
+
+
+def has_ipvpn_attachement(bgpvpn_info):
+    return has_attachement(bgpvpn_info, IPVPN)
+
+
 class BaGPipeBGPAgent(HTTPClientBase,
                       bagpipe_agent_rpc.BaGPipeAgentRpcCallBackMixin,
                       bgpvpn_agent_rpc.BGPVPNAgentRpcCallBackMixin
@@ -203,7 +233,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
         self.ping_interval = cfg.CONF.BAGPIPE.ping_interval
 
         self.reg_attachments = defaultdict(list)
-        self.bgpvpn_network2vpnInfo = dict()
+        self.gateway_info_for_net = defaultdict(default_gw_info)
+
         self.bagpipe_bgp_status = self.BAGPIPEBGP_DOWN
         self.seq_num = 0
 
@@ -316,7 +347,24 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         return local_port_copy
 
-    def _copy_notifier_vpn_details(self, notifier_details):
+    def _gen_fallback_info(self, dst_mac):
+        return {'fallback': {'dst_mac': dst_mac,
+                             'src_mac': FALLBACK_SRC_MAC,
+                             'ovs_port_number': self.patch_mpls_to_int_ofport
+                             }
+                }
+
+    def _add_fallback_info(self, source_details, details, vpn_type):
+        # if a gateway_mac is known, we will add fallback information
+        # to 'details'
+
+        if (self.agent_type == n_const.AGENT_TYPE_OVS and
+                vpn_type == IPVPN and source_details.get('gateway_mac')):
+            details.update(
+                self._gen_fallback_info(source_details.get('gateway_mac'))
+            )
+
+    def _copy_notifier_vpn_details(self, notifier_details, vpn_type):
         notifier_copy = {}
         for key in ['mac_address', 'ip_address', 'gateway_ip',
                     'import_rt', 'export_rt']:
@@ -325,6 +373,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
         for optional in ['readvertise', 'attract_traffic']:
             if optional in notifier_details:
                 notifier_copy[optional] = notifier_details[optional]
+
+        self._add_fallback_info(notifier_details, notifier_copy, vpn_type)
 
         return notifier_copy
 
@@ -336,8 +386,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         if (notifier in local_port_details and
                 vpn_type in local_port_details[notifier] and
-                'import_rt' in local_port_details[notifier][vpn_type] and
-                'export_rt' in local_port_details[notifier][vpn_type]):
+                has_attachement(local_port_details[notifier], vpn_type)):
             notifier_details = local_port_details[notifier][vpn_type]
             LOG.debug("Notifier %s details: %s" % (vpn_type,
                                                    notifier_details))
@@ -364,16 +413,17 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 plug_details.update(
                     self._copy_local_port_common_details(local_port_details))
 
-                if 'ipvpn' == vpn_type:
+                if IPVPN == vpn_type:
                     for vpntype_ipaddress in vpntype_ipaddress2details:
-                        if 'evpn' in vpntype_ipaddress:
-                            plug_details['local_port'] = {'evpn': {
+                        if EVPN in vpntype_ipaddress:
+                            plug_details['local_port'] = {EVPN: {
                                 'id': '%s_evpn' %
                                 local_port_details['vpn_instance_id']}
                                 }
 
-                plug_details.update(self._copy_notifier_vpn_details(
-                    notifier_details))
+                plug_details.update(
+                    self._copy_notifier_vpn_details(notifier_details, vpn_type)
+                )
 
                 vpntype_ipaddress2details[(vpn_type,
                                            notifier_details['ip_address'])
@@ -397,6 +447,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         plug_types = vpn_types if vpn_types else VPN_TYPES
         plug_notifiers = notifiers if notifiers else BAGPIPE_NOTIFIERS
 
+        # NOTE(tmorin): could use itertools.product
         for (vpn_type, notifier) in [
                 (x, y) for x in plug_types for y in plug_notifiers]:
             self._populate_vpntype_ipaddress2details(vpn_type,
@@ -474,7 +525,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                       {"mpls_br": mpls_br})
             exit(1)
 
-        # patch ports for traffic from tun to mpls
+        # patch ports for traffic from tun bridge to mpls bridge
         self.patch_tun_to_mpls_ofport = self.tun_br.add_patch_port(
             cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port,
             cfg.CONF.BAGPIPE.mpls_from_tun_peer_patch_port)
@@ -482,7 +533,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             cfg.CONF.BAGPIPE.mpls_from_tun_peer_patch_port,
             cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port)
 
-        # patch ports for traffic from mpls to tun
+        # patch ports for traffic from mpls bridge to tun bridge
         self.patch_mpls_to_tun_ofport = self.mpls_br.add_patch_port(
             cfg.CONF.BAGPIPE.mpls_to_tun_peer_patch_port,
             cfg.CONF.BAGPIPE.tun_from_mpls_peer_patch_port)
@@ -490,25 +541,34 @@ class BaGPipeBGPAgent(HTTPClientBase,
             cfg.CONF.BAGPIPE.tun_from_mpls_peer_patch_port,
             cfg.CONF.BAGPIPE.mpls_to_tun_peer_patch_port)
 
+        # patch ports for traffic from mpls bridge to int bridge
+        self.patch_mpls_to_int_ofport = self.mpls_br.add_patch_port(
+            cfg.CONF.BAGPIPE.mpls_to_int_peer_patch_port,
+            cfg.CONF.BAGPIPE.int_from_mpls_peer_patch_port)
+        self.patch_int_from_mpls_ofport = self.int_br.add_patch_port(
+            cfg.CONF.BAGPIPE.int_from_mpls_peer_patch_port,
+            cfg.CONF.BAGPIPE.mpls_to_int_peer_patch_port)
+
         if (int(self.patch_tun_to_mpls_ofport) < 0 or
                 int(self.patch_mpls_from_tun_ofport) < 0 or
                 int(self.patch_mpls_to_tun_ofport) < 0 or
-                int(self.patch_tun_from_mpls_ofport) < 0):
+                int(self.patch_tun_from_mpls_ofport) < 0 or
+                int(self.patch_int_from_mpls_ofport) < 0 or
+                int(self.patch_mpls_to_int_ofport) < 0):
             LOG.error("Failed to create OVS patch port. Cannot have "
                       "MPLS enabled on this agent, since this version "
                       "of OVS does not support patch ports. "
                       "Agent terminated!")
             exit(1)
 
-        # In br-tun, redirect all traffic from VMs toward default gateway MAC
-        # address to the MPLS bridge.  Redirect traffic from the MPLS bridge to
-        # br-int.
-
         patch_int_ofport = self.tun_br.get_port_ofport(
             cfg.CONF.OVS.tun_peer_patch_port)
 
-        # priority >0 is needed or we hit the rule redirecting unicast to
-        # the UCAST_TO_TUN table
+        # In br-tun, redirect all traffic from VMs toward a BGPVPN
+        # default gateway MAC address to the MPLS bridge.
+        #
+        # (priority >0 is needed or we hit the rule redirecting unicast to
+        # the UCAST_TO_TUN table)
         self.tun_br.add_flow(
             table=a_const.PATCH_LV_TO_TUN,
             priority=1,
@@ -517,6 +577,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             actions="output:%s" % self.patch_tun_to_mpls_ofport
         )
 
+        # Redirect traffic from the MPLS bridge to br-int
         self.tun_br.add_flow(in_port=self.patch_tun_from_mpls_ofport,
                              actions="output:%s" % patch_int_ofport)
 
@@ -532,10 +593,10 @@ class BaGPipeBGPAgent(HTTPClientBase,
         port_tag_dict = self.int_br.get_port_tag_dict()
         return port_tag_dict[vif_port.port_name]
 
-    def _get_local_port_for_attach(self, port_id, net_uuid):
+    def _get_local_port_for_attach(self, port_id, net_id):
         if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
             port_name = LinuxBridgeManager.get_tap_device_name(port_id)
-            bridge_name = LinuxBridgeManager.get_bridge_name(net_uuid)
+            bridge_name = LinuxBridgeManager.get_bridge_name(net_id)
 
             return {
                 'linuxbr': bridge_name,
@@ -562,20 +623,23 @@ class BaGPipeBGPAgent(HTTPClientBase,
             except Exception as e:
                 LOG.error("could not find vlan for port %s: %s", port_id, e)
 
-    def _copy_port_network_details(self, port_details):
+    def _copy_port_network_details(self, port_details, vpn_type):
         network_details = {}
-        for key in ['ip_address', 'mac_address', 'gateway_ip']:
-            network_details[key] = port_details[key]
+        for key in ['ip_address', 'mac_address', 'gateway_ip', 'gateway_mac']:
+            network_details[key] = port_details.get(key)
+
+        self._add_fallback_info(port_details, network_details, vpn_type)
 
         return network_details
 
-    def _format_port_details(self, port_details, notifier=None):
+    def _format_port_details(self, port_details, notifier):
         """Format port details as follows:
 
         {
             mac_address: <PORT_MAC>,
             ip_address: <PORT_IP>,
             gateway_ip: <PORT_GATEWAY>,
+            gateway_mac: <GW_MAC>,
             evpn | ipvpn: {
                 import_rts: [<ASN:NN>],
                 export_rts: [<ASN:NN>]
@@ -589,6 +653,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 mac_address: <PORT_MAC>,
                 ip_address: <PORT_IP>,
                 gateway_ip: <PORT_GATEWAY>,
+                fallback: {...}
                 import_rts: [<ASN:NN>],
                 export_rts: [<ASN:NN>]
             }
@@ -600,9 +665,10 @@ class BaGPipeBGPAgent(HTTPClientBase,
             if vpn_type in copy_details:
                 formatted_details[vpn_type] = copy_details.pop(vpn_type)
                 formatted_details[vpn_type].update(copy_details)
-            elif notifier and notifier == BGPVPN_NOTIFIER:
+
+            elif notifier == BGPVPN_NOTIFIER:
                 formatted_details[vpn_type] = (
-                    self._copy_port_network_details(copy_details)
+                    self._copy_port_network_details(copy_details, vpn_type)
                 )
 
         return formatted_details
@@ -638,6 +704,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     gateway_ip: <PORT_GATEWAY>,
                     import_rts: [<ASN:NN>, ...],
                     export_rts: [<ASN:NN>, ...]
+                    ...
                 }
             },
             bgpvpn: {
@@ -647,6 +714,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     gateway_ip: <PORT_GATEWAY>,
                     import_rts: [<ASN:NN>, ...],
                     export_rts: [<ASN:NN>, ...]
+                    ...
                 }
             }
         }
@@ -727,6 +795,94 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     LOG.debug("No attachment on network, deleting...")
                     del self.reg_attachments[net_id]
 
+    @log_helpers.log_method_call
+    def _enable_gw_redirect(self, vlan, gateway_ip):
+        # Add ARP responder entry for default gateway in br-tun
+
+        # We may compete with the ARP responder entry for the real MAC
+        # if the router is on a network node and we are a compute node,
+        # so we must add our rule with a higher priority
+
+        # TODO(tmorin): Ideally we should use install_arp_responder, after
+        # extending it to accept a 'priority' parameter, but we'd need to make
+        # sure that delete_arp_responder (including the OF native
+        # implementation) delete only rule with its cookie
+
+        # (mostly copy-pasted ovs_ofctl....install_arp_responder)
+        actions = a_const.ARP_RESPONDER_ACTIONS % {
+            'mac': netaddr.EUI(DEFAULT_GATEWAY_MAC, dialect=netaddr.mac_unix),
+            'ip': netaddr.IPAddress(gateway_ip),
+        }
+        self.tun_br.add_flow(table=a_const.ARP_RESPONDER,
+                             priority=2,  # see above
+                             dl_vlan=vlan,
+                             proto='arp',
+                             arp_op=0x01,  # the rule in install_arp_responder
+                                           # does not restrict to requests,
+                                           # but it seems what is right to do
+                             arp_tpa='%s' % gateway_ip,
+                             actions=actions)
+
+    @log_helpers.log_method_call
+    def _disable_gw_redirect(self, vlan, gateway_ip):
+        # Remove ARP responder entry for default gateway in br-tun
+
+        # NOTE(tmorin): do a clean self.tun_br.delete_flows call once native
+        # ofswitch stops overloading delete_flows with an implementation
+        # not behaving like the ovs_lib one.
+        # (see https://bugs.launchpad.net/neutron/+bug/1628455 )
+        ovs_agent_extension_api.OVSCookieBridge.delete_flows(
+            self.tun_br,
+            table=a_const.ARP_RESPONDER,
+            dl_vlan=vlan,
+            proto='arp',
+            arp_op=0x01,
+            arp_tpa='%s' % gateway_ip)
+
+        # TODO(tmorin): nothing currently prevents the base agent from
+        # deleting our rule on Router unplug (because its delete_flows is
+        # not restricted to rules having its own cookie)
+
+    @log_helpers.log_method_call
+    def _hide_real_gw_arp(self, vlan, gateway_info):
+        # Kill ARP replies for the gateway IP coming on br-int from the real
+        # router, if any.
+        #
+        # NOTE(tmorin): we assume that the router MAC exists only in this vlan.
+        # Doing filtering based on the local vlan would be better, but
+        # we can't do this in br-int because this bridge does tagging based
+        # on ovs-vsctl port tags.
+        self.int_br.add_flow(table=a_const.LOCAL_SWITCHING,
+                             priority=2,
+                             proto='arp',
+                             arp_op=0x2,
+                             dl_src=gateway_info.mac,
+                             arp_sha=gateway_info.mac,
+                             arp_spa=gateway_info.ip,
+                             actions="drop")
+
+        # ARP requests from the real gateway need to
+        # have their IP address changed to hide the gateway
+        # address or the VMs will use it to update their
+        # ARP cache implicitly. Below we overwrite it with 0.0.0.0.
+        self.int_br.add_flow(table=a_const.LOCAL_SWITCHING,
+                             priority=2,
+                             proto='arp',
+                             arp_op=0x01,
+                             dl_src=gateway_info.mac,
+                             arp_spa=gateway_info.ip,
+                             arp_sha=gateway_info.mac,
+                             actions="load:0x0->NXM_OF_ARP_SPA[],NORMAL")
+
+    @log_helpers.log_method_call
+    def _unhide_real_gw_arp(self, vlan, gateway_info):
+        LOG.debug("unblocking ARP from real gateway for vlan %d (%s)",
+                  vlan, gateway_info)
+        self.int_br.delete_flows(table=a_const.LOCAL_SWITCHING,
+                                 proto='arp',
+                                 dl_src=gateway_info.mac,
+                                 arp_sha=gateway_info.mac)
+
     def _do_local_port_plug(self, local_port_details):
         """Send local port attach request to bagpipe-bgp."""
         all_plug_details = (
@@ -734,27 +890,10 @@ class BaGPipeBGPAgent(HTTPClientBase,
         )
 
         # First plug E-VPNs because they could be plugged into IP-VPNs
-        for vpn_type in VPN_TYPES:
-            if vpn_type in all_plug_details:
-                for plug_detail in all_plug_details[vpn_type]:
-                    self.send_attach_local_port(plug_detail)
-
-                    # for an IPVPN plug, we need to do
-                    # something more for OVS agent:
-                    if (vpn_type == IPVPN and
-                            self.agent_type == n_const.AGENT_TYPE_OVS):
-                        vlan = self.get_local_vlan(
-                            local_port_details['port_id'])
-                        gateway_ip = plug_detail['gateway_ip']
-                        # Add ARP responder entry for default gateway in
-                        # OVS tunnel bridge
-                        ovs_neutron_agent.OVSNeutronAgent.\
-                            setup_entry_for_arp_reply(DummyOVSAgent(),
-                                                      self.tun_br,
-                                                      'add',
-                                                      vlan,
-                                                      DEFAULT_GATEWAY_MAC,
-                                                      gateway_ip)
+        for vpn_type in [t for t in VPN_TYPES
+                         if t in all_plug_details]:
+            for plug_detail in all_plug_details[vpn_type]:
+                self.send_attach_local_port(plug_detail)
 
     def _do_local_port_unplug(self, local_port_details, vpn_types=None,
                               notifiers=None):
@@ -766,10 +905,53 @@ class BaGPipeBGPAgent(HTTPClientBase,
         )
 
         # First unplug IP-VPNs because E-VPNs could be plugged into them
-        for vpn_type in VPN_TYPES[::-1]:
-            if vpn_type in all_unplug_details:
-                for unplug_detail in all_unplug_details[vpn_type]:
-                    self.send_detach_local_port(unplug_detail)
+        for vpn_type in [t for t in VPN_TYPES[::-1]
+                         if t in all_unplug_details]:
+            for unplug_detail in all_unplug_details[vpn_type]:
+                self.send_detach_local_port(unplug_detail)
+
+    @log_helpers.log_method_call
+    def _check_arp_voodoo_plug(self, net_id, port_id, gateway_info):
+
+        if (self.agent_type != n_const.AGENT_TYPE_OVS):
+            return
+
+        # See if we need to update gateway redirection and gateway ARP
+        # voodoo
+
+        vlan = self.get_local_vlan(port_id)
+
+        # NOTE(tmorin): can be improved, only needed on first plug...
+        self._enable_gw_redirect(vlan, gateway_info.ip)
+
+        # update real gateway ARP blocking...
+        # remove old ARP blocking ?
+        if (net_id in self.gateway_info_for_net and
+                self.gateway_info_for_net.get(net_id).mac is not None):
+            self._unhide_real_gw_arp(vlan,
+                                     self.gateway_info_for_net.get(net_id))
+        # add new ARP blocking ?
+        if gateway_info.mac:
+            self._hide_real_gw_arp(vlan, gateway_info)
+
+    @log_helpers.log_method_call
+    def _check_arp_voodoo_unplug(self, net_id, port_id):
+
+        if (self.agent_type != n_const.AGENT_TYPE_OVS):
+            return
+
+        # if last port for this network, then cleanup gateway redirection
+        # NOTE(tmorin): shouldn't we check for last *ipvpn* attachment?
+        if len(self.reg_attachments.get(net_id)) == 1:
+            LOG.debug("last unplug, undoing voodoo ARP")
+            # NOTE(tmorin): vlan lookup might break if port is already
+            # unplugged from bridge ?
+            vlan = self.get_local_vlan(port_id)
+            self._disable_gw_redirect(vlan,
+                                      self.gateway_info_for_net[net_id].ip)
+            if self.gateway_info_for_net.get(net_id).mac is not None:
+                self._unhide_real_gw_arp(vlan,
+                                         self.gateway_info_for_net[net_id])
 
     # BaGPipe RPC callbacks
     # ----------------------
@@ -777,11 +959,11 @@ class BaGPipeBGPAgent(HTTPClientBase,
         LOG.debug("bagpipe_port_attach received with port info: %s",
                   port_bagpipe_info)
         port_id = port_bagpipe_info.pop('id')
-        net_uuid = port_bagpipe_info.pop('network_id')
+        net_id = port_bagpipe_info.pop('network_id')
 
         # Add/Update local port details in registered attachments list
         port_details = self._add_local_port_details(BAGPIPE_NOTIFIER,
-                                                    net_uuid,
+                                                    net_id,
                                                     port_id,
                                                     port_bagpipe_info)
 
@@ -796,12 +978,12 @@ class BaGPipeBGPAgent(HTTPClientBase,
         LOG.debug("bagpipe_port_detach received with port info %s",
                   port_bagpipe_info)
         port_id = port_bagpipe_info['id']
-        net_uuid = port_bagpipe_info['network_id']
+        net_id = port_bagpipe_info['network_id']
 
         # Detach port from bagpipe-bgp
         LOG.debug("Detaching port %s from bagpipe-bgp", port_id)
         try:
-            index, port_details = self._get_reg_attachment_for_port(net_uuid,
+            index, port_details = self._get_reg_attachment_for_port(net_id,
                                                                     port_id)
         except BGPAttachmentNotFound as e:
             LOG.error("bagpipe-bgp agent inconsistent for BaGPipe L2 or "
@@ -812,7 +994,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach port from bagpipe-bgp: %s", str(e))
             finally:
-                self._remove_registered_attachment(net_uuid, index,
+                self._remove_registered_attachment(net_id, index,
                                                    BAGPIPE_NOTIFIER)
 
     # BGPVPN callbacks
@@ -833,14 +1015,17 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         return attachment
 
+    @log_helpers.log_method_call
     def _attach_all_ports_on_bgpvpn(self, network_id, bgpvpn):
         # Attach all ports on BaGPipe-BGP for to the specified BGP VPN
 
-        LOG.debug("Attaching all BGP registered attachments on BGP VPN "
-                  "network %s with %s" % (network_id, bgpvpn))
-
         evpn = bgpvpn.get(EVPN, bgpvpn.get(BGPVPN_L2))
         ipvpn = bgpvpn.get(IPVPN, bgpvpn.get(BGPVPN_L3))
+
+        new_gw_info = GatewayInfo(
+            bgpvpn.get('gateway_mac'),
+            self.gateway_info_for_net[network_id].ip
+        )
 
         for index, __ in enumerate(self.reg_attachments[network_id]):
             updated_attachment = (
@@ -848,18 +1033,34 @@ class BaGPipeBGPAgent(HTTPClientBase,
                                                        evpn, ipvpn)
             )
 
+            if has_ipvpn_attachement(updated_attachment.get(BGPVPN_NOTIFIER)):
+                if new_gw_info != NO_GW_INFO:
+                    self._check_arp_voodoo_plug(
+                        network_id,
+                        updated_attachment['port_id'],
+                        new_gw_info
+                    )
+                if new_gw_info.mac:
+                    updated_attachment.get(BGPVPN_NOTIFIER).get(IPVPN).update(
+                        {'gateway_mac': new_gw_info.mac}
+                    )
+
             self._do_local_port_plug(updated_attachment)
 
+        if bgpvpn.get('gateway_mac'):
+            self.gateway_info_for_net[network_id] = new_gw_info
+
+    @log_helpers.log_method_call
     def _detach_all_ports_from_bgpvpn(self, network_id):
         # Detach all ports from BaGPipe-BGP for the specified BGP VPN
-
-        LOG.debug("Detaching all BGP registered attachments from BGP VPN "
-                  "network %s" % network_id)
 
         for index, port_details in enumerate(self.reg_attachments[network_id]):
             try:
                 self._do_local_port_unplug(port_details,
                                            notifiers=[BGPVPN_NOTIFIER])
+                if has_ipvpn_attachement(port_details.get(BGPVPN_NOTIFIER)):
+                    self._check_arp_voodoo_unplug(network_id,
+                                                  port_details['port_id'])
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach port from bagpipe-bgp: %s", str(e))
             finally:
@@ -867,25 +1068,22 @@ class BaGPipeBGPAgent(HTTPClientBase,
                                                    BGPVPN_NOTIFIER,
                                                    delete=False)
 
+    @log_helpers.log_method_call
     def create_bgpvpn(self, context, bgpvpn):
-        LOG.debug("create_bgpvpn received with details %s", bgpvpn)
         self.update_bgpvpn(context, bgpvpn)
 
+    @log_helpers.log_method_call
     def update_bgpvpn(self, context, bgpvpn):
-        LOG.debug("update_bgpvpn received with details %s", bgpvpn)
-        net_uuid = bgpvpn['network_id']
-        self._attach_all_ports_on_bgpvpn(net_uuid, bgpvpn)
+        self._attach_all_ports_on_bgpvpn(bgpvpn['network_id'], bgpvpn)
 
+    @log_helpers.log_method_call
     def delete_bgpvpn(self, context, bgpvpn):
-        LOG.debug("delete_bgpvpn received with details %s", bgpvpn)
-        net_uuid = bgpvpn['network_id']
-        self._detach_all_ports_from_bgpvpn(net_uuid)
+        self._detach_all_ports_from_bgpvpn(bgpvpn['network_id'])
 
+    @log_helpers.log_method_call
     def bgpvpn_port_attach(self, context, port_bgpvpn_info):
-        LOG.debug("bgpvpn_port_attach received with port info: %s",
-                  port_bgpvpn_info)
         port_id = port_bgpvpn_info.pop('id')
-        net_uuid = port_bgpvpn_info.pop('network_id')
+        net_id = port_bgpvpn_info.pop('network_id')
 
         # Map l2vpn, l3vpn keys to evpn, ipvpn ones
         for bgpvpn_type in BGPVPN_TYPES:
@@ -894,32 +1092,35 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     port_bgpvpn_info.pop(bgpvpn_type)
                 )
 
+        gateway_info = GatewayInfo(port_bgpvpn_info.get('gateway_mac'),
+                                   port_bgpvpn_info.get('gateway_ip'))
+
+        if IPVPN in port_bgpvpn_info:
+            self._check_arp_voodoo_plug(net_id, port_id, gateway_info)
+
+        # Remember the gateway MAC
+        self.gateway_info_for_net[net_id] = gateway_info
+
         # Add/Update port BGPVPN details in registered attachments list
         port_details = self._add_local_port_details(BGPVPN_NOTIFIER,
-                                                    net_uuid,
+                                                    net_id,
                                                     port_id,
                                                     port_bgpvpn_info)
 
         # Attach port on bagpipe-bgp
-        LOG.debug("Attaching BGPVPN port %s on bagpipe-bgp with "
-                  "details %s" %
+        LOG.debug("Attaching BGPVPN port %s on bagpipe-bgp with details %s" %
                   (port_details['local_port']['linuxif'], port_details))
 
         self._do_local_port_plug(port_details)
 
+    @log_helpers.log_method_call
     def bgpvpn_port_detach(self, context, port_bgpvpn_info):
-        LOG.debug("bgpvpn_port_detach received with port info: %s",
-                  port_bgpvpn_info)
         port_id = port_bgpvpn_info['id']
-        net_uuid = port_bgpvpn_info['network_id']
-
-        # Detach BGPVPN port from bagpipe-bgp
-        LOG.debug("Detaching BGPVPN port %s from bagpipe-bgp",
-                  port_id)
+        net_id = port_bgpvpn_info['network_id']
 
         # Retrieve local port details index in BGP registered attachment list
         try:
-            index, details = self._get_reg_attachment_for_port(net_uuid,
+            index, details = self._get_reg_attachment_for_port(net_id,
                                                                port_id)
         except BGPAttachmentNotFound as e:
             LOG.warning("BGPVPN port detach, but no previous attachment found:"
@@ -927,10 +1128,12 @@ class BaGPipeBGPAgent(HTTPClientBase,
         else:
             try:
                 self._do_local_port_unplug(details)
-                # TODO(tmorin): remove gateway ARP responder flow
+
+                if has_ipvpn_attachement(details.get(BGPVPN_NOTIFIER)):
+                    self._check_arp_voodoo_unplug(net_id, port_id)
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach BGPVPN port from bagpipe-bgp %s",
                           str(e))
             finally:
-                self._remove_registered_attachment(net_uuid, index,
+                self._remove_registered_attachment(net_id, index,
                                                    BGPVPN_NOTIFIER)

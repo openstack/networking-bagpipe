@@ -13,7 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import contextlib
+import copy
+
 import mock
 
 from oslo_config import cfg
@@ -35,9 +36,11 @@ from networking_bagpipe.agent.bagpipe_bgp_agent import EVPN
 from networking_bagpipe.agent.bagpipe_bgp_agent import IPVPN
 from networking_bagpipe.agent.bagpipe_bgp_agent import VPN_TYPES
 
-
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
+from neutron.plugins.ml2.drivers.openvswitch.agent \
+    import ovs_agent_extension_api as agent_ext_api
+
 from neutron.tests import base
 from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent import (
     ovs_test_base)
@@ -52,9 +55,14 @@ PATCH_TUN_TO_MPLS_OFPORT = 1
 PATCH_TUN_FROM_MPLS_OFPORT = 3
 PATCH_TUN_OFPORTS = [PATCH_TUN_TO_MPLS_OFPORT, PATCH_TUN_FROM_MPLS_OFPORT]
 
+PATCH_INT_TO_MPLS_OFPORT = 5
+PATCH_INT_OFPORTS = [PATCH_INT_TO_MPLS_OFPORT]
+
 PATCH_MPLS_FROM_TUN_OFPORT = 2
 PATCH_MPLS_TO_TUN_OFPORT = 4
-PATCH_MPLS_OFPORTS = [PATCH_MPLS_FROM_TUN_OFPORT, PATCH_MPLS_TO_TUN_OFPORT]
+PATCH_MPLS_TO_INT_OFPORT = 6
+PATCH_MPLS_OFPORTS = [PATCH_MPLS_FROM_TUN_OFPORT, PATCH_MPLS_TO_TUN_OFPORT,
+                      PATCH_MPLS_TO_INT_OFPORT]
 
 PORT10 = {'id': uuidutils.generate_uuid(),
           'mac_address': '00:00:de:ad:be:ef',
@@ -125,7 +133,7 @@ class DummyVif(object):
 
 
 class DummyBGPVPN(object):
-    def __init__(self, network, evpn=None, ipvpn=None):
+    def __init__(self, network, evpn=None, ipvpn=None, gateway_mac=None):
         self.network_id = network['id']
 
         if evpn:
@@ -133,6 +141,9 @@ class DummyBGPVPN(object):
 
         if ipvpn:
             self.ipvpn = ipvpn
+
+        if gateway_mac:
+            self.gateway_mac = gateway_mac
 
 
 class TestBaGPipeBGPAgentMixin(object):
@@ -171,7 +182,8 @@ class TestBaGPipeBGPAgentMixin(object):
         return import_rt, export_rt
 
     def _mock_send_expected_call(self, vpn_type, port, vif, evpn2ipvpn=False,
-                                 others_rts=None, others_last=False):
+                                 others_rts=None, others_last=False,
+                                 fallback=None):
         network_id = port['network_id']
 
         vif_name = vif.port_name if vif else None
@@ -200,6 +212,8 @@ class TestBaGPipeBGPAgentMixin(object):
             expected_call.update(dict(
                 linuxbr=LinuxBridgeManager.get_bridge_name(network_id))
             )
+        if fallback:
+            expected_call.update({'fallback': fallback})
 
         return mock.call(expected_call)
 
@@ -507,18 +521,15 @@ class TestBaGPipeBGPAgentMixin(object):
             self.agent.bgpvpn_port_attach(None, dummy_port11)
 
             # Verify attachments list consistency
-            self._check_network_attachments(NETWORK1['id'],
-                                            2,
+            self._check_network_attachments(NETWORK1['id'], 2,
                                             [BGPVPN_NOTIFIER])
 
             self.agent.update_bgpvpn(None, dummy_bgpvpn1)
 
-            LOG.warning("calls: %s", send_attach_fn.calls)
             send_attach_fn.assert_has_calls(expected_calls)
 
             # Verify attachments list consistency
-            self._check_network_attachments(NETWORK1['id'],
-                                            2,
+            self._check_network_attachments(NETWORK1['id'], 2,
                                             [BGPVPN_NOTIFIER])
 
     def test_update_bgpvpn_same_vpn_types(self):
@@ -1451,20 +1462,20 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
         self.TUN_BRIDGE = 'tunnet_bridge'
         self.MPLS_BRIDGE = 'mpls_bridge'
 
-        self.ovs_bridges = {self.INT_BRIDGE: mock.Mock(),
-                            self.TUN_BRIDGE: mock.Mock()}
+        self.mock_int_br = mock.Mock()
+        self.mock_int_br.add_patch_port = mock.Mock()
+        self.mock_int_br.add_patch_port.side_effect = PATCH_INT_OFPORTS
+        self.mock_int_br.get_vif_port_by_id = mock.Mock()
 
-        self.mock_int_br = self.ovs_bridges[self.INT_BRIDGE]
-
-        self.mock_tun_br = self.ovs_bridges[self.TUN_BRIDGE]
-        self.mock_tun_br.add_flow = mock.Mock()
+        self.mock_tun_br = mock.Mock(spec=agent_ext_api.OVSCookieBridge)
+        self.mock_tun_br.add_patch_port = mock.Mock()
         self.mock_tun_br.add_patch_port.side_effect = PATCH_TUN_OFPORTS
+        self.mock_tun_br.get_port_ofport = mock.Mock()
 
-        with contextlib.nested(
-            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
-                       'bridge_exists', return_value=True),
-            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
-                       'add_patch_port', side_effect=PATCH_MPLS_OFPORTS)):
+        with mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
+                        'bridge_exists', return_value=True), \
+                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
+                           'add_patch_port', side_effect=PATCH_MPLS_OFPORTS):
             self.agent = BaGPipeBGPAgent(n_const.AGENT_TYPE_OVS,
                                          mock.Mock(),
                                          int_br=self.mock_int_br,
@@ -1536,16 +1547,16 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
     # ----------------------------
     # BGP VPN RPC notifier tests |
     # ----------------------------
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent'
+                '.BaGPipeBGPAgent._enable_gw_redirect',
                 autospec=True)
-    def test_update_bgpvpn_already_plugged_ports(self, setup_gw_arp_fn):
+    def test_update_bgpvpn_already_plugged_ports(self, gw_redir_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_update_bgpvpn_already_plugged_ports()
-            self.assertEqual(2, setup_gw_arp_fn.call_count)
+            self.assertEqual(2, gw_redir_fn.call_count)
 
     def test_update_bgpvpn_same_vpn_types(self):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
@@ -1553,93 +1564,93 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
             super(TestBaGPipeBGPAgentOVS,
                   self).test_update_bgpvpn_same_vpn_types()
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent'
+                '.BaGPipeBGPAgent._enable_gw_redirect',
                 autospec=True)
-    def test_update_bgpvpn_different_vpn_types(self, setup_gw_arp_fn):
+    def test_update_bgpvpn_different_vpn_types(self, gw_redir_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_update_bgpvpn_different_vpn_types()
-            self.assertEqual(1, setup_gw_arp_fn.call_count)
+            self.assertEqual(1, gw_redir_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent'
+                '.BaGPipeBGPAgent._enable_gw_redirect',
                 autospec=True)
-    def test_delete_bgpvpn_remaining_plugged_ports(self, setup_gw_arp_fn):
+    def test_delete_bgpvpn_remaining_plugged_ports(self, gw_redir_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_delete_bgpvpn_remaining_plugged_ports()
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent'
+                '.BaGPipeBGPAgent._enable_gw_redirect',
                 autospec=True)
-    def test_delete_bgpvpn_had_plugged_ports(self, setup_gw_arp_fn):
+    def test_delete_bgpvpn_had_plugged_ports(self, gw_redir_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_delete_bgpvpn_had_plugged_ports()
-            self.assertEqual(2, setup_gw_arp_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
+            self.assertEqual(2, gw_redir_fn.call_count)
+
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent'
+                '.BaGPipeBGPAgent._enable_gw_redirect',
                 autospec=True)
     def _test_bgpvpn_attach_single_port(self, bgpvpn, network,
-                                        setup_gw_arp_fn):
+                                        gw_redir_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self)._test_bgpvpn_attach_single_port(bgpvpn, network)
-            LOG.warning("bgpvpn: %s", bgpvpn)
             self.assertEqual(1 if (bgpvpn == IPVPN or
                                    bgpvpn == BGPVPN_L3) else 0,
-                             setup_gw_arp_fn.call_count)
+                             gw_redir_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent'
+                '.BaGPipeBGPAgent._enable_gw_redirect',
                 autospec=True)
-    def test_bgpvpn_attach_same_port_different_bgpvpn(self, setup_gw_arp_fn):
+    def test_bgpvpn_attach_same_port_different_bgpvpn(self, gw_redir_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_bgpvpn_attach_same_port_different_bgpvpn()
-            self.assertEqual(1, setup_gw_arp_fn.call_count)
+            self.assertEqual(1, gw_redir_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent'
+                '.BaGPipeBGPAgent._enable_gw_redirect',
                 autospec=True)
-    def test_bgpvpn_attach_single_port_multiple_bgpvpns(self, setup_gw_arp_fn):
+    def test_bgpvpn_attach_single_port_multiple_bgpvpns(self, gw_redir_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                return_value=self.DUMMY_VIF10):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_bgpvpn_attach_single_port_multiple_bgpvpns()
-            self.assertEqual(1, setup_gw_arp_fn.call_count)
+            self.assertEqual(1, gw_redir_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent'
+                '.BaGPipeBGPAgent._enable_gw_redirect',
                 autospec=True)
-    def test_bgpvpn_attach_multiple_ports_same_bgpvpn(self, setup_gw_arp_fn):
+    def test_bgpvpn_attach_multiple_ports_same_bgpvpn(self, gw_redir_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_bgpvpn_attach_multiple_ports_same_bgpvpn()
-            self.assertEqual(2, setup_gw_arp_fn.call_count)
+            self.assertEqual(2, gw_redir_fn.call_count)
 
-    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent'
-                '.ovs_neutron_agent.OVSNeutronAgent.setup_entry_for_arp_reply',
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent'
+                '.BaGPipeBGPAgent._enable_gw_redirect',
                 autospec=True)
     def test_bgpvpn_attach_multiple_ports_different_bgpvpns(self,
-                                                            setup_gw_arp_fn):
+                                                            gw_redir_fn):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF20]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_bgpvpn_attach_multiple_ports_different_bgpvpns()
-            self.assertEqual(2, setup_gw_arp_fn.call_count)
+            self.assertEqual(2, gw_redir_fn.call_count)
 
     def _test_bgpvpn_detach_single_port(self, bgpvpn, network):
         with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
@@ -1666,6 +1677,278 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
                                             self.DUMMY_VIF20]):
             super(TestBaGPipeBGPAgentOVS,
                   self).test_bgpvpn_detach_multiple_ports_different_bgpvpns()
+
+    # Test fallback and ARP gateway voodoo
+
+    def test_fallback(self):
+        GW_MAC = 'aa:bb:cc:dd:ee:ff'
+
+        with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
+                               side_effect=[self.DUMMY_VIF10,
+                                            self.DUMMY_VIF11]):
+            super(TestBaGPipeBGPAgentOVS,
+                  self).test_update_bgpvpn_already_plugged_ports()
+
+            port10_with_gw_mac = DummyPort(NETWORK1, PORT10).__dict__
+            port10_with_gw_mac.update({'gateway_mac': GW_MAC})
+            port10_with_gw_mac.update(DummyBGPVPN(NETWORK1,
+                                                  ipvpn=BGPVPN_IPVPN_RT100).
+                                      __dict__)
+            with mock.patch.object(self.agent, 'send_attach_local_port') as\
+                    send_attach_fn:
+                self.agent.bgpvpn_port_attach(None,
+                                              copy.copy(port10_with_gw_mac))
+
+                fallback = {'dst_mac': GW_MAC,
+                            'ovs_port_number': PATCH_MPLS_TO_INT_OFPORT,
+                            'src_mac': '00:00:5e:2a:10:00'}
+
+                expected_calls = [
+                    self._mock_send_expected_call(IPVPN,
+                                                  port10_with_gw_mac,
+                                                  self.DUMMY_VIF10,
+                                                  fallback=fallback),
+                ]
+
+                send_attach_fn.assert_has_calls(expected_calls)
+
+    def test_gateway_arp_voodoo(self):
+        GW_MAC = 'aa:bb:cc:dd:ee:ff'
+
+        with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
+                               side_effect=[self.DUMMY_VIF10,
+                                            self.DUMMY_VIF11]), \
+                mock.patch.object(self.agent.int_br,
+                                  'add_flow') as add_flow, \
+                mock.patch('neutron.plugins.ml2.drivers.openvswitch.'
+                           'agent.ovs_agent_extension_api.OVSCookieBridge'
+                           '.delete_flows') as tun_delete_flows,\
+                mock.patch.object(self.agent.int_br,
+                                  'delete_flows') as int_delete_flows:
+            super(TestBaGPipeBGPAgentOVS,
+                  self).test_update_bgpvpn_already_plugged_ports()
+
+            port10_with_gw_mac = DummyPort(NETWORK1, PORT10).__dict__
+            port10_with_gw_mac.update({'gateway_mac': GW_MAC})
+            port10_with_gw_mac.update(DummyBGPVPN(NETWORK1,
+                                                  ipvpn=BGPVPN_IPVPN_RT100).
+                                      __dict__)
+
+            self.agent.bgpvpn_port_attach(None, copy.copy(port10_with_gw_mac))
+
+            self.assertEqual(2, add_flow.call_count)
+
+            add_flow.assert_has_calls([
+                mock.call(table=mock.ANY,
+                          priority=2,
+                          proto='arp',
+                          arp_op=0x2,
+                          dl_src=GW_MAC,
+                          arp_sha=GW_MAC,
+                          arp_spa='10.0.0.1',
+                          actions="drop"),
+                mock.call(table=mock.ANY,
+                          priority=2,
+                          proto='arp',
+                          arp_op=0x01,
+                          dl_src=GW_MAC,
+                          arp_spa='10.0.0.1',
+                          arp_sha=GW_MAC,
+                          actions="load:0x0->NXM_OF_ARP_SPA[],NORMAL"
+                          )
+            ])
+
+            self.agent.bgpvpn_port_detach(None, DummyPort(NETWORK1,
+                                                          PORT10).__dict__)
+
+            self.assertEqual(0, tun_delete_flows.call_count)
+            self.assertEqual(0, int_delete_flows.call_count)
+
+            self.agent.bgpvpn_port_detach(None, DummyPort(NETWORK1,
+                                                          PORT11).__dict__)
+
+            self.assertEqual(1, tun_delete_flows.call_count)
+            self.assertEqual(1, int_delete_flows.call_count)
+
+            tun_delete_flows.assert_has_calls([
+                mock.call(self.mock_tun_br,
+                          table=mock.ANY,
+                          proto='arp',
+                          arp_op=0x01,
+                          arp_tpa='10.0.0.1',
+                          dl_vlan=mock.ANY,
+                          )])
+            int_delete_flows.assert_has_calls([
+                mock.call(table=mock.ANY,
+                          proto='arp',
+                          dl_src=GW_MAC,
+                          arp_sha=GW_MAC),
+            ])
+
+    def test_gateway_arp_voodoo_update_bgpvpn_after_plug(self):
+        GW_MAC = 'aa:bb:cc:dd:ee:ff'
+
+        with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
+                               side_effect=[self.DUMMY_VIF10,
+                                            self.DUMMY_VIF11]), \
+                mock.patch.object(self.agent.int_br,
+                                  'add_flow') as add_flow:
+            port10 = DummyPort(NETWORK1, PORT10).__dict__
+            port10.update({'gateway_mac': GW_MAC})
+
+            self.agent.bgpvpn_port_attach(None, copy.copy(port10))
+
+            dummy_bgpvpn1 = DummyBGPVPN(NETWORK1,
+                                        ipvpn=BGPVPN_IPVPN_RT100,
+                                        gateway_mac=GW_MAC).__dict__
+
+            with mock.patch.object(self.agent, 'send_attach_local_port') as\
+                    send_attach_fn:
+
+                self.agent.update_bgpvpn(None, dummy_bgpvpn1)
+
+                self.assertEqual(2, add_flow.call_count)
+
+                add_flow.assert_has_calls([
+                    mock.call(table=mock.ANY,
+                              priority=2,
+                              proto='arp',
+                              arp_op=0x2,
+                              dl_src=GW_MAC,
+                              arp_sha=GW_MAC,
+                              arp_spa='10.0.0.1',
+                              actions="drop"),
+                    mock.call(table=mock.ANY,
+                              priority=2,
+                              proto='arp',
+                              arp_op=0x01,
+                              dl_src=GW_MAC,
+                              arp_spa='10.0.0.1',
+                              arp_sha=GW_MAC,
+                              actions="load:0x0->NXM_OF_ARP_SPA[],NORMAL"
+                              )
+                ])
+
+                fallback = {'dst_mac': GW_MAC,
+                            'ovs_port_number': PATCH_MPLS_TO_INT_OFPORT,
+                            'src_mac': '00:00:5e:2a:10:00'}
+
+                expected_calls = [
+                    self._mock_send_expected_call(
+                        IPVPN,
+                        port10,
+                        self.DUMMY_VIF10,
+                        others_rts=BGPVPN_IPVPN_RT100,
+                        fallback=fallback),
+                ]
+
+                send_attach_fn.assert_has_calls(expected_calls)
+
+                self.agent.delete_bgpvpn(None, dummy_bgpvpn1)
+
+                add_flow.reset_mock()
+                self.assertEqual(0, add_flow.call_count)
+
+                self.agent.update_bgpvpn(None, dummy_bgpvpn1)
+
+                self.assertEqual(2, add_flow.call_count)
+
+    def test_gateway_plug_before_update(self):
+        GW_MAC = 'aa:bb:cc:dd:ee:ff'
+
+        with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
+                               side_effect=[self.DUMMY_VIF10]), \
+                mock.patch.object(self.agent.int_br,
+                                  'add_flow') as add_flow:
+            port10 = DummyPort(NETWORK1, PORT10).__dict__
+
+            self.agent.bgpvpn_port_attach(None, copy.copy(port10))
+
+            dummy_bgpvpn1 = DummyBGPVPN(NETWORK1,
+                                        ipvpn=BGPVPN_IPVPN_RT100,
+                                        gateway_mac=GW_MAC).__dict__
+
+            with mock.patch.object(self.agent, 'send_attach_local_port') as\
+                    send_attach_fn:
+
+                self.agent.update_bgpvpn(None, dummy_bgpvpn1)
+
+                self.assertEqual(2, add_flow.call_count)
+
+                add_flow.assert_has_calls([
+                    mock.call(table=mock.ANY,
+                              priority=2,
+                              proto='arp',
+                              arp_op=0x2,
+                              dl_src=GW_MAC,
+                              arp_sha=GW_MAC,
+                              arp_spa='10.0.0.1',
+                              actions="drop"),
+                    mock.call(table=mock.ANY,
+                              priority=2,
+                              proto='arp',
+                              arp_op=0x01,
+                              dl_src=GW_MAC,
+                              arp_spa='10.0.0.1',
+                              arp_sha=GW_MAC,
+                              actions="load:0x0->NXM_OF_ARP_SPA[],NORMAL"
+                              )
+                ])
+
+                fallback = {'dst_mac': GW_MAC,
+                            'ovs_port_number': PATCH_MPLS_TO_INT_OFPORT,
+                            'src_mac': '00:00:5e:2a:10:00'}
+
+                expected_calls = [
+                    self._mock_send_expected_call(
+                        IPVPN,
+                        port10,
+                        self.DUMMY_VIF10,
+                        others_rts=BGPVPN_IPVPN_RT100,
+                        fallback=fallback),
+                ]
+
+                send_attach_fn.assert_has_calls(expected_calls)
+
+                self.agent.delete_bgpvpn(None, dummy_bgpvpn1)
+
+                add_flow.reset_mock()
+                self.assertEqual(0, add_flow.call_count)
+
+                self.agent.update_bgpvpn(None, dummy_bgpvpn1)
+
+                self.assertEqual(2, add_flow.call_count)
+
+    def test_evpn_no_gateway_arp_voodoo(self):
+        GW_MAC = 'aa:bb:cc:dd:ee:ff'
+
+        with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
+                               side_effect=[self.DUMMY_VIF10,
+                                            self.DUMMY_VIF11]), \
+                mock.patch.object(self.agent.int_br,
+                                  'add_flow') as add_flow, \
+                mock.patch('neutron.plugins.ml2.drivers.openvswitch.'
+                           'agent.ovs_agent_extension_api.'
+                           'OVSCookieBridge.delete_flows') as delete_flows:
+
+            port10_with_gw_mac = DummyPort(NETWORK1, PORT10).__dict__
+            port10_with_gw_mac.update({'gateway_mac': GW_MAC})
+            port10_with_gw_mac.update(DummyBGPVPN(NETWORK1,
+                                                  evpn=BGPVPN_EVPN_RT10).
+                                      __dict__)
+
+            self.agent.bgpvpn_port_attach(None, copy.copy(port10_with_gw_mac))
+
+            self.assertEqual(0, add_flow.call_count)
+
+            self.agent.bgpvpn_port_detach(None, DummyPort(NETWORK1,
+                                                          PORT10).__dict__)
+            self.assertEqual(0, delete_flows.call_count)
+
+            self.agent.bgpvpn_port_detach(None, DummyPort(NETWORK1,
+                                                          PORT11).__dict__)
+
+            self.assertEqual(0, delete_flows.call_count)
 
     # -------------------------------------------
     # Multiple simultaneous RPC notifiers tests |
