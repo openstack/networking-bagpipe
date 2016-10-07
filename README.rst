@@ -60,9 +60,9 @@ How to use the ML2 driver in devstack?
 
 * enable the devstack plugin by adding this to ``local.conf``:
 
-    * to use branch ``stable/X`` (e.g. `stable/mitaka`)::
+    * to use branch e.g. ``stable/newton``::
 
-        enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git stable/X
+        enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git stable/newton
 
     * to use the development branch::
 
