@@ -12,6 +12,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import six
+
 import socket
 
 import httplib2
@@ -294,8 +296,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
                              "bagpipe-bgp")
                     LOG.debug("Registered attachments list: %s" %
                               self.reg_attachments)
-                    for __, attachment_list in (
-                            self.reg_attachments.iteritems()):
+                    for __, attachment_list in six.iteritems(
+                            self.reg_attachments):
                         if attachment_list:
                             for attachment in attachment_list:
                                 self._do_local_port_plug(attachment)
@@ -458,8 +460,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
         LOG.debug('Local port (VPN type, IP address) map details %s' %
                   vpntype_ipaddress2details)
 
-        for (vpntype_ipaddress, plug_details) in (vpntype_ipaddress2details.
-                                                  iteritems()):
+        for (vpntype_ipaddress, plug_details) in six.iteritems(
+                vpntype_ipaddress2details):
             if vpntype_ipaddress[0] in all_plug_details:
                 all_plug_details[vpntype_ipaddress[0]].append(plug_details)
             else:
