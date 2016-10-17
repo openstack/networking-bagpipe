@@ -12,7 +12,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 import six
 
 from oslo_config import cfg
@@ -136,7 +135,7 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
                     "network") % segment.get(api.NETWORK_TYPE)
             raise exc.InvalidInput(error_message=msg)
 
-        for key, value in segment.items():
+        for key, value in six.iteritems(segment):
             if value and key not in [api.NETWORK_TYPE,
                                      api.SEGMENTATION_ID]:
                 msg = _("%s prohibited for Route Target provider \
