@@ -14,8 +14,11 @@ elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         echo_summary "Configuring linuxbridge agent for bagpipe"
         source $NEUTRON_DIR/devstack/lib/l2_agent
         plugin_agent_add_l2_agent_extension bagpipe
-        iniset /$Q_PLUGIN_CONF_FILE vxlan enable_vxlan False
         configure_l2_agent
+        iniset /$Q_PLUGIN_CONF_FILE vxlan enable_vxlan False
+        iniset /$Q_PLUGIN_CONF_FILE ml2 tenant_network_types route_target
+        iniset /$Q_PLUGIN_CONF_FILE ml2_type_route_target rt_nn_ranges ${BAGPIPE_RT_RANGES:-100:319,500:5190}
+        iniset /$Q_PLUGIN_CONF_FILE ml2_bagpipe as_number ${BAGPIPE_RT_ASN:-64512}
     fi
 fi
 if [[ "$1" == "unstack" ]]; then

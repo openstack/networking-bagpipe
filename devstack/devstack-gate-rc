@@ -5,16 +5,6 @@
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan,vxlan,route_target,test"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_AGENT=\"bagpipe-linuxbridge\""
 
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"[[post-config|/\$Q_PLUGIN_CONF_FILE]]"
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"[ml2]"
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"tenant_network_types=route_target"
-export DEVSTACK_LOCAL_CONFIG+=$'\n'""
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"[ml2_type_route_target]"
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"rt_nn_ranges = 100:319,500:5190"
-export DEVSTACK_LOCAL_CONFIG+=$'\n'""
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"[ml2_bagpipe]"
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"as_number = 64512"
-
 # bagpipe-bgp:
 enable_service b-bgp
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"BAGPIPE_DATAPLANE_DRIVER_EVPN=linux_vxlan.LinuxVXLANDataplaneDriver"
