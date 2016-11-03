@@ -3,9 +3,14 @@
 # bagpipe ML2 mech_driver config:
 
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan,vxlan,route_target,test"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_ML2_PLUGIN_MECHANISM_DRIVERS=bagpipe"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_AGENT=\"bagpipe-linuxbridge\""
 
 # bagpipe-bgp:
-enable_service b-bgp
+export ENABLED_SERVICES+=b-bgp
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"BAGPIPE_DATAPLANE_DRIVER_EVPN=linux_vxlan.LinuxVXLANDataplaneDriver"
+
+# https://bugs.launchpad.net/devstack/+bug/1567052
+# so we need VERBOSE=False until bagpipe-bgp uses rootwrap and is not run with sudo (same for bagpipe-fakerr)
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"VERBOSE=False"
 
