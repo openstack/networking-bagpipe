@@ -53,8 +53,8 @@ BGP/MPLS IP VPNs, using the BGPVPN Interconnection service plugin
 How to use ?
 ------------
 
-How to use the ML2 driver in devstack?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+How to use bagpipe ML2 in devstack?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * install devstack (whether stable/kilo or master)
 
@@ -68,36 +68,13 @@ How to use the ML2 driver in devstack?
 
         enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git master
 
-* use the following options in devstack ``local.conf``: ::
+* enable bagpipe ML2 by adding this to ``local.conf``::
 
-    Q_PLUGIN=ml2
-    Q_AGENT=bagpipe-linuxbridge
-    Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan,vxlan,route_target
-    Q_ML2_PLUGIN_MECHANISM_DRIVERS=bagpipe
+    enable_service bagpipe-l2
 
-    [[post-config|/$Q_PLUGIN_CONF_FILE]]
-    [ml2]
-    tenant_network_types=route_target
+* note that with devstack, bagpipe-bgp_ is installed automatically as a git submodule of networking-bagpipe
 
-    [ml2_type_route_target]
-    # E-VPN route target ranges
-    rt_nn_ranges = 100:119,500:519
-
-    [ml2_bagpipe]
-    # Data Center AS number
-    as_number = 64512
-
-* configure bagpipe-bgp_ on each compute node
-
-  * (note that with devstack, bagpipe-bgp_ is installed automatically as a git submodule of networking-bagpipe)
-
-  * the following is needed in `local.conf` to configure bagpipe-bgp_ and start it in devstack::
-
-        BAGPIPE_DATAPLANE_DRIVER_EVPN=linux_vxlan.LinuxVXLANDataplaneDriver
-
-        enable_service b-bgp
-
-  * you also need each bagpipe_bgp_ to peer with a BGP Route Reflector:
+* for multinode setups, configure bagpipe-bgp_ on each compute node, i.e.  you need each bagpipe_bgp_ to peer with a BGP Route Reflector:
 
      * in `local.conf`::
 
@@ -108,8 +85,8 @@ How to use the ML2 driver in devstack?
 
      * for more than two compute nodes, you can use GoBGP_ (`sample configuration`_) or a commercial E-VPN implementation (e.g. vendors participating in `EANTC interop testing on E-VPN <http://www.eantc.de/fileadmin/eantc/downloads/events/2011-2015/MPLSSDN2015/EANTC-MPLSSDN2015-WhitePaper_online.pdf>`_)
 
-How to use the networking-bgpvpn_ driver in devstack ?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+How to use bagpipe networking-bgpvpn_ driver in devstack ?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Information on how to use `bagpipe` driver for networking-bgpvpn_ is provided in
 `BGPVPN documentation`_.

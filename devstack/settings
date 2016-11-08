@@ -1,9 +1,36 @@
-NETWORKING_BAGPIPE_DIR=$DEST/networking-bagpipe
-BAGPIPE_L2_AGENT=bagpipe-linuxbridge
-BAGPIPE_L2_AGENT_BINARY="$NEUTRON_BIN_DIR/neutron-bagpipe-linuxbridge-agent"
+# devstack plugin settings file for networking-bagpipe
 
-# agent settings
-Q_AGENT=${Q_AGENT:-${BAGPIPE_L2_AGENT}}
+NETWORKING_BAGPIPE_DIR=$DEST/networking-bagpipe
+
+ENABLE_BAGPIPE_L2=$(trueorfalse False ENABLE_BAGPIPE_L2)
+if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
+    enable_service bagpipe-l2
+fi
+
+# configuration for bagpipe ML2:
+if is_service_enabled bagpipe-l2 ; then
+
+    Q_PLUGIN=${Q_PLUGIN:-ml2}
+    Q_ML2_PLUGIN_TYPE_DRIVERS=${Q_ML2_PLUGIN_TYPE_DRIVERS:-flat,vlan,vxlan,route_target}
+    Q_ML2_PLUGIN_MECHANISM_DRIVERS=${Q_ML2_PLUGIN_MECHANISM_DRIVERS:-bagpipe,logger}
+
+    if is_service_enabled q-agt ; then
+
+        # choose and enable the modified linuxbridge agent
+        enable_service q-agt
+        Q_AGENT="linuxbridge"
+        echo "Patching $TOP_DIR/lib/neutron_plugins/linuxbridge_agent to use neutron-bagpipe-linuxbridge-agent binary"
+        perl -i -pe 's:^( *)AGENT_BINARY=.*:${1}AGENT_BINARY="\$NEUTRON_BIN_DIR/neutron-bagpipe-linuxbridge-agent":' $TOP_DIR/lib/neutron_plugins/linuxbridge_agent || die $LINENO "Could not patch linuxbridge agent devstack plugin"
+
+        # Have bagpipe-bgp use VXLAN driver for E-VPN (unless overriden)
+        BAGPIPE_DATAPLANE_DRIVER_EVPN=${BAGPIPE_DATAPLANE_DRIVER_EVPN:-linux_vxlan.LinuxVXLANDataplaneDriver}
+    fi
+fi
+
+# common to BGPVPN dirver and bagpipe ML2:
+if is_service_enabled q-agt ; then
+    enable_service b-bgp
+fi
 
 BAGPIPE_DIR="$NETWORKING_BAGPIPE_DIR/bagpipe-bgp"
 source $BAGPIPE_DIR/devstack/settings
