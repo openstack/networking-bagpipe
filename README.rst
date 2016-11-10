@@ -70,7 +70,7 @@ How to use bagpipe ML2 in devstack?
 
 * enable bagpipe ML2 by adding this to ``local.conf``::
 
-    enable_service bagpipe-l2
+    ENABLE_BAGPIPE_L2=True
 
 * note that with devstack, bagpipe-bgp_ is installed automatically as a git submodule of networking-bagpipe
 

@@ -10,7 +10,7 @@ if [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
 elif [[ "$1" == "stack" && "$2" == "install" ]]; then
     setup_develop $NETWORKING_BAGPIPE_DIR
 elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
-    if is_service_enabled bagpipe-l2 ; then
+    if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
         iniset /$Q_PLUGIN_CONF_FILE vxlan enable_vxlan False
         iniset /$Q_PLUGIN_CONF_FILE ml2 tenant_network_types route_target
         iniset /$Q_PLUGIN_CONF_FILE ml2_type_route_target rt_nn_ranges ${BAGPIPE_RT_RANGES:-100:319,500:5190}

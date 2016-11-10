@@ -1,7 +1,7 @@
 # This file is hooked from https://git.openstack.org/cgit/openstack-infra/project-config/blob/master/jenkins/jobs/networking-bagpipe.yaml
 
 # bagpipe ML2 mech_driver config
-export ENABLE_BAGPIPE_ML2=True
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"ENABLE_BAGPIPE_L2=True"
 
 # https://bugs.launchpad.net/devstack/+bug/1567052
 # so we need VERBOSE=False until bagpipe-bgp uses rootwrap and is not run with sudo (same for bagpipe-fakerr)
