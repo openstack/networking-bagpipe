@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # borrowed from neutron-lbaas/tools
 
@@ -29,15 +29,16 @@ if [ $neutron_installed -eq 0 ]; then
     echo "Neutron already installed; using existing package"
 elif [ -x "$ZUUL_CLONER" ]; then
     echo "ZUUL CLONER" > /tmp/tox_install.txt
-    cwd=$(/bin/pwd)
-    cd /tmp
+    mkdir -p .tmp
+    NEUTRON_DIR=$(/bin/mktemp -d -p $(pwd)/.tmp)
+    pushd $NEUTRON_DIR
     $ZUUL_CLONER --branch $openstack_branch --cache-dir \
         /opt/git \
         git://git.openstack.org \
         openstack/neutron
     cd openstack/neutron
     $install_cmd -e .
-    cd "$cwd"
+    popd
 else
     echo "PIP HARDCODE" > /tmp/tox_install.txt
     $install_cmd -U -egit+https://git.openstack.org/openstack/neutron@${openstack_branch}#egg=neutron
