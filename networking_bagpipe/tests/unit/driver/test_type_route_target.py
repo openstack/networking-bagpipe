@@ -17,10 +17,11 @@ import mock
 import testtools
 from testtools import matchers
 
-from neutron.common import exceptions as exc
 import neutron.db.api as db
 from neutron.plugins.ml2 import driver_api as api
 from neutron.tests.unit import testlib_api
+
+from neutron_lib import exceptions as exc
 
 from networking_bagpipe.driver import type_route_target
 
