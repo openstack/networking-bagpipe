@@ -1,0 +1,70 @@
+blockdiag components-bagpipe {
+      span_width = 64
+      node_height = 100
+
+      shadow_style=none
+      default_shape = roundedbox
+
+      group neutron {
+         label="Neutron"
+         color=red
+
+         api[label="API\n(e.g Core)",color="lightyellow"]
+         db[shape=flowchart.database,label="DB",color="lightyellow"]
+         driver[label="bagpipe driver",color="lightyellow"]
+
+         api -> driver
+         api -> db[folded]
+         driver -> db[folded]
+      }
+
+/*      api_user [shape=actor,label="admin, tenant"]
+      api_user -> api[color=blue] */
+
+      group computeA {
+         label="compute node"
+         color=orange
+
+         agent_a[label="Neutron Agent\n+ bagpipe extension",color=grey,textcolor=darkorange]
+         vswitch_a[label="vswitch\n(OVS or linux)",color=lightgrey]
+         bgpspeaker_a[label="bagpipe-bgp",color="darkorange"]
+
+         agent_a -> bgpspeaker_a[label="REST"]
+         agent_a -> vswitch_a[folded]
+         bgpspeaker_a -> vswitch_a[folded]
+      }
+
+      group computeB {
+         label="compute node"
+         color=orange
+
+         agent_b[label="Neutron Agent\n+ bagpipe extension",color=grey,textcolor=darkorange]
+         vswitch_b[label="vswitch\n(OVS or linux)",color=lightgrey]
+         bgpspeaker_b[label="bagpipe-bgp",color="darkorange"]
+
+         agent_b -> bgpspeaker_b[label="REST"]
+         agent_b -> vswitch_b[folded]
+         bgpspeaker_b -> vswitch_b[folded]
+      }
+
+      group routers {
+         color=lightgrey
+         shape=line
+         style=none
+
+         bgppeers[label="BGP Peers\nand/or\nRoute Reflector",stacked,color=green];
+      }
+
+      bgpspeaker_a, bgpspeaker_b <-> bgppeers [color=green,
+                                               label="BGP",
+                                               textcolor=green]
+
+      /*vswitch_b <-> vswitch_a [label="VXLAN", folded]
+      vswitch_a, vswitch_b <-> mplsrouters[label="MPLS\n(over-x)"]*/
+
+      driver <-> agent_a, agent_b [label="RPCs"];
+
+      /*vswitch_a <-> mplsrouters [label="MPLS\n(over-x)"]
+      vswitch_b <-> mplsrouters [label="MPLS\n(over-x)"]*/
+
+}

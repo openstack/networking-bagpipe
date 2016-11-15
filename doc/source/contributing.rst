@@ -1,4 +1,9 @@
 ============
-Contributing
+Development
 ============
+
+Contributing
+------------
+
 .. include:: ../../CONTRIBUTING.rst
+

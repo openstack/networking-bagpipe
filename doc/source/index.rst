@@ -3,17 +3,20 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to networking-bagpipe's documentation!
-========================================================
+networking-bagpipe's documentation
+==================================
 
-Contents:
+.. include:: ../../README.rst
+
+Documentation
+=============
 
 .. toctree::
    :maxdepth: 2
 
-   readme
+   design
+   applications
    installation
-   usage
    contributing
 
 Indices and tables

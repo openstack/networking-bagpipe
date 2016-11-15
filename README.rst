@@ -2,100 +2,55 @@
 networking-bagpipe
 =====================
 
-Driver and agent code to use bagpipe-bgp lightweight implementation
-of BGP-based VPNs as a backend, for Neutron-BGPVPN Interconnection
-or Neutron ML2.
+Driver and agent code to use BaGPipe lightweight implementation
+of BGP-based VPNs as a backend for Neutron.
 
 * Free software: Apache license
+* Documentation: https://docs.openstack.org/developer/networking-bagpipe
 * Source: http://git.openstack.org/cgit/openstack/networking-bagpipe
 * Bugs: http://bugs.launchpad.net/bagpipe
 
 Overview
 --------
 
-This package includes:
+BGP-based VPNs rely on extensions to the BGP routing protocol and dataplane
+isolation (e.g. MPLS-over-x, VXLAN) to create multi-site isolated virtual
+networks over a shared infrastructure, such as BGP/MPLS IPVPNs (RFC4364_) and
+E-VPN (RFC7432_). They have been heavily used in IP/MPLS WAN backbones
+since the early 2000's.
 
-* a Neutron ML2 mechanism driver ('bagpipe')
-* compute node agent code for::
-    * the `bagpipe` ML2 driver
-    * the `bagpipe` driver of networking-bgpvpn_
+These BGP VPNs are relevant in the context of Neutron, for two distinct
+use cases:
 
-BGP-based VPNs
---------------
+1. creating reachability between Neutron ports (typically VMs) and BGP VPNs
+   outside the cloud datacenter (this is true independently of the backend
+   chosen for Neutron)
 
-BGP-based VPNs rely on extensions to the BGP routing protocol and
-typically MPLS or VXLAN encapsulation to provide multi-site isolated
-networks. The specification for BGP/MPLS IPVPNs is RFC4364_ and
-the specification for E-VPN is RFC7432_.
+2. leveraging these BGP VPNs in Neutron's backend, to benefit from the
+   flexibility, robustness and scalability of the underlying technology
+   (as do other existing backends such as OpenContrail, Nuage Networks,
+   or Calico -- although the latter relies on plain, non-VPN, BGP)
 
-Neutron ML2 mechanism driver
-----------------------------
+BaGPipe proposal is to address these two use cases by implementing this
+protocol stack -- both the BGP routing protocol extensions and the
+dataplane encapsulation -- in compute nodes or possibly ToR switches, and
+articulating it with Neutron thanks to drivers and plugins.
 
-The `bagpipe` mechanism driver allocates a BGP VPN identifier (called "route target")
-for each Neutron network, and will setup an E-VPN instance for each network.
+The networking-bagpipe package includes:
 
-When a Neutron port goes up, the agent on the corresponding compute node provides
-this VPN identifier to the locally running `bagpipe-bgp`, to trigger the attachement
-of the VM tap interface to the E-VPN instance.
+* for use case 1: backend code for Neutron's BGPVPN Interconnection
+  service plugin (networking-bgpvpn_) ; only agent code is in
+  networking-bagpipe, the Neutron server-side part,
+  being currently in networking-bgpvpn_ package)
 
-Once E-VPN routes are exchanged, `bagpipe-bgp` setups VXLAN forwarding state in the
-linuxbridge.
+* for use case 2: a Neutron ML2 mechanism driver
 
-Neutron BGPVPN Interconnection
-------------------------------
-
-The compute node agent code extends the OVS agent of the OVS ML2 driver.
-
-It allows the establishment of interconnections between Neutron networks and
-BGP/MPLS IP VPNs, using the BGPVPN Interconnection service plugin
-(networking-bgpvpn_) with its bagpipe driver.
-
-How to use ?
-------------
-
-How to use bagpipe ML2 in devstack?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-* install devstack (whether stable/kilo or master)
-
-* enable the devstack plugin by adding this to ``local.conf``:
-
-    * to use branch ``stable/X`` (e.g. `stable/mitaka`)::
-
-        enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git stable/X
-
-    * to use the development branch::
-
-        enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git master
-
-* enable bagpipe ML2 by adding this to ``local.conf``::
-
-    ENABLE_BAGPIPE_L2=True
-
-* note that with devstack, bagpipe-bgp_ is installed automatically as a git submodule of networking-bagpipe
-
-* for multinode setups, configure bagpipe-bgp_ on each compute node, i.e.  you need each bagpipe_bgp_ to peer with a BGP Route Reflector:
-
-     * in `local.conf`::
-
-        # IP of your route reflector or BGP router, or fakeRR:
-        BAGPIPE_BGP_PEERS=1.2.3.4
-
-     * for two compute nodes, you can use the FakeRR provided in bagpipe-bgp_
-
-     * for more than two compute nodes, you can use GoBGP_ (`sample configuration`_) or a commercial E-VPN implementation (e.g. vendors participating in `EANTC interop testing on E-VPN <http://www.eantc.de/fileadmin/eantc/downloads/events/2011-2015/MPLSSDN2015/EANTC-MPLSSDN2015-WhitePaper_online.pdf>`_)
-
-How to use bagpipe networking-bgpvpn_ driver in devstack ?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Information on how to use `bagpipe` driver for networking-bgpvpn_ is provided in
-`BGPVPN documentation`_.
+* agent code common to both, providing adaptation code to consolidate
+  and pass information via its REST API to BaGPipe BGPVPN implementation
+  (itself in bagpipe-bgp_ package)
 
 .. _bagpipe-bgp: https://github.com/Orange-OpenSource/bagpipe-bgp
 .. _networking-bgpvpn: https://github.com/openstack/networking-bgpvpn
 .. _RFC4364: http://tools.ietf.org/html/rfc4364
 .. _RFC7432: http://tools.ietf.org/html/rfc7432
-.. _GoBGP: http://osrg.github.io/gobgp
-.. _sample configuration: https://github.com/Orange-OpenSource/bagpipe-bgp/blob/master/samples/gobgp.conf
-.. _BGPVPN documentation: http://docs.openstack.org/developer/networking-bgpvpn/bagpipe
 

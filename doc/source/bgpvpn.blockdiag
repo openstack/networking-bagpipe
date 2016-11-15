@@ -1,0 +1,57 @@
+blockdiag components-bagpipe {
+      span_width = 64;
+      node_height = 100;
+
+      shadow_style=none;
+      default_shape = roundedbox;
+
+      group bgpvpn {
+         label="BGPVPN service plugin";
+         color=red;
+
+         api[label="BGPVPN API",color="lightyellow"];
+         db[shape=flowchart.database,label="Neutron DB",color="lightyellow"];
+         driver[label="bagpipe driver",color="lightyellow"];
+
+         api -> driver ;
+         api -> db[folded];
+         driver -> db[folded];
+      }
+
+      group compute {
+         label="compute node";
+         color=orange;
+
+         agent[label="OpenVSwitch Agent\n+ Bagpipe BGPVPN\nextension",color=grey,textcolor=darkorange];
+         vswitch[label="OVS br-int/br-tun",color=lightgrey];
+         mplsvswitch[label="OVS br-mpls",color="darkorange"];
+         bgpspeaker[label="bagpipe-bgp",color="darkorange"];
+
+         agent -> bgpspeaker[label="REST"];
+         agent -> vswitch[folded];
+         vswitch <-> mplsvswitch[label="packets"];
+         bgpspeaker -> mplsvswitch[folded];
+      }
+
+      group routers {
+         color=lightgrey;
+         shape=line;
+         style=dashed;
+
+         bgppeers[label="BGP Peers\nor Route Reflectors",stacked,color=green];
+         mplsrouters[label="MPLS routers"];
+
+         bgppeers -- mplsrouters[style=dotted,folded];
+      }
+
+      /*admin_or_tenant [shape=actor,label="admin, tenant"];
+      admin_or_tenant -> api[color=blue];*/
+
+      driver <-> agent [label="RPCs"];
+
+      bgpspeaker <-> bgppeers[color=green,label="BGP",textcolor=green];
+
+      mplsvswitch <-> mplsrouters[label="MPLS\nor ..",folded];
+}
+
+ 
