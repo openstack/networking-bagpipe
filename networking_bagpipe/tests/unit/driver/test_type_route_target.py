@@ -17,6 +17,7 @@ import mock
 import testtools
 from testtools import matchers
 
+from neutron import context
 import neutron.db.api as db
 from neutron.plugins.ml2 import driver_api as api
 from neutron.tests.unit import testlib_api
@@ -39,6 +40,7 @@ class RouteTargetTypeTest(testlib_api.SqlTestCase):
         self.driver.rt_nn_ranges = RT_NN_RANGES
         self.driver._sync_route_target_allocations()
         self.session = db.get_session()
+        self.context = context.get_admin_context()
 
     def _get_allocation(self, session, segment):
         return (session.query(type_route_target.RouteTargetAllocation).
@@ -80,7 +82,7 @@ class RouteTargetTypeTest(testlib_api.SqlTestCase):
         segment = {api.NETWORK_TYPE: type_route_target.TYPE_ROUTE_TARGET,
                    api.PHYSICAL_NETWORK: None,
                    api.SEGMENTATION_ID: rt_nn}
-        self.driver.reserve_provider_segment(self.session, segment)
+        self.driver.reserve_provider_segment(self.context, segment)
 
         self.driver.rt_nn_ranges = UPDATED_RT_NN_RANGES
         self.driver._sync_route_target_allocations()
@@ -120,7 +122,7 @@ class RouteTargetTypeTest(testlib_api.SqlTestCase):
                    api.SEGMENTATION_ID: 201}
         alloc = self._get_allocation(self.session, segment)
         self.assertIsNone(alloc)
-        observed = self.driver.reserve_provider_segment(self.session, segment)
+        observed = self.driver.reserve_provider_segment(self.context, segment)
         alloc = self._get_allocation(self.session, observed)
         self.assertTrue(alloc.allocated)
 
@@ -128,15 +130,15 @@ class RouteTargetTypeTest(testlib_api.SqlTestCase):
         segment = {api.NETWORK_TYPE: type_route_target.TYPE_ROUTE_TARGET,
                    api.PHYSICAL_NETWORK: None,
                    api.SEGMENTATION_ID: 201}
-        observed = self.driver.reserve_provider_segment(self.session, segment)
+        observed = self.driver.reserve_provider_segment(self.context, segment)
         self.assertRaises(type_route_target.RouteTargetInUse,
                           self.driver.reserve_provider_segment,
-                          self.session,
+                          self.context,
                           observed)
 
     def test_allocate_tenant_segment(self):
         for __ in range(RT_NN_MIN, RT_NN_MAX + 1):
-            segment = self.driver.allocate_tenant_segment(self.session)
+            segment = self.driver.allocate_tenant_segment(self.context)
             alloc = self._get_allocation(self.session, segment)
             self.assertTrue(alloc.allocated)
             rt_nn = segment[api.SEGMENTATION_ID]
@@ -145,13 +147,13 @@ class RouteTargetTypeTest(testlib_api.SqlTestCase):
 
     def test_allocate_tenant_segment_not_available(self):
         for __ in range(RT_NN_MIN, RT_NN_MAX + 1):
-            self.driver.allocate_tenant_segment(self.session)
-        segment = self.driver.allocate_tenant_segment(self.session)
+            self.driver.allocate_tenant_segment(self.context)
+        segment = self.driver.allocate_tenant_segment(self.context)
         self.assertIsNone(segment)
 
     def test_release_segment(self):
-        segment = self.driver.allocate_tenant_segment(self.session)
-        self.driver.release_segment(self.session, segment)
+        segment = self.driver.allocate_tenant_segment(self.context)
+        self.driver.release_segment(self.context, segment)
         alloc = self._get_allocation(self.session, segment)
         self.assertFalse(alloc.allocated)
 
@@ -160,7 +162,7 @@ class RouteTargetTypeTest(testlib_api.SqlTestCase):
                    api.PHYSICAL_NETWORK: None,
                    api.SEGMENTATION_ID: 201}
         with mock.patch.object(type_route_target.LOG, 'warning') as log_warn:
-            self.driver.release_segment(self.session, segment)
+            self.driver.release_segment(self.context, segment)
             log_warn.assert_called_once_with(
                 "Route Target number %(rt_nn)s not found",
                 {'rt_nn': 201})
