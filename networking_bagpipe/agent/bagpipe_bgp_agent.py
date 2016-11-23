@@ -81,6 +81,8 @@ BGPVPN_L3 = 'l3vpn'
 BGPVPN_TYPES = [BGPVPN_L2, BGPVPN_L3]
 BGPVPN_TYPES_MAP = {BGPVPN_L2: EVPN, BGPVPN_L3: IPVPN}
 
+LINUXIF_PREFIX = "patch2tun"
+
 bagpipe_bgp_opts = [
     cfg.IntOpt('ping_interval', default=10,
                help=_("The number of seconds the bagpipe-bgp client will "
@@ -607,13 +609,12 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 }
             }
         elif self.agent_type == n_const.AGENT_TYPE_OVS:
-            port = self.int_br.get_vif_port_by_id(port_id)
             try:
                 vlan = self.get_local_vlan(port_id)
 
                 return {
                     'local_port': {
-                        'linuxif': port.port_name,
+                        'linuxif': "%s:%s" % (LINUXIF_PREFIX, vlan),
                         'ovs': {
                             'plugged': True,
                             'port_number': self.patch_mpls_from_tun_ofport,
