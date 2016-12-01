@@ -1487,7 +1487,7 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
     def _get_expected_local_port(self, network_id, port_id, vif_name):
         vlan = self.agent.get_local_vlan(port_id)
         local_port = dict(
-            linuxif=vif_name,
+            linuxif="patch2tun:%s" % vlan,
             ovs=dict(plugged=True,
                      port_number=PATCH_MPLS_FROM_TUN_OFPORT,
                      to_vm_port_number=PATCH_MPLS_TO_TUN_OFPORT,
