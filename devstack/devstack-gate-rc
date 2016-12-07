@@ -1,4 +1,5 @@
 # This file is hooked from https://git.openstack.org/cgit/openstack-infra/project-config/blob/master/jenkins/jobs/networking-bagpipe.yaml
+# Not used for functional or fullstack jobs
 
 # bagpipe ML2 mech_driver config
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"ENABLE_BAGPIPE_L2=True"

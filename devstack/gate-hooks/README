@@ -1,0 +1,2 @@
+# these are snippets meant for inclusion in a local.conf localrc section
+# by the load_rc_hooks function of gate_hook.sh

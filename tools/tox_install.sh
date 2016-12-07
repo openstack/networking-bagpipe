@@ -16,37 +16,54 @@
 # pip install {opts} {packages}
 
 ZUUL_CLONER=/usr/zuul-env/bin/zuul-cloner
-neutron_installed=$(echo "import neutron" | python 2>/dev/null ; echo $?)
-openstack_branch=master
+BRANCH_NAME=master
+
+install_project() {
+    local project=$1
+
+    set +e
+    project_installed=$(echo "import $project" | python 2>/dev/null ; echo $?)
+    set -e
+
+    if [ $project_installed -eq 0 ]; then
+        echo "ALREADY INSTALLED" > /tmp/tox_install.txt
+        echo "$project already installed; using existing package"
+    elif [ -x "$ZUUL_CLONER" ]; then
+        echo "ZUUL CLONER" > /tmp/tox_install.txt
+        # Make this relative to current working directory so that
+        # git clean can remove it. We cannot remove the directory directly
+        # since it is referenced after $install_cmd -e
+        mkdir -p .tmp
+        PROJECT_DIR=$(/bin/mktemp -d -p $(pwd)/.tmp)
+        pushd $PROJECT_DIR
+        $ZUUL_CLONER --cache-dir \
+            /opt/git \
+            --branch $BRANCH_NAME \
+            http://git.openstack.org \
+            openstack/$project
+        cd openstack/$project
+        $install_cmd -e .
+        popd
+    else
+        echo "PIP HARDCODE" > /tmp/tox_install.txt
+        if [ -z "$PIP_LOCATION" ]; then
+            PIP_LOCATION="git+https://git.openstack.org/openstack/$project@$BRANCH_NAME#egg=$project"
+        fi
+        $install_cmd -U -e ${PIP_LOCATION}
+    fi
+}
 
 set -e
 
 install_cmd="pip install -c$1"
 shift
 
-if [ $neutron_installed -eq 0 ]; then
-    echo "ALREADY INSTALLED" > /tmp/tox_install.txt
-    echo "Neutron already installed; using existing package"
-elif [ -x "$ZUUL_CLONER" ]; then
-    echo "ZUUL CLONER" > /tmp/tox_install.txt
-    mkdir -p .tmp
-    NEUTRON_DIR=$(/bin/mktemp -d -p $(pwd)/.tmp)
-    pushd $NEUTRON_DIR
-    $ZUUL_CLONER --branch $openstack_branch --cache-dir \
-        /opt/git \
-        http://git.openstack.org \
-        openstack/neutron
-    cd openstack/neutron
-    $install_cmd -e .
-    popd
-else
-    echo "PIP HARDCODE" > /tmp/tox_install.txt
-    $install_cmd -U -egit+https://git.openstack.org/openstack/neutron@${openstack_branch}#egg=neutron
-fi
+install_project neutron
+install_project networking-bgpvpn
 
 # install exabgp master
 pip install -egit+https://github.com/Exa-Networks/exabgp.git#egg=exabgp
 
 # install the rest of dependencies
-$install_cmd $*
+$install_cmd -U $*
 exit $?
