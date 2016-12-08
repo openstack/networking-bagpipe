@@ -52,10 +52,10 @@ from neutron.common import topics
 from neutron_lib import constants as n_const
 from neutron_lib import exceptions as n_exc
 
+from neutron.conf.plugins.ml2.drivers import ovs_conf
+
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
-from neutron.plugins.ml2.drivers.openvswitch.agent.common import config\
-    as ovs_config
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants\
     as a_const
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent
@@ -114,7 +114,7 @@ bagpipe_bgp_opts = [
 ]
 
 cfg.CONF.register_opts(bagpipe_bgp_opts, "BAGPIPE")
-cfg.CONF.register_opts(ovs_config.ovs_opts, "OVS")
+ovs_conf.register_ovs_agent_opts()
 config.register_agent_state_opts_helper(cfg.CONF)
 
 
