@@ -142,7 +142,7 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
                         network") % key
                 raise exc.InvalidInput(error_message=msg)
 
-    def reserve_provider_segment(self, session, segment):
+    def reserve_provider_segment(self, context, segment):
         filters = {}
         rt_nn = segment.get(api.SEGMENTATION_ID)
         if rt_nn is not None:
@@ -150,12 +150,12 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
 
         if self.is_partial_segment(segment):
             alloc = self.allocate_partially_specified_segment(
-                session, **filters)
+                context, **filters)
             if not alloc:
                 raise exc.NoNetworkAvailable()
         else:
             alloc = self.allocate_fully_specified_segment(
-                session, **filters)
+                context, **filters)
             if not alloc:
                 raise RouteTargetInUse(**filters)
 
@@ -163,19 +163,19 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
                 api.PHYSICAL_NETWORK: None,
                 api.SEGMENTATION_ID: alloc.rt_nn}
 
-    def allocate_tenant_segment(self, session):
-        alloc = self.allocate_partially_specified_segment(session)
+    def allocate_tenant_segment(self, context):
+        alloc = self.allocate_partially_specified_segment(context)
         if not alloc:
             return
         return {api.NETWORK_TYPE: TYPE_ROUTE_TARGET,
                 api.PHYSICAL_NETWORK: None,
                 api.SEGMENTATION_ID: alloc.rt_nn}
 
-    def release_segment(self, session, segment):
+    def release_segment(self, context, segment):
         rt_nn = segment[api.SEGMENTATION_ID]
-        with session.begin(subtransactions=True):
+        with context.session.begin(subtransactions=True):
             try:
-                alloc = (session.query(RouteTargetAllocation).
+                alloc = (context.session.query(RouteTargetAllocation).
                          filter_by(rt_nn=rt_nn).
                          with_lockmode('update').
                          one())
@@ -186,7 +186,7 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
                                     "pool"), rt_nn)
                         break
                 else:
-                    session.delete(alloc)
+                    context.session.delete(alloc)
                     LOG.debug(_("Releasing Route Target number %s outside "
                                 "pool"), rt_nn)
             except sa_exc.NoResultFound:
