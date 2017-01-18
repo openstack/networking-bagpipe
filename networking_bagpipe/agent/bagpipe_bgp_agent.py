@@ -46,7 +46,9 @@ from networking_bagpipe.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
 
 from neutron.agent.common import config
 from neutron.agent.common import ovs_lib
-
+from neutron.callbacks import events
+from neutron.callbacks import registry
+from neutron.callbacks import resources
 from neutron.common import topics
 
 from neutron_lib import constants as n_const
@@ -242,13 +244,17 @@ class BaGPipeBGPAgent(HTTPClientBase,
         self.bagpipe_bgp_status = self.BAGPIPEBGP_DOWN
         self.seq_num = 0
 
-        # OVS-specific variables:
+        # OVS-specific setup
         if self.agent_type == n_const.AGENT_TYPE_OVS:
             self.int_br = int_br
             self.tun_br = tun_br
-            self.setup_mpls_br(cfg.CONF.BAGPIPE.mpls_bridge)
+            self.setup_mpls_br()
 
-        # RPC setpup
+            registry.subscribe(self.ovs_restarted,
+                               resources.AGENT,
+                               events.OVS_RESTARTED)
+
+        # RPC setup
         if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
             connection.create_consumer(topics.get_topic_name(topics.AGENT,
                                                              topics_BAGPIPE,
@@ -513,7 +519,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         else:
             LOG.debug("Local port not yet detached from bagpipe-bgp (not up)")
 
-    def setup_mpls_br(self, mpls_br):
+    def setup_mpls_br(self):
         '''Setup the MPLS bridge for bagpipe-bgp.
 
         Creates MPLS bridge, and links it to the integration and tunnel
@@ -521,6 +527,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         :param mpls_br: the name of the MPLS bridge.
         '''
+        mpls_br = cfg.CONF.BAGPIPE.mpls_bridge
         self.mpls_br = ovs_lib.OVSBridge(mpls_br)
 
         if not self.mpls_br.bridge_exists(mpls_br):
@@ -584,6 +591,12 @@ class BaGPipeBGPAgent(HTTPClientBase,
         # Redirect traffic from the MPLS bridge to br-int
         self.tun_br.add_flow(in_port=self.patch_tun_from_mpls_ofport,
                              actions="output:%s" % patch_int_ofport)
+
+    def ovs_restarted(self, resources, event, trigger):
+        self.setup_mpls_br()
+        self.ovs_restarted_bgpvpn()
+        # TODO(tmorin): need to handle restart on bagpipe-bgp side, in the
+        # meantime after an OVS restart, restarting bagpipe-bgp is required
 
     def get_local_vlan(self, port_id):
         vif_port = self.int_br.get_vif_port_by_id(port_id)
@@ -1038,6 +1051,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
             if has_ipvpn_attachement(updated_attachment.get(BGPVPN_NOTIFIER)):
                 if new_gw_info != NO_GW_INFO:
+                    # TODO(tmorin): this does not need to be done more than
+                    # one time for a given network:
                     self._check_arp_voodoo_plug(
                         network_id,
                         updated_attachment['port_id'],
@@ -1061,15 +1076,29 @@ class BaGPipeBGPAgent(HTTPClientBase,
             try:
                 self._do_local_port_unplug(port_details,
                                            notifiers=[BGPVPN_NOTIFIER])
-                if has_ipvpn_attachement(port_details.get(BGPVPN_NOTIFIER)):
-                    self._check_arp_voodoo_unplug(network_id,
-                                                  port_details['port_id'])
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach port from bagpipe-bgp: %s", str(e))
             finally:
+                if has_ipvpn_attachement(port_details.get(BGPVPN_NOTIFIER)):
+                    # TODO(tmorin): this does not need to be done more than one
+                    # time for a given network:
+                    self._check_arp_voodoo_unplug(network_id,
+                                                  port_details['port_id'])
                 self._remove_registered_attachment(network_id, index,
                                                    BGPVPN_NOTIFIER,
                                                    delete=False)
+
+    def ovs_restarted_bgpvpn(self):
+        for (network_id, attachments) in self.reg_attachments.items():
+            gw_info = self.gateway_info_for_net[network_id]
+
+            if attachments and gw_info != NO_GW_INFO:
+                for attachment in attachments:
+                    if has_ipvpn_attachement(attachment.get(BGPVPN_NOTIFIER)):
+                        self._check_arp_voodoo_plug(network_id,
+                                                    attachment['port_id'],
+                                                    gw_info)
+                        break
 
     @log_helpers.log_method_call
     def create_bgpvpn(self, context, bgpvpn):
