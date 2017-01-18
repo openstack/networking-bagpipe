@@ -1458,10 +1458,6 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
     def setUp(self):
         super(TestBaGPipeBGPAgentOVS, self).setUp()
 
-        self.INT_BRIDGE = 'integration_bridge'
-        self.TUN_BRIDGE = 'tunnet_bridge'
-        self.MPLS_BRIDGE = 'mpls_bridge'
-
         self.mock_int_br = mock.Mock()
         self.mock_int_br.add_patch_port = mock.Mock()
         self.mock_int_br.add_patch_port.side_effect = PATCH_INT_OFPORTS
@@ -1949,6 +1945,54 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
                                                           PORT11).__dict__)
 
             self.assertEqual(0, delete_flows.call_count)
+
+    def test_gateway_arp_voodoo_ovs_restart(self):
+        GW_MAC = 'aa:bb:cc:dd:ee:ff'
+
+        with mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
+                               side_effect=[self.DUMMY_VIF10,
+                                            self.DUMMY_VIF11]), \
+                mock.patch.object(self.agent.int_br,
+                                  'add_flow') as add_flow:
+            port10 = DummyPort(NETWORK1, PORT10).__dict__
+            port10.update({'gateway_mac': GW_MAC})
+
+            self.agent.bgpvpn_port_attach(None, copy.copy(port10))
+
+            dummy_bgpvpn1 = DummyBGPVPN(NETWORK1,
+                                        ipvpn=BGPVPN_IPVPN_RT100,
+                                        gateway_mac=GW_MAC).__dict__
+
+            self.agent.update_bgpvpn(None, dummy_bgpvpn1)
+
+            self.assertEqual(2, add_flow.call_count)
+
+            expected_calls = [
+                mock.call(table=mock.ANY,
+                          priority=2,
+                          proto='arp',
+                          arp_op=0x2,
+                          dl_src=GW_MAC,
+                          arp_sha=GW_MAC,
+                          arp_spa='10.0.0.1',
+                          actions="drop"),
+                mock.call(table=mock.ANY,
+                          priority=2,
+                          proto='arp',
+                          arp_op=0x01,
+                          dl_src=GW_MAC,
+                          arp_spa='10.0.0.1',
+                          arp_sha=GW_MAC,
+                          actions="load:0x0->NXM_OF_ARP_SPA[],NORMAL"
+                          )
+            ]
+            add_flow.assert_has_calls(expected_calls)
+
+            add_flow.reset_mock()
+
+            self.agent.ovs_restarted_bgpvpn()
+
+            add_flow.assert_has_calls(expected_calls)
 
     # -------------------------------------------
     # Multiple simultaneous RPC notifiers tests |
