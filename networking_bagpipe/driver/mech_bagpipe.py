@@ -13,12 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron_lib import context as n_context
 from oslo_config import cfg
-
 from oslo_log import log
 
 from neutron.agent import securitygroups_rpc
-from neutron import context as n_context
 from neutron.db import api as db_api
 from neutron.db import models_v2
 
