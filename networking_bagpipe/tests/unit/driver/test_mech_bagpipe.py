@@ -14,8 +14,8 @@
 #    under the License.
 
 import mock
+from neutron_lib import context
 
-from neutron import context
 from neutron.plugins.ml2 import config
 from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc
