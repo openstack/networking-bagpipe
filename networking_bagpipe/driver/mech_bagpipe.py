@@ -21,13 +21,13 @@ from neutron.agent import securitygroups_rpc
 from neutron import context as n_context
 from neutron.db import api as db_api
 from neutron.db import models_v2
-from neutron.extensions import portbindings
 
 from neutron.plugins.common import constants as p_constants
 
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
 
+from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as n_const
 
 from networking_bagpipe.driver.type_route_target import TYPE_ROUTE_TARGET
