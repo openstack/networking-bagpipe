@@ -17,12 +17,12 @@ import mock
 
 from neutron import context
 from neutron.extensions import portbindings
-from neutron.extensions import providernet as pnet
 from neutron.plugins.ml2 import config
 from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc
 from neutron.tests.common import helpers
 from neutron.tests.unit.plugins.ml2 import test_plugin
+from neutron_lib.api.definitions import provider_net as pnet
 
 from networking_bagpipe.driver.type_route_target import TYPE_ROUTE_TARGET
 import networking_bagpipe.rpc.client as bagpipe_rpc
