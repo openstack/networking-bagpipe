@@ -60,9 +60,6 @@ from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants\
     as a_const
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent
 
-from neutron.plugins.ml2.drivers.openvswitch.agent import \
-    ovs_agent_extension_api
-
 LOG = logging.getLogger(__name__)
 
 DEFAULT_GATEWAY_MAC = "00:00:5e:00:43:64"
@@ -829,13 +826,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
     @log_helpers.log_method_call
     def _disable_gw_redirect(self, vlan, gateway_ip):
         # Remove ARP responder entry for default gateway in br-tun
-
-        # NOTE(tmorin): do a clean self.tun_br.delete_flows call once native
-        # ofswitch stops overloading delete_flows with an implementation
-        # not behaving like the ovs_lib one.
-        # (see https://bugs.launchpad.net/neutron/+bug/1628455 )
-        ovs_agent_extension_api.OVSCookieBridge.delete_flows(
-            self.tun_br,
+        self.tun_br.delete_flows(
             table=a_const.ARP_RESPONDER,
             dl_vlan=vlan,
             proto='arp',
@@ -844,7 +835,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         # TODO(tmorin): nothing currently prevents the base agent from
         # deleting our rule on Router unplug (because its delete_flows is
-        # not restricted to rules having its own cookie)
+        # not restricted to deleting rules having its own cookie)
 
     @log_helpers.log_method_call
     def _hide_real_gw_arp(self, vlan, gateway_info):
