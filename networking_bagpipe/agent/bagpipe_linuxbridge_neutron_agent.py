@@ -33,9 +33,9 @@ from neutron._i18n import _LI
 from neutron.agent.l2 import agent_extension
 
 from neutron.common import config as common_config
-from neutron.common import utils as n_utils
 
 from neutron_lib import constants as n_const
+from neutron_lib.utils import helpers
 
 from neutron.plugins.ml2.drivers.agent import _common_agent as ca
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
@@ -85,7 +85,7 @@ def main():
 
     common_config.setup_logging()
     try:
-        interface_mappings = n_utils.parse_mappings(
+        interface_mappings = helpers.parse_mappings(
             cfg.CONF.LINUX_BRIDGE.physical_interface_mappings)
     except ValueError as e:
         LOG.error(_LE("Parsing physical_interface_mappings failed: %s. "
@@ -94,7 +94,7 @@ def main():
     LOG.info(_LI("Interface mappings: %s"), interface_mappings)
 
     try:
-        bridge_mappings = n_utils.parse_mappings(
+        bridge_mappings = helpers.parse_mappings(
             cfg.CONF.LINUX_BRIDGE.bridge_mappings)
     except ValueError as e:
         LOG.error(_LE("Parsing bridge_mappings failed: %s. "
