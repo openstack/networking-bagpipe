@@ -45,12 +45,12 @@ from networking_bagpipe.agent.bgpvpn import rpc_agent as bgpvpn_agent_rpc
 from networking_bagpipe.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
 
 from neutron.agent.common import ovs_lib
-from neutron.callbacks import events
-from neutron.callbacks import registry
-from neutron.callbacks import resources
 from neutron.common import topics
 from neutron.conf.agent import common as config
 
+from neutron_lib.callbacks import events
+from neutron_lib.callbacks import registry
+from neutron_lib.callbacks import resources
 from neutron_lib import constants as n_const
 from neutron_lib import exceptions as n_exc
 
