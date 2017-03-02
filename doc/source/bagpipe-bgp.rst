@@ -1,59 +1,43 @@
-BaGPipe BGP
-===========
+BaGPipe-BGP component
+=====================
 
-.. image:: https://badges.gitter.im/Join%20Chat.svg
-    :target: https://gitter.im/Orange-OpenSource/bagpipe-bgp
-    :alt: Join Glitter Chat
+BaGPipe-BGP is a component of networking-bagpipe, used on compute nodes
+along the Neutron agent and bagpipe agent extension of this agent.
 
-BaGPipe BGP is a lightweight implementation of BGP VPNs (IP VPNs and
+It is a lightweight implementation of BGP VPNs (IP VPNs and
 E-VPNs), targeting deployments on servers hosting VMs, in particular for
 Openstack/KVM platforms.
 
-The goal is *not* to fully implement BGP specifications, but only the
-subset of specifications required to implement IP VPN VRFs and E-VPN
-EVIs (`RFC4364 <http://tools.ietf.org/html/rfc4364>`__ a.k.a RFC2547bis,
-`RFC7432 <http://tools.ietf.org/html/rfc7432>`__/`draft-ietf-bess-evpn-overlay <http://tools.ietf.org/html/draft-ietf-bess-evpn-overlay>`__,
+The goal of BaGPipe-BGP is *not* to fully implement BGP specifications,
+but only the subset of specifications required to implement IP VPN VRFs
+and E-VPN EVIs (`RFC4364 <http://tools.ietf.org/html/rfc4364>`__ 
+a.k.a RFC2547bis, `RFC7432 <http://tools.ietf.org/html/rfc7432>`__/`draft-ietf-bess-evpn-overlay <http://tools.ietf.org/html/draft-ietf-bess-evpn-overlay>`__,
 and `RFC4684 <http://tools.ietf.org/html/RFC4684>`__).
 
-BaGPipe BGP is designed to use encapsulations over IP (such as
+BaGPipe-BGP is designed to use encapsulations over IP (such as
 MPLS-over-GRE or VXLAN), and thus does not require the use of LDP. Bare
 MPLS over Ethernet is also supported and can be used if servers/routers
 have direct Ethernet connectivity.
 
-Typical Use
------------
+Typical Use/deployment
+----------------------
 
 BaGPipe-BGP has been designed to provide VPN (IP VPN or E-VPN)
-connectivity to VMs running on a local server.
+connectivity to local VMs running on an Openstack compute node.
 
-The target is to provide VPN connectivity to VMs deployed by Openstack.
-A typical target architecture is to have BaGPipe-BGP be driven by
-Openstack Neutron components:
+BaGPipe-BGP is typically driven via its HTTP REST interface, by
+Openstack Neutron agent extensions found in networking-bagpipe package.
 
-*  the `bagpipe driver for the BGP VPN interconnection service
-   plugin <https://github.com/openstack/networking-bgpvpn>`__
-*  the `bagpipe ML2 mechanism
-   driver <https://github.com/openstack/networking-bagpipe>`__ using E-VPN
-
-BaGPipe-BGP can also be used standalone (e.g. for testing purposes),
+However, BaGPipe-BGP can also be used standalone (e.g. for testing purposes),
 with for instance VMs tap interfaces or veth interfaces to network
 namespaces (see `below <#netns-example>`__).
-
-Installation
-------------
-
-Installation can be done with ``python setup.py install --install-data=/``.
-
-Running ``install.sh`` will take care of this and will *also* install
-startup scripts in ``/etc`` and sample config files in
-``/etc/bagpipe-bgp``.
 
 BGP and Route Reflection
 ------------------------
 
 If you only want to test how to interconnect one server running
 bagpipe-bgp and an IP/MPLS router, you don't need to setup a BGP Route
-Reflector. But to use BaGPipe BGP on more than one server, the current
+Reflector. But to use BaGPipe-BGP on more than one server, the current
 code currently requires setting up a BGP Route Reflector (see
 `Caveats <#caveats>`__).
 
@@ -62,14 +46,14 @@ redistribute routes between iBGP peers
 `RFC4456 <http://tools.ietf.org/html/RFC4456>`__.
 
 When using bagpipe-bgp on more than one server, we thus need each
-instance of BaGPipe BGP to be configured to peer with at least one route
+instance of BaGPipe-BGP to be configured to peer with at least one route
 reflector (see `Configuration <#config>`__).
 
 We provide a tool that can be used to emulate a route reflector to
-interconnect **2** BaGPipe BGP implementations, typically for test
+interconnect **2** BaGPipe-BGP implementations, typically for test
 purposes (see `Fake RR <#fakerr>`__).
 
-For more than 2 servers running BaGPipe BGP, you will need a real BGP
+For more than 2 servers running BaGPipe-BGP, you will need a real BGP
 implementation supporting RFC4364 and BGP route reflection (and ideally
 also RFC4684).
 
@@ -100,11 +84,8 @@ Different options can be considered:
 Configuration
 -------------
 
-The bagpipe-bgp daemon config file default location is:
+The bagpipe-bgp config file default location is:
 ``/etc/bagpipe-bgp/bgp.conf``.
-
-The ``install.sh`` script will install a template as an example
-configuration.
 
 It needs to be customized, at least for the following:
 
@@ -146,7 +127,7 @@ dataplane drivers for IP VPNs:
    tested); this driver can do bare-MPLS or MPLS-over-GRE (but see
    `Caveats <#caveats>`__ for MPLS-over-GRE); for bare MPLS, this driver
    requires the OVS bridge to be associated with an IP address, and that
-   VRF interfaces be plugged into OVS prior to calling BaGPipe BGP API
+   VRF interfaces be plugged into OVS prior to calling BaGPipe-BGP API
    to attach them (details in
    `mpls\_ovs\_dataplane.py <bagpipe/bgp/vpn/ipvpn/mpls_ovs_dataplane.py#L578>`__)
 
@@ -162,16 +143,17 @@ configuration being required, and simply requires a Linux kernel >=3.10
 Usage
 -----
 
-BaGPipe BGP daemon
-~~~~~~~~~~~~~~~~~~
+BaGPipe-BGP local service
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If systemd init scripts are installed, the daemon is typically started with:
-``systemctl start bagpipe-bgp``
+If systemd init scripts are installed, ``bagpipe-bgp`` is typically started
+with: ``systemctl start bagpipe-bgp``
 
 It can also be started directly with the ``bagpipe-bgp`` command
 (``--help`` to see what parameters can be used).
 
-By default, it outputs logs on stdin (captured by systemd if run under systemd).
+By default, it outputs logs on stdin (captured by systemd if run under
+systemd).
 
 BaGPipe Fake BGP Route Reflector
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -219,7 +201,7 @@ actually work unless you try to use one of the two MPLS Linux dataplane
 drivers.
 
 Note also that, assuming that VMs are behind these tap interfaces, these
-VMs will need to have proper IP configuration. When BaGPipe BGP is use
+VMs will need to have proper IP configuration. When BaGPipe-BGP is use
 standalone, no DHCP service is provided, and the IP configuration will
 have to be static.
 
@@ -391,28 +373,25 @@ BGP peers workloads:
 *  each local VPN worker has its own thread to process route events
 *  each BGP peer worker has two threads to process outgoing route
    events, and receive socket data, plus a few timers.
-*  VPN port attachement actions are done in the main thread handling
+*  VPN port attachment actions are done in the main thread handling
    initial setup and API calls, these calls are protected by Python
    locks
 
-Non-persistency of VPN and port attachements
+Non-persistency of VPN and port attachments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The BaGPipe BGP daemon, as currently designed, does not persist
+The BaGPipe-BGP service, as currently designed, does not persist
 information on VPNs (VRFs or EVIs) and the ports attached to them. On a
-restart, the component responsible triggering the attachement of
-interfaces to VPNs, can detect the restart of the BGP daemon and
-re-trigger these attachements.
+restart, the component responsible triggering the attachment of
+interfaces to VPNs, can detect the restart of the BGP and
+re-trigger these attachments.
 
 BGP Implementation
 ~~~~~~~~~~~~~~~~~~
 
-The BGP protocol implementation extends an reuses BGP code from
-`ExaBGP <http://code.google.com/p/exabgp>`__. Information about what was
-modified in ExaBGP is in `README.exabgp <README.exabgp>`__. BaGPipe BGP
-only reuses the low-level Connection and Protocol classes, with
-additions to encode and decode NLRI and attribute specific to BGP VPN
-extensions.
+The BGP protocol implementation reuses BGP code from
+`ExaBGP <http://code.google.com/p/exabgp>`__. BaGPipe-BGP
+only reuses the low-level classes for message encodings and connection setup.
 
 Non-goals for this BGP implementation:
 
@@ -420,16 +399,16 @@ Non-goals for this BGP implementation:
 * redistribution of routes between BGP peers (hence, no route reflection, no eBGP)
 * accepting incoming BGP connections
 * scaling to a number of routes beyond the number of routes required to
-  route traffic in/out of VMs hosted on a server running BaGPipe
+  route traffic in/out of VMs hosted on a server running BaGPipe-BGP
 
 Dataplanes
 ~~~~~~~~~~
 
-BaGPIpe BGP was designed to allow for a modular dataplane
+BaGPipe-BGP was designed to allow for a modular dataplane
 implementation. For each type of VPN (IP VPN, E-VPN) a dataplane driver
 is chosen through configuration. A dataplane driver is responsible for
 setting up forwarding state for incoming and outgoing traffic based on
-port attachement information and BGP routes.
+port attachment information and BGP routes.
 
 (see `Dataplane driver configuration <#dpconfig>`__)
 
@@ -439,31 +418,10 @@ Caveats
 *  release early, release often: not everything is perfect yet
 *  BGP implementation not written for compliancy
 
-  -  the BaGPipe BGP daemon does not listen for incoming BGP connections
+  -  the BaGPipe-BGP service does not listen for incoming BGP connections
 
-  -  the state machine, in particular retry timers are certainly not compliant yet
+  -  the state machine, in particular retry timers is possibly not fully compliant yet
 
   -  however, interop testing has been done with a fair amount of implementations
 
 *  MPLS-over-GRE is supported for IP VPNs, but is not yet standard (OpenVSwitch currently does MPLS-o-Ethernet-o-GRE and not MPLS-o-GRE)
-
-
-Unit Tests
-----------
-
-Unit tests can be run with:
-
-::
-
-        nosetests
-
-A report of unit tests coverage can be produced with:
-
-::
-
-        nosetests --with-coverage --cover-package=bagpipe.bgp --cover-html
-
-License
--------
-
-Apache 2.0 license, see `LICENSE <LICENSE>`__ file.
