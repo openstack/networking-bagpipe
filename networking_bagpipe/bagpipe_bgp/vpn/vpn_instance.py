@@ -18,12 +18,12 @@
 import abc
 import collections
 import copy
-import six
 import socket
 import threading
 
 import netaddr
 from oslo_log import log as logging
+import six
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
@@ -221,14 +221,14 @@ class TrafficClassifier(object):
                       5: self._parse_destination_port,  # FLowDestinationPort
                       6: self._parse_source_port}  # FlowSourcePort
 
-        for ID, rule in rules.iteritems():
+        for ID, rule in six.iteritems(rules):
             components[ID](rule)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class VPNInstance(tracker_worker.TrackerWorker,
                   threading.Thread,
                   lg.LookingGlassLocalLogger):
-    six.add_metaclass(abc.ABCMeta)
 
     type = None  # set by subclasses: 'ipvpn', 'evpn', etc.
     afi = None
@@ -381,7 +381,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
     def has_only_one_endpoint(self):
         return (len(self.localport_2_endpoints) == 1 and
-                len(self.localport_2_endpoints.values()[0]) == 1)
+                len(six.next(six.itervalues(self.localport_2_endpoints))) == 1)
 
     @log_decorator.log
     def update_route_targets(self, new_import_rts, new_export_rts):
@@ -612,9 +612,14 @@ class VPNInstance(tracker_worker.TrackerWorker,
             if mac_address in self.mac_2_localport_data:
                 del self.mac_2_localport_data[mac_address]
             if ip_address_prefix in self.ip_address_2_mac:
-                self.ip_address_2_mac[ip_address_prefix].remove(mac_address)
+                try:
+                    self.ip_address_2_mac[ip_address_prefix].remove(
+                        mac_address)
+                except ValueError:
+                    # ok, value just had not been added
+                    pass
 
-            raise
+            raise e
 
         self.log.info("localport_2_endpoints: %s", self.localport_2_endpoints)
         self.log.info("endpoint_2_rd: %s", self.endpoint_2_rd)
@@ -626,11 +631,16 @@ class VPNInstance(tracker_worker.TrackerWorker,
     @log_decorator.log_info
     def vif_unplugged(self, mac_address, ip_address_prefix,
                       advertise_subnet=False, lb_consistent_hash_order=0):
+        # NOTE(tmorin): move this as a vif_unplugged_precheck, so that
+        # in ipvpn.VRF this is done before readvertised route withdrawal
+
         # Verify port and endpoint (MAC address, IP address) tuple consistency
         pdata = self.mac_2_localport_data.get(mac_address)
         if (not pdata or
                 (ip_address_prefix in self.ip_address_2_mac and
-                 mac_address not in self.ip_address_2_mac[ip_address_prefix])):
+                 mac_address not in self.ip_address_2_mac[ip_address_prefix])
+                or
+                (mac_address, ip_address_prefix) not in self.endpoint_2_rd):
             self.log.error("vif_unplugged called for endpoint (%s, %s), but "
                            "no consistent informations or was not plugged yet",
                            mac_address, ip_address_prefix)
@@ -861,7 +871,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
     def get_lg_local_port_data(self, path_prefix):
         r = {}
-        for (port, endpoints) in self.localport_2_endpoints.iteritems():
+        for (port, endpoints) in self.localport_2_endpoints.items():
             eps = []
             for endpoint in endpoints:
                 eps.append({

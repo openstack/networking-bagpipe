@@ -26,11 +26,12 @@ bagpipe.bgp.engine.__init__ .
 
 """
 
+import six
 from testtools import TestCase
 
 from networking_bagpipe.bagpipe_bgp import engine
 from networking_bagpipe.bagpipe_bgp.engine import exa
-from networking_bagpipe.bagpipe_bgp import tests
+from networking_bagpipe.tests.unit.bagpipe_bgp import base
 
 
 TEST_RD = exa.RouteDistinguisher.fromElements("42.42.42.42", 5)
@@ -81,7 +82,8 @@ class TestEngineObjects(TestCase):
 
         # Esi
         nlri1 = exa.EVPNMAC(TEST_RD,
-                            exa.ESI([1 for _ in range(0, 10)]),
+                            exa.ESI(b''.join(six.int2byte(1)
+                                             for _ in range(0, 10))),
                             exa.EthernetTag(111),
                             exa.MAC("01:02:03:04:05:06"), 6*8,
                             exa.Labels([42], True),
@@ -148,8 +150,8 @@ class TestEngineObjects(TestCase):
         atts2 = exa.Attributes()
         atts2.add(exa.LocalPreference(20))
 
-        entry1 = engine.RouteEntry(tests.NLRI1, None, atts1)
-        entry2 = engine.RouteEntry(tests.NLRI1, None, atts2)
+        entry1 = engine.RouteEntry(base.NLRI1, None, atts1)
+        entry2 = engine.RouteEntry(base.NLRI1, None, atts2)
 
         self.assertNotEqual(entry1, entry2)
 
@@ -163,8 +165,8 @@ class TestEngineObjects(TestCase):
         atts2 = exa.Attributes()
         atts2.add(exa.LocalPreference(10))
 
-        entry1 = engine.RouteEntry(tests.NLRI1, None, atts1)
-        entry2 = engine.RouteEntry(tests.NLRI1, None, atts2)
+        entry1 = engine.RouteEntry(base.NLRI1, None, atts1)
+        entry2 = engine.RouteEntry(base.NLRI1, None, atts2)
 
         self.assertEqual(hash(entry1), hash(entry2))
         self.assertEqual(entry1, entry2)
@@ -191,8 +193,8 @@ class TestEngineObjects(TestCase):
             exa.Encapsulation.Type.VXLAN))
         atts2.add(ecoms2)
 
-        entry1 = engine.RouteEntry(tests.NLRI1, None, atts1)
-        entry2 = engine.RouteEntry(tests.NLRI1, None, atts2)
+        entry1 = engine.RouteEntry(base.NLRI1, None, atts1)
+        entry2 = engine.RouteEntry(base.NLRI1, None, atts2)
 
         self.assertEqual(hash(entry1), hash(entry2))
         self.assertEqual(entry1, entry2)
@@ -207,7 +209,7 @@ class TestEngineObjects(TestCase):
         atts.add(exa.LocalPreference(20))
         atts.add(ecoms)
 
-        entry = engine.RouteEntry(tests.NLRI1, None, atts)
+        entry = engine.RouteEntry(base.NLRI1, None, atts)
 
         # check that the route_entry object has the RTs we wanted
         self.assertIn(exa.RouteTarget(64512, 1), entry.route_targets)
@@ -242,7 +244,7 @@ class TestEngineObjects(TestCase):
 
         rts = [exa.RouteTarget(64512, 1), exa.RouteTarget(64512, 2)]
 
-        entry = engine.RouteEntry(tests.NLRI1, rts, atts)
+        entry = engine.RouteEntry(base.NLRI1, rts, atts)
 
         self.assertIn(exa.RouteTarget(64512, 1), entry.route_targets)
         self.assertIn(exa.RouteTarget(64512, 2), entry.route_targets)

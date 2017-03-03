@@ -32,8 +32,6 @@ cli_opts = [
                )
 ]
 
-cfg.CONF.register_cli_opts(cli_opts)
-
 bgp_opts = [
     cfg.IPOpt('local_address', required=True,
               help="IP address used for BGP peerings"),
@@ -46,4 +44,11 @@ bgp_opts = [
                 help="Enable RT Constraint (RFC4684)")
 ]
 
-cfg.CONF.register_opts(bgp_opts, "BGP")
+
+def register():
+    cfg.CONF.register_cli_opts(cli_opts)
+    cfg.CONF.register_opts(bgp_opts, "BGP")
+
+
+def unregister():
+    cfg.CONF.unregister_opts(bgp_opts, "BGP")

@@ -15,22 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from oslo_config import cfg
-import testtools
-
-from networking_bagpipe.bagpipe_bgp.common import config  # flake8: noqa
 from networking_bagpipe.bagpipe_bgp import engine
 from networking_bagpipe.bagpipe_bgp.engine import bgp_manager
 from networking_bagpipe.bagpipe_bgp.engine import exa
+from networking_bagpipe.tests.unit.bagpipe_bgp import base
 
 
-class TestRouteTableManager(testtools.TestCase):
+class TestRouteTableManager(base.TestCase):
 
     def setUp(self):
         super(TestRouteTableManager, self).setUp()
-
-        cfg.CONF.BGP.local_address = "1.2.3.4"
-        cfg.CONF.BGP.my_as = 64512
 
         self.bgp_manager = bgp_manager.Manager()
 

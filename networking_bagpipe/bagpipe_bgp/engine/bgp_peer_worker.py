@@ -108,10 +108,10 @@ class ToIdle(object):
         return "ToIdle(%s)" % self.delay
 
 
+@six.add_metaclass(abc.ABCMeta)
 class BGPPeerWorker(worker.Worker,
                     threading.Thread,
                     lg.LookingGlassLocalLogger):
-    six.add_metaclass(abc.ABCMeta)
 
     '''Partially abstract class for a Worker implementing the BGP protocol.'''
 

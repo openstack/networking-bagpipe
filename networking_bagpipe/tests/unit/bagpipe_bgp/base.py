@@ -18,8 +18,11 @@
 import logging as python_logging
 import time
 
+from oslo_config import cfg
 from oslo_log import log as logging
+import testtools
 
+from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp import engine
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.engine import exabgp_peer_worker
@@ -52,8 +55,8 @@ class TestNLRI(object):
     def __repr__(self):
         return self.desc
 
-    def __cmp__(self, other):
-        return cmp(self.desc, other.desc)
+    def __eq__(self, other):
+        return self.desc == other.desc
 
     def __hash__(self):
         return hash(self.desc)
@@ -75,6 +78,19 @@ python_logging.basicConfig(level=logging.DEBUG,
                            "%(levelname)-8s %(message)s")
 
 LOG = logging.getLogger()
+
+
+class TestCase(testtools.TestCase):
+
+    def setUp(self):
+        super(TestCase, self).setUp()
+        config.register()
+        cfg.CONF.BGP.local_address = "11.22.33.44"
+        cfg.CONF.BGP.my_as = 64512
+
+    def tearDown(self):
+        super(TestCase, self).tearDown()
+        config.unregister()
 
 
 class BaseTestBagPipeBGP(object):

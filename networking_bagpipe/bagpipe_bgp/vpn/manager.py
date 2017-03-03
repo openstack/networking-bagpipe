@@ -19,6 +19,7 @@ import re
 import threading
 
 from oslo_log import log as logging
+import six
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
@@ -433,13 +434,13 @@ class VPNManager(lg.LookingGlassMixin):
     @log_decorator.log_info
     def stop(self):
         self.bgp_manager.stop()
-        for vpn_instance in self.vpn_instances.itervalues():
+        for vpn_instance in six.itervalues(self.vpn_instances):
             vpn_instance.stop()
             # Cleanup veth pair
             if (vpn_instance.type == constants.IPVPN and
                     self._evpn_ipvpn_ifs.get(vpn_instance)):
                 self._cleanup_evpn2ipvpn(vpn_instance)
-        for vpn_instance in self.vpn_instances.itervalues():
+        for vpn_instance in six.itervalues(self.vpn_instances):
             vpn_instance.join()
 
     @classmethod
@@ -488,7 +489,8 @@ class VPNManager(lg.LookingGlassMixin):
     def get_lg_vpn_list(self):
         return [{"id": id,
                  "name": instance.name}
-                for (id, instance) in self.vpn_instances.iteritems()]
+                for (id, instance)
+                in six.iteritems(self.vpn_instances.iteritems)]
 
     def get_lg_vpn_from_path_item(self, path_item):
         return self.vpn_instances[path_item]
@@ -497,7 +499,7 @@ class VPNManager(lg.LookingGlassMixin):
         return len(self.vpn_instances)
 
     def get_lg_dataplanes_list(self):
-        return [{"id": i} for i in self.dataplane_drivers.iterkeys()]
+        return [{"id": i} for i in self.dataplane_drivers.keys()]
 
     def get_lg_dataplane_from_path_item(self, path_item):
         return self.dataplane_drivers[path_item]

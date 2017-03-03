@@ -29,8 +29,8 @@ from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
 
 
+@six.add_metaclass(abc.ABCMeta)
 class VPNInstanceDataplane(dp_drivers.VPNInstanceDataplane):
-    six.add_metaclass(abc.ABCMeta)
 
     @abc.abstractmethod
     def add_dataplane_for_bum_endpoint(self, remote_pe, label, nlri, encaps):

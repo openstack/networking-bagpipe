@@ -279,7 +279,7 @@ class LookingGlassMixin(object):
         # firt_segment is None or is not in our map
         # let's build LookingGlassLocalInfo
         info = self._get_log_local_info(path_prefix)
-        for (path_item, (mapping_type, mapping_target)) in lg_map.iteritems():
+        for (path_item, (mapping_type, mapping_target)) in lg_map.items():
             if path_item in info:
                 LOG.warning("overriding '%s', present both in "
                             "LookingGlassLocalInfo and LookingGlassMixin map",

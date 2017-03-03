@@ -219,7 +219,7 @@ Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
                         RT_STYLE_FLOWSPEC_ACTION))
 
         for port in request(options, server, ["vpns", "instances",
-                                              vpn, "ports"]).iterkeys():
+                                              vpn, "ports"]).keys():
             print ('    %s -> port_%s_%s [%s,weight=5];' % (uid,
                                                             normalize(server),
                                                             normalize(port),

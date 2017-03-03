@@ -273,7 +273,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             if not self.protocol.connection:
                 raise Exception("lost connection")
 
-            message = self.protocol.read_message().next()
+            message = six.next(self.protocol.read_message())
 
             if message.ID != exa_message.NOP.ID:
                 self.log.debug("protocol read message: %s", message)

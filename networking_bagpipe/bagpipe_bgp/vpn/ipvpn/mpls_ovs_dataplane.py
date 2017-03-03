@@ -68,7 +68,7 @@ def get_ovsbr2arpns_if(namespace_id):
 
 
 def join_s(*args):
-    return ','.join(filter(None, args))
+    return ','.join([_f for _f in args if _f])
 
 
 class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane,

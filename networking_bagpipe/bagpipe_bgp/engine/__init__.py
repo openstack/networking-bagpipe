@@ -34,9 +34,8 @@ route table manager (singleton)
 
 """
 
-import types
-
 from oslo_log import log as logging
+import six
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -99,7 +98,7 @@ class RouteEntry(lg.LookingGlassMixin):
         if filter_ is None:
             def filter_real(ecom):
                 return True
-        elif isinstance(filter_, (types.ClassType, types.TypeType)):
+        elif isinstance(filter_, six.class_types):
             def filter_real(ecom):
                 return isinstance(ecom, filter_)
         else:
@@ -107,10 +106,11 @@ class RouteEntry(lg.LookingGlassMixin):
             filter_real = filter_
 
         if exa.Attribute.CODE.EXTENDED_COMMUNITY in self.attributes:
-            return filter(filter_real,
-                          self.attributes[
-                              exa.Attribute.CODE.EXTENDED_COMMUNITY]
-                          .communities)
+            return list(
+                filter(filter_real,
+                       self.attributes[exa.Attribute.CODE.EXTENDED_COMMUNITY]
+                           .communities)
+                )
         else:
             return []
 
@@ -141,19 +141,15 @@ class RouteEntry(lg.LookingGlassMixin):
             except KeyError:
                 return None
 
-    def __cmp__(self, other):
+    def __eq__(self, other):
         if other is None:
-            return -1
+            return False
         assert isinstance(other, RouteEntry)
-        if (self.afi == other.afi and
+        return (self.afi == other.afi and
                 self.safi == other.safi and
                 self.source == other.source and
                 self.nlri == other.nlri and
-                self.attributes.sameValuesAs(other.attributes)):
-            res = 0
-        else:
-            res = -1
-        return res
+                self.attributes.sameValuesAs(other.attributes))
 
     def __hash__(self):
         return hash((self.afi, self.safi, str(self.source),
@@ -175,7 +171,7 @@ class RouteEntry(lg.LookingGlassMixin):
 
         att_dict = {}
 
-        for attribute in self.attributes.itervalues():
+        for attribute in self.attributes.values():
 
             # skip some attributes that we care less about
             if (attribute.ID == exa.Attribute.CODE.AS_PATH or

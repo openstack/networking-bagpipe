@@ -18,7 +18,6 @@
 import abc
 import socket
 import traceback
-import types
 
 from oslo_log import log as logging
 import six
@@ -45,7 +44,7 @@ class FilteredRouteEntry(engine.RouteEntry):
             keep_attributes = keep_attributes_default
 
         attributes = exa.Attributes()
-        for (attribute_id, attribute) in re.attributes.iteritems():
+        for (attribute_id, attribute) in re.attributes.items():
             if attribute_id in keep_attributes:
                 attributes.add(attribute)
 
@@ -79,8 +78,14 @@ def compare_no_ecmp(self, route_a, route_b):
     '''
     self.log.debug("compare_no_ecmp used")
     salt = socket.gethostname() + self.name
-    return cmp([hash(salt + repr(route_a)), route_a],
-               [hash(salt + repr(route_b)), route_b])
+    hash_a = hash(salt + repr(route_a))
+    hash_b = hash(salt + repr(route_b))
+    cmp_hashes = (hash_a > hash_b) - (hash_b > hash_a)
+
+    if cmp_hashes != 0:
+        return cmp_hashes
+
+    return (route_a > route_b) - (route_b > route_a)
 
 
 def compare_ecmp(self, route_a, route_b):
@@ -88,8 +93,8 @@ def compare_ecmp(self, route_a, route_b):
     return 0
 
 
+@six.add_metaclass(abc.ABCMeta)
 class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
-    six.add_metaclass(abc.ABCMeta)
 
     def __init__(self, bgp_manager, worker_name,
                  compare_routes=compare_no_ecmp):
@@ -166,7 +171,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
                     self.log.debug("All best routes have been replaced")
                     self._recompute_best_routes(all_routes, best_routes)
                     if best_routes:
-                        current_best = iter(best_routes).next()
+                        current_best = six.next(iter(best_routes))
                         self.log.debug("We'll need to call new_best_route for "
                                        "all our new best routes")
                         call_new_best_route_4_all = True
@@ -176,7 +181,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
                 else:
                     # (if there is more than one route in the best routes, we
                     # take the first one)
-                    current_best = iter(best_routes).next()
+                    current_best = six.next(iter(best_routes))
 
                     self.log.debug("Current best route: %s", current_best)
 
@@ -422,7 +427,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
     def _dump_state(self):
         if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug("--- tracked_entry_2_routes ---")
-            for (entry, routes) in self.tracked_entry_2_routes.iteritems():
+            for (entry, routes) in six.iteritems(self.tracked_entry_2_routes):
                 self.log.debug(
                     "  Entry: %s", TrackerWorker._display_entry(entry))
                 for route in routes:
@@ -430,7 +435,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
 
             self.log.debug("--- tracked_entry_2_best_routes ---")
             for (entry, best_routes) in \
-                    self.tracked_entry_2_best_routes.iteritems():
+                    six.iteritems(self.tracked_entry_2_best_routes):
                 self.log.debug("  Entry: %s",
                                TrackerWorker._display_entry(entry))
                 for route in best_routes:
@@ -442,7 +447,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
     def _display_entry(entry):
         if (isinstance(entry, tuple) and len(entry) > 0 and
                 (isinstance(entry[0], type) or
-                 isinstance(entry[0], types.ClassType))):
+                 isinstance(entry[0], six.class_types))):
             return repr(tuple([entry[0].__name__] + list(entry[1:])))
         else:
             return repr(entry)
@@ -463,7 +468,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
 
     def _get_lg_routes(self, path_prefix, route_dict):
         routes = {}
-        for entry in route_dict.iterkeys():
+        for entry in six.iterkeys(route_dict):
             entry_repr = self._display_entry(entry)
             routes[entry_repr] = [route.get_looking_glass_info(path_prefix)
                                   for route in route_dict[entry]]
