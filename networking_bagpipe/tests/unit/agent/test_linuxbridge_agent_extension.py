@@ -14,8 +14,8 @@
 #    under the License.
 
 import mock
+from neutron_lib import context
 
-from neutron import context
 from neutron.plugins.ml2.drivers.linuxbridge.agent.common import constants as\
     a_const
 from neutron.tests import base
