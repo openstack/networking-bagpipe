@@ -34,7 +34,7 @@ elif [ -x "$ZUUL_CLONER" ]; then
     pushd $NEUTRON_DIR
     $ZUUL_CLONER --branch $openstack_branch --cache-dir \
         /opt/git \
-        git://git.openstack.org \
+        http://git.openstack.org \
         openstack/neutron
     cd openstack/neutron
     $install_cmd -e .
@@ -44,5 +44,9 @@ else
     $install_cmd -U -egit+https://git.openstack.org/openstack/neutron@${openstack_branch}#egg=neutron
 fi
 
+# install exabgp master
+pip install -egit+https://github.com/Exa-Networks/exabgp.git#egg=exabgp
+
+# install the rest of dependencies
 $install_cmd $*
 exit $?

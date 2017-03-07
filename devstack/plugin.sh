@@ -31,11 +31,8 @@ if [[ "$1" == "clean" ]]; then
     :
 fi
 
-if [[ -d "$BAGPIPE_DIR" ]]; then
-    echo "Running bagpipe-bgp devstack plugin..."
-    source $BAGPIPE_DIR/devstack/plugin.sh $1 $2
-    echo "$BAGPIPE_DIR/devstack/plugin.sh $1 $2: $?"
-fi
+echo "Running bagpipe-bgp devstack plugin..."
+source $NETWORKING_BAGPIPE_DIR/devstack/plugin.sh.bagpipe_bgp $1 $2 || die $LINEO "error in bagpipe-bgp plugin.sh ($1 $2)"
 
 # Restore trace setting
 ${_XTRACE_NETWORKING_BAGPIPE}

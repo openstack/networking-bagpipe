@@ -16,6 +16,7 @@ Documentation
 
    design
    applications
+   bagpipe-bgp
    installation
    contributing
 
