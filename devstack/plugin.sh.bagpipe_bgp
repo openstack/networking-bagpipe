@@ -2,7 +2,7 @@
 
 # Save trace setting
 _XTRACE_BAGPIPE_BGP=$(set +o | grep xtrace)
-set +o xtrace
+set -o xtrace
 
 # Pre-install gobgp requirements
 function pre_install_gobgp {
@@ -38,14 +38,30 @@ function configure_bagpipe {
 # Create a new bgp.conf file
 function create_bagpipe_conf {
 	# (Re)create ``bgp.conf``
-	cp -p $BAGPIPE_DIR/config/bgp.conf.template $BAGPIPE_CONF
+	cp -p $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/bgp.conf.template $BAGPIPE_CONF
+
+	# place rootwrap config files
+	cp -rp $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/rootwrap* $BAGPIPE_CONF_DIR
+
+	# build config
+	iniset $BAGPIPE_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
+
 	iniset $BAGPIPE_CONF BGP local_address ${BAGPIPE_HOST_IP:-$HOST_IP}
-	iniset $BAGPIPE_CONF BGP peers "$BAGPIPE_BGP_PEERS"
-	iniset $BAGPIPE_CONF API api_host "$BAGPIPE_SERVICE_HOST"
+	if [[ $BAGPIPE_BGP_PEERS == "-" ]]; then
+		iniset $BAGPIPE_CONF BGP peers ""
+	else
+		iniset $BAGPIPE_CONF BGP peers "$BAGPIPE_BGP_PEERS"
+	fi
+        iniset $BAGPIPE_CONF API host ${BAGPIPE_SERVICE_HOST:-127.0.0.1}
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_IPVPN:-DummyDataplaneDriver}
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN mpls_interface $BAGPIPE_MPLS_IFACE
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN ovs_bridge $BAGPIPE_MPLS_BR
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_EVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_EVPN:-DummyDataplaneDriver}
+	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN proxy_arp ${BAGPIPE_PROXY_ARP:-False}
+
+	if [ "$LOG_COLOR" == "True" ] && [ "$SYSLOG" == "False" ]; then
+		setup_colorized_logging $BAGPIPE_CONF DEFAULT
+	fi
 }
 
 # Initialize databases, etc.
@@ -61,6 +77,8 @@ function init_bagpipe {
 
 function init_bagpipe_ovsmpls {
 
+        BAGPIPE_BR_RESET_SCRIPT=$(mktemp /var/tmp/bagpipe-bgp-br-reset.XXXXX)
+
 	:> $BAGPIPE_BR_RESET_SCRIPT
 
 	if [ -n "$BAGPIPE_MPLS_IFACE" ]; then
@@ -73,7 +91,7 @@ MPLS_IFACE_IP=\`ip addr show $BAGPIPE_MPLS_IFACE | grep 'inet ' | awk '{ print \
 if [ -z "\$MPLS_IFACE_IP" ]; then
 	echo "Failure retrieving IP config of BaGPipe MPLS interface ($BAGPIPE_MPLS_IFACE): perhaps $BAGPIPE_MPLS_BR was configured already ?"
 	echo "Try to setup $BAGPIPE_MPLS_IFACE before trying again.."
-	return 0
+	return -1
 fi
 
 if [ "\`ip route  | grep default | awk '{ print \$5 }'\`" == "$BAGPIPE_MPLS_IFACE" ]; then
@@ -127,7 +145,9 @@ EOF
 # Start the BGP component
 function start_bagpipe_bgp {
 	if is_service_enabled b-bgp ; then
-		screen_it b-bgp "bagpipe-bgp start --no-daemon"
+		screen_it b-bgp "bagpipe-bgp"
+
+		screen_it b-bgp-lg "while true; do date ; sleep 10; bagpipe-looking-glass -r vpns instances ; echo --------------------------------------------------; done"
 
 		echo "Waiting for bagpipe-bgp to start..."
 		if ! wait_for_service $SERVICE_TIMEOUT http://$BAGPIPE_SERVICE_HOST:$BAGPIPE_SERVICE_PORT; then
@@ -180,16 +200,13 @@ if [[ "$1" == "source" ]]; then
 		# no-op
 		:
 elif [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
+		echo_summary "Installing exabgp"
+		pip_install '-egit+https://github.com/Exa-Networks/exabgp.git#egg=exabgp'
 		if is_service_enabled gobgp ; then
 			echo_summary "Installing golang package"
 			pre_install_gobgp
 		fi
 elif [[ "$1" == "stack" && "$2" == "install" ]]; then
-		echo_summary "Installing Bagpipe"
-		#FIXME: there must be a better way...
-		grep -iv pbr $BAGPIPE_DIR/requirements.txt >> $DEST/requirements/global-requirements.txt
-		setup_develop $BAGPIPE_DIR
-
 		if is_service_enabled gobgp ; then
 			echo_summary "Installing GoBGP"
 			install_gobgp
@@ -197,7 +214,7 @@ elif [[ "$1" == "stack" && "$2" == "install" ]]; then
 elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
 		echo_summary "Configuring Bagpipe"
 		configure_bagpipe
-		# Initializing before neutron starts to move the single interface in br-mpls
+		# Initializing before neutron starts is needed, so that we can move the single interface in br-mpls
 		init_bagpipe
 elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
 		echo_summary "Starting Bagpipe"

@@ -1,3 +1,0 @@
-[submodule "bagpipe-bgp"]
-	path = bagpipe-bgp
-	url = https://github.com/Orange-OpenSource/bagpipe-bgp.git

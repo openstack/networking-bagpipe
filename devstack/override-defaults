@@ -16,9 +16,3 @@ if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
   perl -i -pe 's:^( *)AGENT_BINARY=.*:${1}AGENT_BINARY="\$NEUTRON_BIN_DIR/neutron-bagpipe-linuxbridge-agent":' $TOP_DIR/lib/neutron_plugins/linuxbridge_agent || die $LINENO "Could not patch linuxbridge agent devstack plugin"
 fi
 
-pushd $NETWORKING_BAGPIPE_DIR
-git_timed submodule init
-git_timed submodule sync --recursive
-git_timed submodule update --init --recursive
-popd
-

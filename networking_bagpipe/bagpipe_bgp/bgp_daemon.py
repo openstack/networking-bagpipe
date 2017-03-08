@@ -42,11 +42,14 @@ def setup_config():
                       .release_string()))
 
 
+BAGPIPE_BGP_MODULE = "networking_bagpipe.bagpipe_bpg"
+
+
 def setup_logging():
     # even in debug mode we don't want to much talk from these
     extra_log_level_defaults = [
-        'bagpipe.bpg.engine.exa_bgp_peer_worker.exabgp=INFO',
-        'bagpipe.bpg.common.looking_glass=WARNING'
+        '%s.engine.exa_bgp_peer_worker.exabgp=INFO' % BAGPIPE_BGP_MODULE,
+        '%s.common.looking_glass=WARNING' % BAGPIPE_BGP_MODULE
     ]
 
     logging.set_defaults(default_log_levels=(logging.get_default_log_levels() +
@@ -119,6 +122,7 @@ def cleanup_main():
         dataplane_driver.reset_state()
 
     LOG.info("BGP component dataplanes have been cleaned up.")
+
 
 if __name__ == '__main__':
     daemon_main()

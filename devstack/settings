@@ -12,11 +12,10 @@ if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
     BAGPIPE_DATAPLANE_DRIVER_EVPN=${BAGPIPE_DATAPLANE_DRIVER_EVPN:-linux_vxlan.LinuxVXLANDataplaneDriver}
 fi
 
-# common to BGPVPN dirver and bagpipe ML2:
+# common to BGPVPN driver and bagpipe ML2:
 if is_service_enabled q-agt ; then
     enable_service b-bgp
 fi
 
-BAGPIPE_DIR="$NETWORKING_BAGPIPE_DIR/bagpipe-bgp"
-source $BAGPIPE_DIR/devstack/settings
+source $NETWORKING_BAGPIPE_DIR/devstack/settings.bagpipe_bgp
 
