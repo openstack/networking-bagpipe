@@ -14,10 +14,10 @@
 #    under the License.
 
 import mock
+from neutron_lib import context
 import testtools
 from testtools import matchers
 
-from neutron import context
 import neutron.db.api as db
 from neutron.plugins.ml2 import driver_api as api
 from neutron.tests.unit import testlib_api
