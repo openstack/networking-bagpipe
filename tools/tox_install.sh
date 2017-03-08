@@ -34,7 +34,7 @@ elif [ -x "$ZUUL_CLONER" ]; then
     pushd $NEUTRON_DIR
     $ZUUL_CLONER --branch $openstack_branch --cache-dir \
         /opt/git \
-        git://git.openstack.org \
+        http://git.openstack.org \
         openstack/neutron
     cd openstack/neutron
     $install_cmd -e .

@@ -139,7 +139,7 @@ function start_bagpipe_bgp {
 # Start the FakeRR component
 function start_bagpipe_fakerr {
 	if is_service_enabled b-fakerr ; then
-		screen_it b-fakerr "echo 'from bagpipe.bgp.fakerr import application' | sudo twistd -n -y /dev/stdin"
+		screen_it b-fakerr "echo 'from networking_bagpipe.bagpipe_bgp.fakerr import application' | sudo twistd -n -y /dev/stdin"
 	fi
 }
 
