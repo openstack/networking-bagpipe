@@ -16,11 +16,10 @@
 # limitations under the License.
 
 import mock
-import testtools
 
 from networking_bagpipe.bagpipe_bgp import constants as consts
-from networking_bagpipe.bagpipe_bgp import tests as t
 from networking_bagpipe.bagpipe_bgp.vpn import manager
+from networking_bagpipe.tests.unit.bagpipe_bgp import base as t
 
 
 REDIRECTED_INSTANCE_ID1 = 'redirected-id1'
@@ -34,7 +33,7 @@ class TestableVPNManager(manager.VPNManager):
                 'evpn': mock.Mock()}
 
 
-class TestVPNManager(testtools.TestCase):
+class TestVPNManager(t.TestCase):
 
     def setUp(self):
         super(TestVPNManager, self).setUp()

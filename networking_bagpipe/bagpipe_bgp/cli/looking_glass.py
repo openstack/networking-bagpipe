@@ -19,6 +19,7 @@ from sys import stdout
 
 import optparse
 from oslo_serialization import jsonutils
+import six
 import urllib2
 
 
@@ -70,7 +71,7 @@ def pretty_print_recurse(data, indent, recursive_requests, url,
             if not already_anew_line:
                 stdout.write("\n")
             first_val = True
-            for (key, value) in data.iteritems():
+            for (key, value) in six.iteritems(data):
                 if not first_val or not already_anew_line:
                     stdout.write("%s" % (" " * indent))
                 if first_val:

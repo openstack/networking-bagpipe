@@ -15,11 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import Queue
 import threading
 import traceback
 
 from oslo_log import log as logging
+from six.moves import queue
 
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp import engine
@@ -44,7 +44,7 @@ class Worker(engine.EventSource, lg.LookingGlassMixin):
     def __init__(self, bgp_manager, worker_name):
         self.bgp_manager = bgp_manager
         self.rtm = bgp_manager.rtm
-        self._queue = Queue.Queue()
+        self._queue = queue.Queue()
         self._please_stop = threading.Event()
 
         self.name = worker_name

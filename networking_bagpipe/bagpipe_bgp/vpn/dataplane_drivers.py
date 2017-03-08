@@ -94,8 +94,8 @@ def instantiate_dataplane_drivers():
     return drivers
 
 
+@six.add_metaclass(abc.ABCMeta)
 class DataplaneDriver(lg.LookingGlassLocalLogger):
-    six.add_metaclass(abc.ABCMeta)
 
     type = None
 
@@ -218,8 +218,8 @@ class DataplaneDriver(lg.LookingGlassLocalLogger):
         }
 
 
+@six.add_metaclass(abc.ABCMeta)
 class VPNInstanceDataplane(lg.LookingGlassLocalLogger):
-    six.add_metaclass(abc.ABCMeta)
 
     @log_decorator.log_info
     def __init__(self, dataplane_driver, instance_id, external_instance_id,

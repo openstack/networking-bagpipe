@@ -59,7 +59,7 @@ camel2underscore_regex = re.compile('(?!^)([A-Z]+)')
 def dict_camelcase_to_underscore(dictionary):
     '''copy dict, with translation of keys from FooBar to foo_bar'''
     return {camel2underscore_regex.sub(r'_\1', key).lower(): value
-            for (key, value) in dictionary.iteritems()
+            for (key, value) in dictionary.items()
             }
 
 
@@ -67,5 +67,5 @@ def osloconfig_json_serialize(obj):
     if (isinstance(obj, cfg.ConfigOpts) or
             isinstance(obj, cfg.ConfigOpts.GroupAttr)):
         return {osloconfig_json_serialize(k): osloconfig_json_serialize(v)
-                for k, v in obj.iteritems()}
+                for k, v in obj.items()}
     return obj

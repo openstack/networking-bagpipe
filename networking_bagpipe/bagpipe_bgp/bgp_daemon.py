@@ -16,15 +16,15 @@
 # limitations under the License.
 
 import logging as python_logging
-import sys
 import signal
+import sys
 
 from oslo_config import cfg
 from oslo_log import log as logging
 import pbr.version
 
 from networking_bagpipe.bagpipe_bgp.api import api
-from networking_bagpipe.bagpipe_bgp.common import config  # flake8: noqa
+from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.engine import exabgp_peer_worker
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as drivers
 
@@ -33,6 +33,7 @@ LOG = logging.getLogger(__name__)
 
 
 def setup_config():
+    config.register()
     cfg.CONF(args=sys.argv[1:],
              project='bagpipe-bgp',
              default_config_files=['/etc/bagpipe-bgp/bgp.conf'],
@@ -113,7 +114,7 @@ def cleanup_main():
     python_logging.root.name = "[BgpDataplaneCleaner]"
 
     for vpn_type, dataplane_driver in (
-            drivers.instantiate_dataplane_drivers().iteritems()):
+            drivers.instantiate_dataplane_drivers().items()):
         LOG.info("Cleaning dataplane for %s...", vpn_type)
         dataplane_driver.reset_state()
 

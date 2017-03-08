@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import reduce
+
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -73,10 +75,10 @@ class Manager(engine.EventSource, lg.LookingGlassMixin):
 
     @log_decorator.log
     def stop(self):
-        for peer in self.peers.itervalues():
+        for peer in self.peers.values():
             peer.stop()
         self.rtm.stop()
-        for peer in self.peers.itervalues():
+        for peer in self.peers.values():
             peer.join()
         self.rtm.join()
 
@@ -148,11 +150,11 @@ class Manager(engine.EventSource, lg.LookingGlassMixin):
         return reduce(lambda count, peer: count +
                       (isinstance(peer, bgp_peer_worker.BGPPeerWorker) and
                        peer.is_established()),
-                      self.peers.itervalues(), 0)
+                      self.peers.values(), 0)
 
     def get_lg_peer_list(self):
         return [{"id": peer.peer_address,
-                 "state": peer.fsm.state} for peer in self.peers.itervalues()]
+                 "state": peer.fsm.state} for peer in self.peers.values()]
 
     def get_lg_peer_path_item(self, path_item):
         return self.peers[path_item]

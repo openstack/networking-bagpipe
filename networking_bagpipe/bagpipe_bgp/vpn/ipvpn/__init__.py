@@ -61,7 +61,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         return engine.RouteEntry(nlri)
 
     def _get_local_labels(self):
-        for port_data in self.mac_2_localport_data.itervalues():
+        for port_data in self.mac_2_localport_data.values():
             yield port_data['label']
 
     def _imported(self, route):
@@ -166,7 +166,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         nlri = route.nlri
 
         self.log.debug("Start re-advertising %s from VRF", nlri.cidr.prefix())
-        for _, endpoints in self.localport_2_endpoints.iteritems():
+        for _, endpoints in self.localport_2_endpoints.items():
             for endpoint in endpoints:
                 port_data = self.mac_2_localport_data[endpoint['mac']]
                 label = port_data['label']
@@ -191,7 +191,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         nlri = route.nlri
 
         self.log.debug("Stop re-advertising %s from VRF", nlri.cidr.prefix())
-        for _, endpoints in self.localport_2_endpoints.iteritems():
+        for _, endpoints in self.localport_2_endpoints.items():
             for endpoint in endpoints:
                 port_data = self.mac_2_localport_data[endpoint['mac']]
                 label = port_data['label']

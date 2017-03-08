@@ -45,11 +45,11 @@ from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.engine import flowspec
 from networking_bagpipe.bagpipe_bgp.engine import ipvpn as ipvpn_routes
 from networking_bagpipe.bagpipe_bgp.engine import worker
-from networking_bagpipe.bagpipe_bgp import tests as t
 from networking_bagpipe.bagpipe_bgp.vpn import ipvpn
 from networking_bagpipe.bagpipe_bgp.vpn import label_allocator
 from networking_bagpipe.bagpipe_bgp.vpn import rd_allocator
 from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
+from networking_bagpipe.tests.unit.bagpipe_bgp import base as t
 
 
 MAC1 = "00:00:de:ad:be:ef"

@@ -66,7 +66,7 @@ from networking_bagpipe.bagpipe_bgp.engine import bgp_peer_worker as bpw
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.engine import route_table_manager as rtm
 from networking_bagpipe.bagpipe_bgp.engine import worker
-from networking_bagpipe.bagpipe_bgp import tests as t
+from networking_bagpipe.tests.unit.bagpipe_bgp import base as t
 
 
 MATCH1 = rtm.Match(exa.AFI(exa.AFI.ipv4), exa.SAFI(exa.SAFI.mpls_vpn), t.RT1)

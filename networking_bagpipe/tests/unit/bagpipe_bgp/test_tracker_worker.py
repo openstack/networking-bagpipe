@@ -52,7 +52,7 @@ from networking_bagpipe.bagpipe_bgp import engine
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.engine import tracker_worker
 from networking_bagpipe.bagpipe_bgp.engine import worker
-from networking_bagpipe.bagpipe_bgp import tests as t
+from networking_bagpipe.tests.unit.bagpipe_bgp import base as t
 
 
 def _test_compare_routes(self, route_a, route_b):
@@ -75,7 +75,7 @@ def _test_compare_routes(self, route_a, route_b):
                 # ECMP routes
                 return 0
             else:
-                return cmp(lp_a, lp_b)
+                return (lp_a > lp_b) - (lp_b > lp_a)
 
 
 class TrackerWorkerThread(tracker_worker.TrackerWorker, threading.Thread):
@@ -137,9 +137,9 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
 
         if not ordered:
             expected_list_copy = sorted(expected_list_copy,
-                                        lambda a, b: cmp(repr(a), repr(b)))
+                                        key=lambda x: repr(x))
             call_args_list = sorted(call_args_list,
-                                    lambda a, b: cmp(repr(a[0]), repr(b[0])))
+                                    key=lambda x: repr(x[0]))
 
         for ((call_args, _), expected) in zip(call_args_list,
                                               expected_list_copy):
@@ -147,8 +147,8 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
 
             observed_route_entry = call_args[1]
             expected_route_entry = expected[1]
-            self.assertEqual(expected_route_entry, observed_route_entry,
-                             "bad route Entry")
+
+            self.assertEqual(expected_route_entry, observed_route_entry)
 
             if len(expected) >= 3:
                 self.assertEqual(expected[2], call_args[2],
