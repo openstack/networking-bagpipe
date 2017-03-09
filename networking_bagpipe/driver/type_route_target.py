@@ -207,7 +207,7 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
             else:
                 rt_nns |= set(six.moves.range(rt_nn_min, rt_nn_max + 1))
 
-        session = db_api.get_session()
+        session = db_api.get_writer_session()
         with session.begin(subtransactions=True):
             # Remove from table unallocated route target not currently
             # allocatable
