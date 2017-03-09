@@ -48,7 +48,3 @@ bgp_opts = [
 def register():
     cfg.CONF.register_cli_opts(cli_opts)
     cfg.CONF.register_opts(bgp_opts, "BGP")
-
-
-def unregister():
-    cfg.CONF.unregister_opts(bgp_opts, "BGP")

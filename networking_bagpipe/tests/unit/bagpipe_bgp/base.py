@@ -18,7 +18,7 @@
 import logging as python_logging
 import time
 
-from oslo_config import cfg
+from oslo_config import fixture as config_fixture
 from oslo_log import log as logging
 import testtools
 
@@ -84,13 +84,12 @@ class TestCase(testtools.TestCase):
 
     def setUp(self):
         super(TestCase, self).setUp()
-        config.register()
-        cfg.CONF.BGP.local_address = "11.22.33.44"
-        cfg.CONF.BGP.my_as = 64512
-
-    def tearDown(self):
-        super(TestCase, self).tearDown()
-        config.unregister()
+        cfg_fixture = self.useFixture(config_fixture.Config())
+        cfg_fixture.register_opts(config.bgp_opts, "BGP")
+        cfg_fixture.config(group='BGP',
+                           local_address='11.22.33.44',
+                           my_as=64513
+                           )
 
 
 class BaseTestBagPipeBGP(object):
