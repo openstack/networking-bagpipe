@@ -45,9 +45,7 @@ else
 fi
 
 # install exabgp master
-#pip install -egit+https://github.com/Exa-Networks/exabgp.git#egg=exabgp
-# temp repo with py3 fixes:
-pip install -egit+https://github.com/tmmorin/exabgp.git#egg=exabgp
+pip install -egit+https://github.com/Exa-Networks/exabgp.git#egg=exabgp
 
 # install the rest of dependencies
 $install_cmd $*
