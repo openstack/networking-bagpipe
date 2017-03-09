@@ -278,9 +278,8 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane,
         # hybrid vif driver
         # TODO(tmorin): obsolete
 
-        try:
-            mtu = self.config["ovsbr_interfaces_mtu"]
-        except KeyError:
+        mtu = self.config["ovsbr_interfaces_mtu"]
+        if not mtu:
             self.log.debug("No ovsbr_interfaces_mtu specified in config file,"
                            " not trying to fixup MTU")
             return
@@ -906,10 +905,11 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
                    help=("Interface used to send/receive MPLS traffic. "
                          "Use '*gre*' to choose automatic creation of a tunnel"
                          " port for MPLS/GRE encap")),
-        # FIXME: default ?? // logic // obsolete
-        cfg.BoolOpt("mpls_over_gre",
-                    help=("Force the use of MPLS/GRE even with "
-                          "mpls_interface specified")),
+        cfg.StrOpt("mpls_over_gre",
+                   choices=['auto', 'True', 'False'],
+                   default="auto",
+                   help=("Force the use of MPLS/GRE even with "
+                         "mpls_interface specified")),
         cfg.BoolOpt("proxy_arp", default=True,
                     help=("A netns will be connected to each VRF, will "
                           "be setup with the gateway IP address, and will "
@@ -923,7 +923,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
         cfg.IntOpt("ovs_table_id_start", default=1),
         cfg.StrOpt("gre_tunnel", default="mpls_gre",
                    help="OVS interface name for MPLS/GRE encap"),
-        cfg.StrOpt("gre_tunnel_options",
+        cfg.StrOpt("gre_tunnel_options", default="",
                    help=("Options passed to OVS for GRE tunnel port creation"
                          " e.g. 'options:l3port=true options:... (future)'")),
         cfg.IntOpt("ovsbr_interfaces_mtu")
@@ -946,9 +946,9 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
 
         self.mpls_interface = self.config.mpls_interface
 
-        try:
-            self.use_gre = self.config.mpls_over_gre
-        except KeyError:
+        if self.config.mpls_over_gre != "auto":
+            self.use_gre = True
+        else:
             self.use_gre = not (self.mpls_interface and
                                 self.mpls_interface != "*gre*")
 
@@ -1073,19 +1073,21 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
             self.log.info("Setting up tunnel for MPLS/GRE (%s)",
                           self.config.gre_tunnel)
 
-            self._run_command("ovs-vsctl del-port %s %s" % (self.bridge,
-                                                            self.gre_tunnel),
+            self._run_command("ovs-vsctl del-port %s %s" %
+                              (self.bridge, self.config.gre_tunnel),
                               run_as_root=True,
                               acceptable_return_codes=[0, 1])
             self._run_command("ovs-vsctl add-port %s %s -- set Interface %s"
                               " type=gre options:local_ip=%s "
                               "options:remote_ip=flow %s" %
-                              (self.bridge, self.gre_tunnel, self.gre_tunnel,
+                              (self.bridge, self.config.gre_tunnel,
+                               self.config.gre_tunnel,
                                self.get_local_address(),
                                self.config.gre_tunnel_options),
                               run_as_root=True)
 
-            self.gre_tunnel_port_number = self.find_ovs_port(self.gre_tunnel)
+            self.gre_tunnel_port_number = self.find_ovs_port(
+                self.config.gre_tunnel)
             self.mpls_if_mac_address = None
         else:
             # Find ethX MPLS interface MAC address
@@ -1228,8 +1230,8 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
                           flow,
                           "actions=%s" % actions)
         if not return_flow:
-            self._run_command("ovs-ofctl add-flow %s --protocol OpenFlow14 "
-                              "\"%s\"" % (self.bridge, ovs_flow),
+            self._run_command("ovs-ofctl add-flow %s --protocol OpenFlow14 %s"
+                              % (self.bridge, ovs_flow),
                               run_as_root=True)
         else:
             return ovs_flow
@@ -1248,8 +1250,8 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
         ovs_flow = join_s('table=%d' % table, flow)
 
         if not return_flow:
-            self._run_command("ovs-ofctl del-flows %s --protocol OpenFlow14 "
-                              "\"%s\"" % (self.bridge, ovs_flow),
+            self._run_command("ovs-ofctl del-flows %s --protocol OpenFlow14 %s"
+                              % (self.bridge, ovs_flow),
                               run_as_root=True)
         else:
             return ovs_flow
