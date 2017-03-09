@@ -107,7 +107,7 @@ ML2/linuxbridge configuration* as a starting point:
 
     * adding the Route Reflector IP to ``peers``
 
-    * enabling ``linux_vxlan.LinuxVXLANDataplaneDriver`` for EVPN
+    * selecting ``linux`` dataplane driver for EVPN
 
 
 

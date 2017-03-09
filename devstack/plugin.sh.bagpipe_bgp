@@ -53,10 +53,10 @@ function create_bagpipe_conf {
 		iniset $BAGPIPE_CONF BGP peers "$BAGPIPE_BGP_PEERS"
 	fi
         iniset $BAGPIPE_CONF API host ${BAGPIPE_SERVICE_HOST:-127.0.0.1}
-	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_IPVPN:-DummyDataplaneDriver}
+	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_IPVPN:-dummy}
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN mpls_interface $BAGPIPE_MPLS_IFACE
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN ovs_bridge $BAGPIPE_MPLS_BR
-	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_EVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_EVPN:-DummyDataplaneDriver}
+	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_EVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_EVPN:-dummy}
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN proxy_arp ${BAGPIPE_PROXY_ARP:-False}
 
 	if [ "$LOG_COLOR" == "True" ] && [ "$SYSLOG" == "False" ]; then
@@ -67,10 +67,10 @@ function create_bagpipe_conf {
 # Initialize databases, etc.
 
 function init_bagpipe {
-	if [[ $BAGPIPE_DATAPLANE_DRIVER_IPVPN == *"MPLSOVSDataplaneDriver"* ]]; then
+	if [[ $BAGPIPE_DATAPLANE_DRIVER_IPVPN == *"MPLSOVSDataplaneDriver"* || $BAGPIPE_DATAPLANE_DRIVER_IPVPN == "ovs" ]]; then
 		init_bagpipe_ovsmpls
 	else
-		echo "IP VPN driver not MPLSOVSDataplaneDriver, let's not init OVS MPLS bridge ($BAGPIPE_DATAPLANE_DRIVER_IPVPN)"
+		echo "IP VPN driver not OVS, let's not init OVS MPLS bridge (driver is '$BAGPIPE_DATAPLANE_DRIVER_IPVPN')"
 	fi
 }
 

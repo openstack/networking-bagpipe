@@ -116,7 +116,7 @@ are *dummy* drivers that will **not** actually drive any dataplane
 state. To have traffic really forwarded into IP VPNs or E-VPNs, you need
 to select real dataplane drivers.
 
-For instance, you can use the ``ovs`` driver for IP VPN, and the ``linux``
+For instance, you can use the ``ovs`` dataplane driver for IP VPN, and the ``linux``
 driver for E-VPN.
 
 **Note well** that there are specific constraints or dependencies applying to
@@ -227,7 +227,7 @@ will plug one of the veth to the VRF:
        bagpipe-rest-attach --attach --port netns --ip 12.11.11.2 --network-type ipvpn --vpn-instance-id test --rt 64512:78
 
 For this last example, assuming that you have configured bagpipe-bgp to
-use the ``MPLSOVSDataplaneDriver`` for IP VPN, you will actually be able
+use the ``ovs`` dataplane driver for IP VPN, you will actually be able
 to have traffic exchanged between the network namespaces:
 
 ::
@@ -260,7 +260,7 @@ instance:
        bagpipe-rest-attach --attach --port netns --ip 12.11.11.2 --network-type evpn --vpn-instance-id test2 --rt 64512:79
 
 For this last example, assuming that you have configured bagpipe-bgp to
-use the ``linux_vxlan.LinuxVXLANDataplaneDriver`` for E-VPN, you will
+use the ``linux`` dataplane driver for E-VPN, you will
 actually be able to have traffic exchanged between the network
 namespaces:
 

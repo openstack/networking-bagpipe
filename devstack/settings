@@ -9,7 +9,7 @@ if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
     Q_ML2_PLUGIN_MECHANISM_DRIVERS=linuxbridge,bagpipe,logger
 
     # Have bagpipe-bgp use VXLAN driver for E-VPN (unless overriden)
-    BAGPIPE_DATAPLANE_DRIVER_EVPN=${BAGPIPE_DATAPLANE_DRIVER_EVPN:-linux_vxlan.LinuxVXLANDataplaneDriver}
+    BAGPIPE_DATAPLANE_DRIVER_EVPN=${BAGPIPE_DATAPLANE_DRIVER_EVPN:-linux}
 fi
 
 # common to BGPVPN driver and bagpipe ML2:
