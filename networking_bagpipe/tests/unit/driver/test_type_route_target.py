@@ -39,7 +39,7 @@ class RouteTargetTypeTest(testlib_api.SqlTestCase):
         self.driver = type_route_target.RouteTargetTypeDriver()
         self.driver.rt_nn_ranges = RT_NN_RANGES
         self.driver._sync_route_target_allocations()
-        self.session = db.get_session()
+        self.session = db.get_reader_session()
         self.context = context.get_admin_context()
 
     def _get_allocation(self, session, segment):

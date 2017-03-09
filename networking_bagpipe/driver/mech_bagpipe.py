@@ -121,7 +121,7 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
 
     def _get_network_info_for_port(self, port_id):
         """Get MAC, IP and Gw IP addresses informations for a specific port"""
-        session = db_api.get_session()
+        session = db_api.get_reader_session()
         (mac_address, ip_address, cidr, gateway_ip) = (
             get_network_info_for_port(session, port_id)
         )
