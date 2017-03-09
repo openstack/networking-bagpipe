@@ -87,7 +87,7 @@ def instantiate_dataplane_drivers():
             drivers[vpn_type] = driver_class()
         except Exception as e:
             LOG.error("Error while instantiating dataplane"
-                      " driver for %s with %s: %s", vpn_type, driver_class, e)
+                      " driver for %s with %s: %s", vpn_type, driver_name, e)
             LOG.error(traceback.format_exc())
             raise
 

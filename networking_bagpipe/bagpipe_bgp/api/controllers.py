@@ -319,5 +319,6 @@ class RootController(object):
     def stop(self):
         VPNManagerController.stop()
 
+
 # there is a '-' in the LOOKING_GLASS_BASE name, so we have to use pecan.route
 pecan.route(RootController, LOOKING_GLASS_BASE, LookingGlassController())

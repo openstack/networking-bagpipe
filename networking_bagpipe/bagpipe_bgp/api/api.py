@@ -33,6 +33,9 @@ common_opts = [
 cfg.CONF.register_opts(common_opts, "API")
 
 
+ROOT_CTRL = 'networking_bagpipe.bagpipe_bgp.api.controllers.RootController'
+
+
 def setup_app(*args, **kwargs):
     config = {
         'server': {
@@ -40,7 +43,7 @@ def setup_app(*args, **kwargs):
             'host': cfg.CONF.API.host,
         },
         'app': {
-            'root': 'bagpipe.bgp.api.controllers.RootController',
+            'root': ROOT_CTRL,
         }
     }
     pecan_config = pecan.configuration.conf_from_dict(config)
@@ -84,6 +87,7 @@ class PecanAPI(object):
 def main():
     api = PecanAPI()
     api.run()
+
 
 if __name__ == "__main__":
     main()
