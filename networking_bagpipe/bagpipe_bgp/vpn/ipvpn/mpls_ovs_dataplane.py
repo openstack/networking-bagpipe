@@ -1275,7 +1275,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
         }
 
         if self.use_gre:
-            d["gre"].update({'gre_tunnel_port': self.gre_tunnel})
+            d["gre"].update({'gre_tunnel_port': self.config.gre_tunnel})
         if self.vxlan_encap:
             d["gre"].update({'vxlan_tunnel_port': VXLAN_TUNNEL})
         return d

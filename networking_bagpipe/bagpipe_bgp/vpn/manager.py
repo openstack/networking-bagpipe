@@ -490,7 +490,7 @@ class VPNManager(lg.LookingGlassMixin):
         return [{"id": id,
                  "name": instance.name}
                 for (id, instance)
-                in six.iteritems(self.vpn_instances.iteritems)]
+                in six.iteritems(self.vpn_instances)]
 
     def get_lg_vpn_from_path_item(self, path_item):
         return self.vpn_instances[path_item]
