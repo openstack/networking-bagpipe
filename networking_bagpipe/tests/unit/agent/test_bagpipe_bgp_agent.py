@@ -38,8 +38,6 @@ from networking_bagpipe.agent.bagpipe_bgp_agent import VPN_TYPES
 
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
-from neutron.plugins.ml2.drivers.openvswitch.agent \
-    import ovs_agent_extension_api as agent_ext_api
 
 from neutron.tests import base
 from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent import (
@@ -1463,7 +1461,7 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
         self.mock_int_br.add_patch_port.side_effect = PATCH_INT_OFPORTS
         self.mock_int_br.get_vif_port_by_id = mock.Mock()
 
-        self.mock_tun_br = mock.Mock(spec=agent_ext_api.OVSCookieBridge)
+        self.mock_tun_br = mock.Mock()
         self.mock_tun_br.add_patch_port = mock.Mock()
         self.mock_tun_br.add_patch_port.side_effect = PATCH_TUN_OFPORTS
         self.mock_tun_br.get_port_ofport = mock.Mock()
@@ -1716,9 +1714,8 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
                                             self.DUMMY_VIF11]), \
                 mock.patch.object(self.agent.int_br,
                                   'add_flow') as add_flow, \
-                mock.patch('neutron.plugins.ml2.drivers.openvswitch.'
-                           'agent.ovs_agent_extension_api.OVSCookieBridge'
-                           '.delete_flows') as tun_delete_flows,\
+                mock.patch.object(self.agent.tun_br,
+                                  'delete_flows') as tun_delete_flows,\
                 mock.patch.object(self.agent.int_br,
                                   'delete_flows') as int_delete_flows:
             super(TestBaGPipeBGPAgentOVS,
@@ -1767,8 +1764,7 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
             self.assertEqual(1, int_delete_flows.call_count)
 
             tun_delete_flows.assert_has_calls([
-                mock.call(self.mock_tun_br,
-                          table=mock.ANY,
+                mock.call(table=mock.ANY,
                           proto='arp',
                           arp_op=0x01,
                           arp_tpa='10.0.0.1',
@@ -1923,9 +1919,8 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
                                             self.DUMMY_VIF11]), \
                 mock.patch.object(self.agent.int_br,
                                   'add_flow') as add_flow, \
-                mock.patch('neutron.plugins.ml2.drivers.openvswitch.'
-                           'agent.ovs_agent_extension_api.'
-                           'OVSCookieBridge.delete_flows') as delete_flows:
+                mock.patch.object(self.agent.int_br,
+                                  'delete_flows') as delete_flows:
 
             port10_with_gw_mac = DummyPort(NETWORK1, PORT10).__dict__
             port10_with_gw_mac.update({'gateway_mac': GW_MAC})
