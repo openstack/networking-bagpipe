@@ -23,8 +23,8 @@ root_helper_daemon = sudo /usr/local/bin/oslo-rootwrap-daemon /etc/bagpipe-bgp/r
 
 [API]
 # BGP component API IP address and port
-api_host=localhost
-api_port=8082
+host=localhost
+port=8082
 
 
 [DATAPLANE_DRIVER_IPVPN]
