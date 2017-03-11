@@ -412,7 +412,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane,
                             vlan_action,
                             self.fallback.get('ovs_port_number')),
                            self.driver.vrf_table,
-                           DEFAULT_RULE_PRIORITY-1)
+                           priority=DEFAULT_RULE_PRIORITY-1)
 
     def _check_vlan_use(self, push_vlan_action):
         # checks that if a vlan_action is used, it is the same
@@ -832,12 +832,14 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane,
                                                      flow_match)),
                            self.driver.vrf_table)
 
+    @log_decorator.log
     def _ovs_flow_add(self, flow, actions, table, return_flow=False,
                       priority=DEFAULT_RULE_PRIORITY):
         return self.driver._ovs_flow_add(join_s(self._cookie(add=True),
                                                 flow),
                                          actions, table, return_flow, priority)
 
+    @log_decorator.log
     def _ovs_flow_del(self, flow, table, return_flow=False,
                       priority=DEFAULT_RULE_PRIORITY, strict=False):
         priority_spec = None
