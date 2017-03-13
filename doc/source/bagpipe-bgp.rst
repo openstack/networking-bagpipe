@@ -1,5 +1,7 @@
-BaGPipe-BGP component
-=====================
+.. _bagpipe-bgp:
+
+BaGPipe-BGP
+===========
 
 BaGPipe-BGP is a component of networking-bagpipe, used on compute nodes
 along the Neutron agent and bagpipe agent extension of this agent.
@@ -26,10 +28,10 @@ BaGPipe-BGP has been designed to provide VPN (IP VPN or E-VPN)
 connectivity to local VMs running on an Openstack compute node.
 
 BaGPipe-BGP is typically driven via its HTTP REST interface, by
-Openstack Neutron agent extensions found in networking-bagpipe package.
+Openstack Neutron agent extensions found in this package.
 
-However, BaGPipe-BGP can also be used standalone (e.g. for testing purposes),
-with for instance VMs tap interfaces or veth interfaces to network
+Moreover, BaGPipe-BGP can also be used standalone (in particular for testing
+purposes), with for instance VMs tap interfaces or veth interfaces to network
 namespaces (see `below <#netns-example>`__).
 
 BGP and Route Reflection
@@ -55,9 +57,7 @@ purposes (see `Fake RR <#fakerr>`__).
 
 For more than 2 servers running BaGPipe-BGP, you will need a real BGP
 implementation supporting RFC4364 and BGP route reflection (and ideally
-also RFC4684).
-
-Different options can be considered:
+also RFC4684), different options can be considered:
 
 *  A router from for instance, Alcatel-Lucent, Cisco or Juniper can be
    used; some of these vendors also provide their OSes as virtual
@@ -66,12 +66,12 @@ Different options can be considered:
 *  BGP implementations in other opensource projects would possibly be
    suitable, but we did not explore these exhaustively:
 
-   -  `GoBGP <http://osrg.github.io/gobgp/>`__ team has sucessfully
-      deployed a setup with `GoBGP as a RR for bagpipe-bgp PE
+   -  `GoBGP <http://osrg.github.io/gobgp/>`__ , see `sample configuration`_
+      and `GoBGP as a RR for bagpipe-bgp PE
       implementations, with
       E-VPN <https://github.com/osrg/gobgp/blob/master/docs/sources/evpn.md>`__
 
-   -  we have sucessfully used OpenBSD BGPd as an IP VPN RR for
+   -  we have successfully used OpenBSD BGPd as an IP VPN RR for
       bagpipe-bgp
 
    -  Quagga is supposed to support IP VPNs (untested AFAIK)
@@ -80,6 +80,8 @@ Different options can be considered:
       implementation as a Route Reflector; although this is currently
       unfinished, we have done rough hacks to confirm the feasibility
       and the interoperability
+
+.. _bagpipe-bgp-config:
 
 Configuration
 -------------
@@ -91,8 +93,10 @@ It needs to be customized, at least for the following:
 
 *  ``local_address``: the local address to use for BGP sessions and traffic
    encapsulation
+
 *  ``peers``: the list of BGP peers, it depends on the BGP setup that you
    have chosen (see above `BGP Route Reflection <#bgprr>`__)
+
 *  dataplane configuration, if you really want packets to get through
    (see `Dataplane configuration <#dpconfig>`__)
 
@@ -128,17 +132,15 @@ dataplane drivers for IP VPNs:
    `Caveats <#caveats>`__ for MPLS-over-GRE); for bare MPLS, this driver
    requires the OVS bridge to be associated with an IP address, and that
    VRF interfaces be plugged into OVS prior to calling BaGPipe-BGP API
-   to attach them (details in
-   `mpls\_ovs\_dataplane.py <bagpipe/bgp/vpn/ipvpn/mpls_ovs_dataplane.py#L578>`__)
+   to attach them
 
 * the ``linux`` driver relies on the native MPLS stack of the Linux kernel,
   it currenly requires a kernel 4.4+ and uses the pyroute2 module that allows
   defining all states via Netlink rather than by executing 'ip' commands
-  (details in `mpls\_linux\_dataplane.py <bagpipe/bgp/vpn/ipvpn/mpls_linux_dataplane.py#L354>`__)
 
 For E-VPN, the ``vxlan`` driver is supported without any particular additional
 configuration being required, and simply requires a Linux kernel >=3.10
-(`linux\_vxlan.py <bagpipe/bgp/vpn/evpn/linux_vxlan.py#L269>`__).
+(`linux\_vxlan.py <networking_bagpipe/bagpipe_bgp/vpn/evpn/linux_vxlan.py#L269>`__).
 
 Usage
 -----
@@ -146,8 +148,8 @@ Usage
 BaGPipe-BGP local service
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If systemd init scripts are installed, ``bagpipe-bgp`` is typically started
-with: ``systemctl start bagpipe-bgp``
+If systemd init scripts are installed (see ``samples/systemd``), ``bagpipe-bgp``
+is typically started with: ``systemctl start bagpipe-bgp``
 
 It can also be started directly with the ``bagpipe-bgp`` command
 (``--help`` to see what parameters can be used).
@@ -161,7 +163,8 @@ BaGPipe Fake BGP Route Reflector
 If you choose to use our fake BGP Route Reflector (see `BGP Route
 Reflection <#bgprr>`__), you can start it whether with the
 ``bagpipe-fakerr`` command, or if you have startup scripts installed,
-with ``service bagpipe-fakerr start``.
+with ``service bagpipe-fakerr start``.  Note that this tool requires
+the additional installation of the ``twisted`` python package.
 
 There isn't anything to configure, logs will be in syslog.
 
@@ -172,7 +175,7 @@ REST API tool for interface attachments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``bagpipe-rest-attach`` tool allows to exercise the REST API through
-the command line to attach and detach interfaces from ip VPN VRFs and
+the command line to attach and detach interfaces from IP VPN VRFs and
 E-VPN EVIs.
 
 See ``bagpipe-rest-attach --help``.
@@ -425,3 +428,6 @@ Caveats
   -  however, interop testing has been done with a fair amount of implementations
 
 *  MPLS-over-GRE is supported for IP VPNs, but is not yet standard (OpenVSwitch currently does MPLS-o-Ethernet-o-GRE and not MPLS-o-GRE)
+
+
+.. _sample configuration: http://git.openstack.org/cgit/openstack/networking-bagpipe/tree/samples/gobgp.conf

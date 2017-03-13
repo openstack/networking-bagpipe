@@ -17,13 +17,13 @@ How it works is that ``bagpipe`` ML2 driver will allocate a BGP VPN identifier
 (called a BGP "Route Target") for each Neutron tenant network, and the
 ``bagpipe`` agent extension on compute node will exchange messages (typically
 via RabbitMQ) with Neutron server to setup a corresponding E-VPN instance with
-this identifier on the local bagpipe-bgp_ instance on the compute node and
+this identifier on the local :ref:`bagpipe-bgp` instance on the compute node and
 attach ports to this instance as needed.
 
   .. blockdiag:: ml2.blockdiag
 
 This solution is currently supported with the linux networking stack (i.e. with
-the linuxbridge agent enabled with bagpipe extension, and bagpipe-bgp_ driver
+the linuxbridge agent enabled with bagpipe extension, and :ref:`bagpipe-bgp` driver
 for the linux bridge VXLAN implementation).  The approach would be easily
 extended to support OpenVSwitch as well.
 
@@ -54,9 +54,9 @@ When used along with the ``openvswitch`` ML2 mechanism driver, it involves:
 * ``bagpipe`` driver for the BGPVPN service plugin (networking-bgpvpn_ package)
 
 * ``bagpipe_bgpvpn`` extension for the OpenVSwitch compute node agent
-  (networking-bagpipe package)
+  (from this package)
 
-* BaGPipe lightweight BGP VPN implementation (bagpipe-bgp_ package)
+* :ref:`bagpipe-bgp` lightweight BGP VPN implementation
 
   .. blockdiag:: bgpvpn.blockdiag
 
@@ -81,7 +81,6 @@ Considered:
 
 
 
-.. _bagpipe-bgp: https://github.com/Orange-OpenSource/bagpipe-bgp
 .. _networking-bgpvpn: https://github.com/openstack/networking-bgpvpn
 .. _BGPVPN documentation: http://docs.openstack.org/developer/networking-bgpvpn/bagpipe
 .. _draft-ietf-bess-service-chaining: https://tools.ietf.org/html/draft-ietf-bess-service-chaining

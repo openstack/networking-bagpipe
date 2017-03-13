@@ -41,25 +41,24 @@ use cases:
    or Calico -- although the latter relies on plain, non-VPN, BGP)
 
 BaGPipe proposal is to address these two use cases by implementing this
-protocol stack -- both the BGP routing protocol extensions and the
+protocol stack -- both the BGP routing protocol VPN extensions and the
 dataplane encapsulation -- in compute nodes or possibly ToR switches, and
 articulating it with Neutron thanks to drivers and plugins.
 
 The networking-bagpipe package includes:
 
 * for use case 1: backend code for Neutron's BGPVPN Interconnection
-  service plugin (networking-bgpvpn_) ; only agent code is in
-  networking-bagpipe, the Neutron server-side part,
+  service plugin (networking-bgpvpn_) ; only compute node code (agent
+  and BGP) is in networking-bagpipe, the Neutron server-side part,
   being currently in networking-bgpvpn_ package)
 
 * for use case 2: a Neutron ML2 mechanism driver
 
-* agent code common to both, providing adaptation code to consolidate
-  and pass information via its REST API to BaGPipe BGPVPN implementation
-  (itself in bagpipe-bgp_ package)
+* compute code common to both: agent extensions for Neutron agent
+  (linuxbridge or openvswitch) to consolidate and pass information via
+  its REST API to :ref:`bagpipe-bgp`: a lightweight BGP VPN implementation
+  (note that a previous version of bagpipe-bgp was hosted under github)
 
-.. _bagpipe-bgp: https://github.com/Orange-OpenSource/bagpipe-bgp
 .. _networking-bgpvpn: https://github.com/openstack/networking-bgpvpn
 .. _RFC4364: http://tools.ietf.org/html/rfc4364
 .. _RFC7432: http://tools.ietf.org/html/rfc7432
-

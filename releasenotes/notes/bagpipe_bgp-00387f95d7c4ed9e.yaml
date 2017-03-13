@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    This release integrates BaGPipe-BGP: rather than depending on the old
+    bagpipe-bgp version found on github, the recent version of this
+    component is developped in the networking_bagpipe package itself. This
+    version has been adapted to leverage Openstack libraries for logging,
+    configuration, driver loading, and only rely on packages found in generic
+    Openstack requirements
