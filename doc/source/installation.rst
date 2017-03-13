@@ -2,6 +2,15 @@
 Installation
 ============
 
+Networking-bagpipe installation
+-------------------------------
+
+The networking-bagpipe package (including the :ref:`bagpipe-bgp` component)
+can be installed with::
+
+    pip install -c http://git.openstack.org/cgit/openstack/requirements/plain/upper-constraints.txt?h=stable/<release> networking-bagpipe
+
+
 BaGPipe for Neutron L2
 ----------------------
 
@@ -24,18 +33,18 @@ Installation in a devstack test/development environment
 
     ENABLE_BAGPIPE_L2=True
 
-* note that with devstack, bagpipe-bgp_ is installed automatically as a git
+* note that with devstack, :ref:`bagpipe-bgp` is installed automatically as a git
   submodule of networking-bagpipe
 
-* for multinode setups, configure bagpipe-bgp_ on each compute node, i.e.
-  you need each bagpipe-bgp_ to peer with a BGP Route Reflector:
+* for multinode setups, configure :ref:`bagpipe-bgp` on each compute node, i.e.
+  you need each :ref:`bagpipe-bgp` to peer with a BGP Route Reflector:
 
      * in `local.conf`::
 
         # IP of your route reflector or BGP router, or fakeRR:
         BAGPIPE_BGP_PEERS=1.2.3.4
 
-     * for two compute nodes, you can use the FakeRR provided in bagpipe-bgp_
+     * for two compute nodes, you can use the FakeRR provided in :ref:`bagpipe-bgp`
 
      * for more than two compute nodes, you can use GoBGP_
        (`sample configuration`_) or a commercial E-VPN implementation (e.g.
@@ -47,7 +56,9 @@ Deployment
 On Neutron servers, the following needs to be done, *based on an
 ML2/linuxbridge configuration* as a starting point:
 
-* installing networking-bagpipe package
+* installing networking-bagpipe python package::
+
+      pip install -c http://git.openstack.org/cgit/openstack/requirements/plain/upper-constraints.txt?h=stable/<release> networking-bagpipe
 
 * in ML2 configuration (``/etc/neutron/plugins/ml2.ini``):
 
@@ -84,7 +95,7 @@ GoBGP_ (`sample configuration`_).
 On compute node and network nodes the following needs to be done, *based on an
 ML2/linuxbridge configuration* as a starting point:
 
-* installing networking-bagpipe and bagpipe-bgp_ python packages
+* installing networking-bagpipe python package
 
 * configuring Neutron linuxbridge agent for bagpipe
   ``/etc/neutron/plugins/ml2.ini``:
@@ -101,7 +112,7 @@ ML2/linuxbridge configuration* as a starting point:
        [vxlan]
        enable_vxlan = False
 
-* configuring bagpipe-bgp_
+* configuring :ref:`bagpipe-bgp`:
 
     * setting ``local_address`` to the compute node address
 
@@ -109,16 +120,14 @@ ML2/linuxbridge configuration* as a starting point:
 
     * enabling ``linux_vxlan.LinuxVXLANDataplaneDriver`` for EVPN
 
-
-
 BaGPipe for BGPVPN
 ------------------
 
 Information on how to use ``bagpipe`` driver for networking-bgpvpn_ is provided
 in `BGPVPN bagpipe driver documentation`_.
 
-.. _bagpipe-bgp: https://github.com/Orange-OpenSource/bagpipe-bgp
-.. _networking-bgpvpn: https://github.com/openstack/networking-bgpvpn
+
+.. _networking-bgpvpn: http://git.openstack.org/cgit/openstack/networking-bgpvpn
 .. _GoBGP: http://osrg.github.io/gobgp
-.. _sample configuration: https://github.com/Orange-OpenSource/bagpipe-bgp/blob/master/samples/gobgp.conf
+.. _sample configuration: http://git.openstack.org/cgit/openstack/networking-bagpipe/tree/samples/gobgp.conf
 .. _BGPVPN bagpipe driver documentation: http://docs.openstack.org/developer/networking-bgpvpn/bagpipe

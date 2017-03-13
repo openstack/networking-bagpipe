@@ -12,7 +12,7 @@ b. pass the information about these BGP VPN constructs to the compute node agent
 
 c. on compute node, a bagpipe extension of the Neutron agent (OVS or
    linuxbridge) passes the information to the local implementation of BGP VPN
-   extensions (bagpipe-bgp_) that will exchange
+   extensions (:ref:`bagpipe-bgp`) that will exchange
    BGP VPN routes and populate the dataplane
 
 d. depending on the use cases, BGP VPN routes are exchanged between compute
