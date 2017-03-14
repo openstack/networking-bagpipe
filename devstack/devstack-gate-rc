@@ -3,10 +3,6 @@
 # bagpipe ML2 mech_driver config
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"ENABLE_BAGPIPE_L2=True"
 
-# https://bugs.launchpad.net/devstack/+bug/1567052
-# so we need VERBOSE=False until bagpipe-bgp uses rootwrap and is not run with sudo (same for bagpipe-fakerr)
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"VERBOSE=False"
-
 # no need for peers (we don't have a multinode CI yet)
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"BAGPIPE_BGP_PEERS=-"
 
