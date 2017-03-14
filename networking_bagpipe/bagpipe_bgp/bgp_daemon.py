@@ -38,7 +38,7 @@ def setup_config():
              project='bagpipe-bgp',
              default_config_files=['/etc/bagpipe-bgp/bgp.conf'],
              version=('%%(prog)s %s' %
-                      pbr.version.VersionInfo('bagpipe-bgp')
+                      pbr.version.VersionInfo('networking-bagpipe')
                       .release_string()))
 
 
