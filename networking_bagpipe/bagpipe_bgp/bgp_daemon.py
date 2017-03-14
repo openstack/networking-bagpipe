@@ -59,15 +59,12 @@ def setup_logging():
 
 
 def fix_log_file():
-    # required to transition from past bagpipe-bgp version which were
+    # assist transition from past bagpipe-bgp version which were
     # using --log-file to specify the location of a file to configure logging
-    if (not cfg.CONF.ack_oslo_log and
-            cfg.CONF.log_file and
-            cfg.CONF.log_file != '/etc/bagpipe-bgp/log.conf'):
-        LOG.warning("now using oslo_log, will ignore --log-file option "
-                    "unless you also set --ack-oslo-log, in which case "
-                    "--log-file will have to specify a log file location")
+    if (cfg.CONF.log_file and cfg.CONF.log_file.endswith('.conf')):
         cfg.CONF.log_file = None
+        return ("now using oslo.log, specifying a log configuration file "
+                "should be done with --log-config-append")
 
 
 def daemon_main():
@@ -81,9 +78,12 @@ def daemon_main():
         if cfg.CONF.action == "stop":
             sys.exit(-1)
 
-    fix_log_file()
+    log_file_warn = fix_log_file()
 
     setup_logging()
+
+    if log_file_warn:
+        LOG.warning(log_file_warn)
 
     exabgp_peer_worker.setup_exabgp_env()
 
