@@ -287,7 +287,7 @@ class LookingGlassController(VPNManagerController,
             "warnings_and_errors": len(self.catchall_lg_log_handler),
             "start_time": time.strftime("%Y-%m-%d %H:%M:%S",
                                         time.localtime(self.start_time)),
-            "version":  (pbr.version.VersionInfo('bagpipe-bgp')
+            "version":  (pbr.version.VersionInfo('networking-bagpipe')
                          .release_string())
         }
 
