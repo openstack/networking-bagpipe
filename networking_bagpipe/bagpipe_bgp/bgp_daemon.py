@@ -91,6 +91,8 @@ def daemon_main():
         LOG.info("Starting bagpipe-bgp...")
         pecan_api = api.PecanAPI()
 
+        cfg.CONF.log_opt_values(LOG, logging.INFO)
+
         def stop(signum, _):
             LOG.info("Received signal %d, stopping...", signum)
             pecan_api.stop()
