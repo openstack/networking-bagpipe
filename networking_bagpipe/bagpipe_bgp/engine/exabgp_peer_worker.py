@@ -162,8 +162,9 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
     # implementation of BGPPeerWorker abstract methods
 
     def _initiate_connection(self):
-        self.log.debug("Initiate ExaBGP connection to %s from %s",
-                       self.peer_address, self.local_address)
+        self.log.debug("Initiate ExaBGP connection to %s:%s from %s",
+                       self.peer_address, cfg.CONF.BGP.bgp_port,
+                       self.local_address)
 
         self.rtc_active = False
 
@@ -177,6 +178,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
         neighbor.peer_address = exa.IP.create(self.peer_address)
         neighbor.hold_time = exa_open.HoldTime(
             bgp_peer_worker.DEFAULT_HOLDTIME)
+        neighbor.connect = cfg.CONF.BGP.bgp_port
         neighbor.api = collections.defaultdict(list)
 
         for afi_safi in self.enabled_families:
