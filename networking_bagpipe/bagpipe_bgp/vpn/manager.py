@@ -81,7 +81,7 @@ class VPNManager(lg.LookingGlassMixin):
 
         self.bgp_manager = bgp_manager.Manager.get_instance()
 
-        self.dataplane_drivers = self.load_drivers()
+        self.dataplane_drivers = dp_drivers.instantiate_dataplane_drivers()
 
         # VPN instance dict
         self.vpn_instances = {}
@@ -98,9 +98,6 @@ class VPNManager(lg.LookingGlassMixin):
         self._evpn_ipvpn_ifs = {}
 
         self.lock = threading.Lock()
-
-    def load_drivers(self):
-        return dp_drivers.instantiate_dataplane_drivers()
 
     def _format_ip_address_prefix(self, ip_address):
         if re.match(r'([12]?\d?\d\.){3}[12]?\d?\d\/[123]?\d', ip_address):

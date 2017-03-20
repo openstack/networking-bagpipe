@@ -26,18 +26,17 @@ REDIRECTED_INSTANCE_ID1 = 'redirected-id1'
 REDIRECTED_INSTANCE_ID2 = 'redirected-id2'
 
 
-class TestableVPNManager(manager.VPNManager):
-
-    def load_drivers(self):
-        return {'ipvpn': mock.Mock(),
-                'evpn': mock.Mock()}
-
-
 class TestVPNManager(t.TestCase):
 
     def setUp(self):
         super(TestVPNManager, self).setUp()
-        self.manager = TestableVPNManager.get_instance()
+        mock.patch("networking_bagpipe.bagpipe_bgp.vpn.dataplane_drivers."
+                   "instantiate_dataplane_drivers",
+                   return_value={
+                       'evpn': mock.Mock(),
+                       'ipvpn': mock.Mock()
+                   }).start()
+        self.manager = manager.VPNManager.get_instance()
 
     def tearDown(self):
         super(TestVPNManager, self).tearDown()

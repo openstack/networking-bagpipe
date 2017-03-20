@@ -35,7 +35,9 @@ bgp_opts = [
     cfg.IntOpt('my_as', min=1, max=2**16-1, required=True,
                help="Our BGP Autonomous System"),
     cfg.BoolOpt('enable_rtc', default=True,
-                help="Enable RT Constraint (RFC4684)")
+                help="Enable RT Constraint (RFC4684)"),
+    cfg.PortOpt('bgp_port', default=179,
+                help="TCP port of connections to BGP peers")
 ]
 
 
