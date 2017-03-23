@@ -97,7 +97,7 @@ def daemon_main():
             LOG.info("Received signal %d, stopping...", signum)
             pecan_api.stop()
             LOG.info("All threads now stopped...")
-            raise SystemExit("Terminated on signal %d" % signum)
+            sys.exit(0)
 
         signal.signal(signal.SIGTERM, stop)
         signal.signal(signal.SIGINT, stop)
