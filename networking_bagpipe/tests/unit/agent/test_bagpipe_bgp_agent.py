@@ -38,6 +38,7 @@ from networking_bagpipe.agent.bagpipe_bgp_agent import VPN_TYPES
 
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
+from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 from neutron.tests import base
 from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent import (
@@ -84,11 +85,10 @@ PORT21 = {'id': uuidutils.generate_uuid(),
 NETWORK2 = {'id': uuidutils.generate_uuid(),
             'gateway_ip': '20.0.0.1'}
 
-LOCAL_VLAN_MAP = {}
-LOCAL_VLAN_MAP[PORT10['id']] = 31
-LOCAL_VLAN_MAP[PORT11['id']] = 31
-LOCAL_VLAN_MAP[PORT20['id']] = 52
-LOCAL_VLAN_MAP[PORT21['id']] = 52
+LOCAL_VLAN_MAP = {
+    NETWORK1['id']: 31,
+    NETWORK2['id']: 52
+}
 
 BAGPIPE_EVPN_RT1 = {'import_rt': ['BAGPIPE_EVPN:1'],
                     'export_rt': ['BAGPIPE_EVPN:1']}
@@ -1474,12 +1474,16 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
                                          mock.Mock(),
                                          int_br=self.mock_int_br,
                                          tun_br=self.mock_tun_br)
-            self.agent.get_local_vlan = (
-                lambda port: LOCAL_VLAN_MAP.get(port)
-            )
+
+        self.vlan_manager = vlanmanager.LocalVlanManager()
+        for net_id, vlan in LOCAL_VLAN_MAP.items():
+            try:
+                self.vlan_manager.add(net_id, vlan, None, None, None)
+            except vlanmanager.MappingAlreadyExists:
+                pass
 
     def _get_expected_local_port(self, network_id, port_id, vif_name):
-        vlan = self.agent.get_local_vlan(port_id)
+        vlan = self.vlan_manager.get(network_id).vlan
         local_port = dict(
             linuxif="patch2tun:%s" % vlan,
             ovs=dict(plugged=True,

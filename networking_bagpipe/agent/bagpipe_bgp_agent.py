@@ -61,6 +61,7 @@ from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants\
     as a_const
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent
+from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 LOG = logging.getLogger(__name__)
 
@@ -273,6 +274,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         # Starts a greenthread for bagpipe-bgp status polling
         self._start_bagpipe_bgp_status_polling(self.ping_interval)
+
+        self.vlan_manager = vlanmanager.LocalVlanManager()
 
     def _check_bagpipe_bgp_status(self):
         """Trigger refresh on bagpipe-bgp restarts
@@ -595,18 +598,6 @@ class BaGPipeBGPAgent(HTTPClientBase,
         # TODO(tmorin): need to handle restart on bagpipe-bgp side, in the
         # meantime after an OVS restart, restarting bagpipe-bgp is required
 
-    def get_local_vlan(self, port_id):
-        vif_port = self.int_br.get_vif_port_by_id(port_id)
-        if vif_port is None:
-            LOG.info("port by ids: %s",
-                     self.int_br.get_vifs_by_ids(
-                         list(self.int_br.get_vif_port_set())
-                         )
-                     )
-            raise Exception("port %s not found on int-br" % port_id)
-        port_tag_dict = self.int_br.get_port_tag_dict()
-        return port_tag_dict[vif_port.port_name]
-
     def _get_local_port_for_attach(self, port_id, net_id):
         if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
             port_name = LinuxBridgeManager.get_tap_device_name(port_id)
@@ -619,22 +610,19 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 }
             }
         elif self.agent_type == n_const.AGENT_TYPE_OVS:
-            try:
-                vlan = self.get_local_vlan(port_id)
+            vlan = self.vlan_manager.get(net_id).vlan
 
-                return {
-                    'local_port': {
-                        'linuxif': "%s:%s" % (LINUXIF_PREFIX, vlan),
-                        'ovs': {
-                            'plugged': True,
-                            'port_number': self.patch_mpls_from_tun_ofport,
-                            'to_vm_port_number': self.patch_mpls_to_tun_ofport,
-                            'vlan': vlan
-                        }
+            return {
+                'local_port': {
+                    'linuxif': "%s:%s" % (LINUXIF_PREFIX, vlan),
+                    'ovs': {
+                        'plugged': True,
+                        'port_number': self.patch_mpls_from_tun_ofport,
+                        'to_vm_port_number': self.patch_mpls_to_tun_ofport,
+                        'vlan': vlan
                     }
                 }
-            except Exception as e:
-                LOG.error("could not find vlan for port %s: %s", port_id, e)
+            }
 
     def _copy_port_network_details(self, port_details, vpn_type):
         network_details = {}
@@ -918,7 +906,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 self.send_detach_local_port(unplug_detail)
 
     @log_helpers.log_method_call
-    def _check_arp_voodoo_plug(self, net_id, port_id, gateway_info):
+    def _check_arp_voodoo_plug(self, net_id, gateway_info):
 
         if (self.agent_type != n_const.AGENT_TYPE_OVS):
             return
@@ -926,7 +914,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         # See if we need to update gateway redirection and gateway ARP
         # voodoo
 
-        vlan = self.get_local_vlan(port_id)
+        vlan = self.vlan_manager.get(net_id).vlan
 
         # NOTE(tmorin): can be improved, only needed on first plug...
         self._enable_gw_redirect(vlan, gateway_info.ip)
@@ -942,7 +930,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             self._hide_real_gw_arp(vlan, gateway_info)
 
     @log_helpers.log_method_call
-    def _check_arp_voodoo_unplug(self, net_id, port_id):
+    def _check_arp_voodoo_unplug(self, net_id):
 
         if (self.agent_type != n_const.AGENT_TYPE_OVS):
             return
@@ -953,7 +941,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             LOG.debug("last unplug, undoing voodoo ARP")
             # NOTE(tmorin): vlan lookup might break if port is already
             # unplugged from bridge ?
-            vlan = self.get_local_vlan(port_id)
+            vlan = self.vlan_manager.get(net_id).vlan
             self._disable_gw_redirect(vlan,
                                       self.gateway_info_for_net[net_id].ip)
             if self.gateway_info_for_net.get(net_id).mac is not None:
@@ -1046,7 +1034,6 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     # one time for a given network:
                     self._check_arp_voodoo_plug(
                         network_id,
-                        updated_attachment['port_id'],
                         new_gw_info
                     )
                 if new_gw_info.mac:
@@ -1073,8 +1060,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 if has_ipvpn_attachement(port_details.get(BGPVPN_NOTIFIER)):
                     # TODO(tmorin): this does not need to be done more than one
                     # time for a given network:
-                    self._check_arp_voodoo_unplug(network_id,
-                                                  port_details['port_id'])
+                    self._check_arp_voodoo_unplug(network_id)
                 self._remove_registered_attachment(network_id, index,
                                                    BGPVPN_NOTIFIER,
                                                    delete=False)
@@ -1086,9 +1072,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             if attachments and gw_info != NO_GW_INFO:
                 for attachment in attachments:
                     if has_ipvpn_attachement(attachment.get(BGPVPN_NOTIFIER)):
-                        self._check_arp_voodoo_plug(network_id,
-                                                    attachment['port_id'],
-                                                    gw_info)
+                        self._check_arp_voodoo_plug(network_id, gw_info)
                         break
 
     @log_helpers.log_method_call
@@ -1119,7 +1103,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                                    port_bgpvpn_info.get('gateway_ip'))
 
         if IPVPN in port_bgpvpn_info:
-            self._check_arp_voodoo_plug(net_id, port_id, gateway_info)
+            self._check_arp_voodoo_plug(net_id, gateway_info)
 
         # Remember the gateway MAC
         self.gateway_info_for_net[net_id] = gateway_info
@@ -1153,7 +1137,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 self._do_local_port_unplug(details)
 
                 if has_ipvpn_attachement(details.get(BGPVPN_NOTIFIER)):
-                    self._check_arp_voodoo_unplug(net_id, port_id)
+                    self._check_arp_voodoo_unplug(net_id)
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach BGPVPN port from bagpipe-bgp %s",
                           str(e))

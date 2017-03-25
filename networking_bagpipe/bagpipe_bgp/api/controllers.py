@@ -26,6 +26,7 @@ from oslo_log import log as logging
 import pbr.version
 import pecan
 from pecan import request
+import six
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -88,14 +89,14 @@ def check_attach_parameters(params, attach):
 
     # if local_port is not a dict, then assume it designates a linux
     # interface
-    if (isinstance(params['local_port'], str) or
-            isinstance(params['local_port'], unicode)):
+    if (isinstance(params['local_port'], six.string_types) or
+            isinstance(params['local_port'], six.text_type)):
         params['local_port'] = {'linuxif': params['local_port']}
 
     # if import_rt or export_rt are strings, convert them into lists
     for param in ('import_rt', 'export_rt'):
-        if isinstance(params[param], str) or isinstance(params[param],
-                                                        unicode):
+        if (isinstance(params[param], six.string_types) or
+                isinstance(params[param], six.text_type)):
             try:
                 params[param] = re.split(',+ *', params[param])
             except Exception:

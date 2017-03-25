@@ -208,22 +208,22 @@ Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
                        RT_STYLE_FLOWSPEC_INTER))
 
                 # intermediate -> flowspec route RT
-                print ('    %s -> %s [label="",weight=50,%s];' %
-                       (intermediate, normalize(redir_rt),
-                        RT_STYLE_FLOWSPEC))
+                print('    %s -> %s [label="",weight=50,%s];' %
+                      (intermediate, normalize(redir_rt),
+                       RT_STYLE_FLOWSPEC))
 
                 # intermediate -> flowspec route redirect action  RT
-                print ('    %s -> %s [label="action",%s,arrowhead=none'
-                       ',weight=20];' %
-                       (intermediate, normalize(readvertise['to'][0]),
-                        RT_STYLE_FLOWSPEC_ACTION))
+                print('    %s -> %s [label="action",%s,arrowhead=none'
+                      ',weight=20];' %
+                      (intermediate, normalize(readvertise['to'][0]),
+                       RT_STYLE_FLOWSPEC_ACTION))
 
         for port in request(options, server, ["vpns", "instances",
                                               vpn, "ports"]).keys():
-            print ('    %s -> port_%s_%s [%s,weight=5];' % (uid,
-                                                            normalize(server),
-                                                            normalize(port),
-                                                            PORT_LINK_STYLE))
+            print('    %s -> port_%s_%s [%s,weight=5];' % (uid,
+                                                           normalize(server),
+                                                           normalize(port),
+                                                           PORT_LINK_STYLE))
             ports.add((server, normalize(port)))
 
         # possible link between an E-VPN and an IPVPN ?
@@ -231,26 +231,26 @@ Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
                                           vpn, "gateway_port", "ipvpn"])
         if ipvpn:
             ipvpn_id = ipvpn['external_instance_id']
-            print ('    %s -> %s [weight=500];' % (uid,
-                                                   vpn_uid(server, ipvpn_id))
-                   )
+            print('    %s -> %s [weight=500];' % (uid,
+                                                  vpn_uid(server, ipvpn_id))
+                  )
 
     for (server, port) in ports:
-        print ('    port_%s_%s [label="",style=invis,height=0,width=0,'
-               'fixedsize=true];' % (normalize(server),
-                                     normalize(port)))
+        print('    port_%s_%s [label="",style=invis,height=0,width=0,'
+              'fixedsize=true];' % (normalize(server),
+                                    normalize(port)))
         if port.startswith('to_'):
             dest = port.split('_')[1]
-            print ('    port_%s_%s -> dest_%s_%s [style=dashed,'
-                   'dir=none,color="gray"'
-                   ',weight=5];' %
-                   (normalize(server), normalize(port), normalize(server),
-                    dest))
+            print('    port_%s_%s -> dest_%s_%s [style=dashed,'
+                  'dir=none,color="gray"'
+                  ',weight=5];' %
+                  (normalize(server), normalize(port), normalize(server),
+                   dest))
             dests.add((server, dest))
 
     for (server, dest) in dests:
-        print ('    dest_%s_%s [label="%s\\n[%s]",shape="square",'
-               'color="gray"];' % (normalize(server),
-                                   normalize(dest), dest, server))
+        print('    dest_%s_%s [label="%s\\n[%s]",shape="square",'
+              'color="gray"];' % (normalize(server),
+                                  normalize(dest), dest, server))
 
     print('}')
