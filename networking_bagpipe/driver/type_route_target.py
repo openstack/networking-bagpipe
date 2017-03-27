@@ -22,8 +22,6 @@ import sqlalchemy as sa
 from sqlalchemy.orm import exc as sa_exc
 
 from networking_bagpipe._i18n import _
-from networking_bagpipe._i18n import _LI
-from networking_bagpipe._i18n import _LW
 
 from neutron.db import api as db_api
 from neutron.plugins.ml2 import driver_api as api
@@ -74,7 +72,7 @@ def verify_route_target_number_range(rt_nn_range):
         if not is_valid_route_target_number(rt_nn):
             raise NetworkRouteTargetRangeError(
                 rt_nn_range=rt_nn_range,
-                error=_("%s is not a valid Route Target number") % rt_nn)
+                error="%s is not a valid Route Target number" % rt_nn)
     if rt_nn_range[1] < rt_nn_range[0]:
         raise NetworkRouteTargetRangeError(
             rt_nn_range=rt_nn_range,
@@ -122,7 +120,7 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
                 raise NetworkRouteTargetRangeError(rt_nn_range=entry, error=ex)
             verify_route_target_number_range(rt_nn_range)
             current_range.append(rt_nn_range)
-        LOG.info(_LI("Route Target number ranges: %(range)s"),
+        LOG.info("Route Target number ranges: %(range)s",
                  {'range': current_range})
 
     def is_partial_segment(self, segment):
@@ -182,15 +180,15 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
                 alloc.allocated = False
                 for lo, hi in self.rt_nn_ranges:
                     if lo <= rt_nn <= hi:
-                        LOG.debug(_("Releasing Route Target number %s to "
-                                    "pool"), rt_nn)
+                        LOG.debug("Releasing Route Target number %s to "
+                                  "pool", rt_nn)
                         break
                 else:
                     context.session.delete(alloc)
-                    LOG.debug(_("Releasing Route Target number %s outside "
-                                "pool"), rt_nn)
+                    LOG.debug("Releasing Route Target number %s outside "
+                              "pool", rt_nn)
             except sa_exc.NoResultFound:
-                LOG.warning(_LW("Route Target number %(rt_nn)s not found"),
+                LOG.warning("Route Target number %(rt_nn)s not found",
                             {'rt_nn': rt_nn})
 
     def _sync_route_target_allocations(self):
@@ -201,8 +199,8 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
         for rt_nn_range in self.rt_nn_ranges:
             rt_nn_min, rt_nn_max = rt_nn_range
             if rt_nn_max + 1 - rt_nn_min > MAX_RT_NN:
-                LOG.error(_("Skipping unreasonable route target range "
-                            "%(rt_nn_min)s:%(rt_nn_max)s"),
+                LOG.error("Skipping unreasonable route target range "
+                          "%(rt_nn_min)s:%(rt_nn_max)s",
                           {'rt_nn_min': rt_nn_min, 'rt_nn_max': rt_nn_max})
             else:
                 rt_nns |= set(six.moves.range(rt_nn_min, rt_nn_max + 1))
@@ -221,7 +219,7 @@ class RouteTargetTypeDriver(helpers.SegmentTypeDriver):
                     # Route target not allocatable, so check if its allocated
                     if not alloc.allocated:
                         # Not allocated, so remove it from table
-                        LOG.debug(_("Removing route target %s from pool"),
+                        LOG.debug("Removing route target %s from pool",
                                   alloc.rt_nn)
                         session.delete(alloc)
 

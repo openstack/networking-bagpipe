@@ -27,9 +27,6 @@ from oslo_service import service
 from networking_bagpipe.agent import bagpipe_bgp_agent
 from networking_bagpipe.driver.type_route_target import TYPE_ROUTE_TARGET
 
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-
 from neutron.agent.l2 import agent_extension
 
 from neutron.common import config as common_config
@@ -88,19 +85,19 @@ def main():
         interface_mappings = helpers.parse_mappings(
             cfg.CONF.LINUX_BRIDGE.physical_interface_mappings)
     except ValueError as e:
-        LOG.error(_LE("Parsing physical_interface_mappings failed: %s. "
-                      "Agent terminated!"), e)
+        LOG.error("Parsing physical_interface_mappings failed: %s. "
+                  "Agent terminated!", e)
         sys.exit(1)
-    LOG.info(_LI("Interface mappings: %s"), interface_mappings)
+    LOG.info("Interface mappings: %s", interface_mappings)
 
     try:
         bridge_mappings = helpers.parse_mappings(
             cfg.CONF.LINUX_BRIDGE.bridge_mappings)
     except ValueError as e:
-        LOG.error(_LE("Parsing bridge_mappings failed: %s. "
-                      "Agent terminated!"), e)
+        LOG.error("Parsing bridge_mappings failed: %s. "
+                  "Agent terminated!", e)
         sys.exit(1)
-    LOG.info(_LI("Bridge mappings: %s"), bridge_mappings)
+    LOG.info("Bridge mappings: %s", bridge_mappings)
 
     manager = LinuxBridgeManagerBaGPipe(bridge_mappings, interface_mappings)
 
@@ -109,6 +106,6 @@ def main():
     agent = ca.CommonAgentLoop(manager, polling_interval, quitting_rpc_timeout,
                                n_const.AGENT_TYPE_LINUXBRIDGE,
                                LB_BAGPIPE_AGENT_BINARY)
-    LOG.info(_LI("Agent initialized successfully, now running... "))
+    LOG.info("Agent initialized successfully, now running... ")
     launcher = service.launch(cfg.CONF, agent)
     launcher.wait()
