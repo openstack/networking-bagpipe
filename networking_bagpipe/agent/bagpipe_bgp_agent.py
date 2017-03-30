@@ -802,12 +802,12 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         # We may compete with the ARP responder entry for the real MAC
         # if the router is on a network node and we are a compute node,
-        # so we must add our rule with a higher priority
+        # so we must add our rule with a higher priority. Using a different
+        # priority also means that arp_responder will not remove our ARP
+        # responding flows and we won't remove theirs.
 
-        # TODO(tmorin): Ideally we should use install_arp_responder, after
-        # extending it to accept a 'priority' parameter, but we'd need to make
-        # sure that delete_arp_responder (including the OF native
-        # implementation) delete only rule with its cookie
+        # NOTE(tmorin): consider adding priority to install_arp_responder
+        # and then use it here
 
         # (mostly copy-pasted ovs_ofctl....install_arp_responder)
         actions = a_const.ARP_RESPONDER_ACTIONS % {
@@ -818,9 +818,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                              priority=2,  # see above
                              dl_vlan=vlan,
                              proto='arp',
-                             arp_op=0x01,  # the rule in install_arp_responder
-                                           # does not restrict to requests,
-                                           # but it seems what is right to do
+                             arp_op=0x01,
                              arp_tpa='%s' % gateway_ip,
                              actions=actions)
 
@@ -828,15 +826,13 @@ class BaGPipeBGPAgent(HTTPClientBase,
     def _disable_gw_redirect(self, vlan, gateway_ip):
         # Remove ARP responder entry for default gateway in br-tun
         self.tun_br.delete_flows(
+            strict=True,
             table=a_const.ARP_RESPONDER,
+            priority=2,
             dl_vlan=vlan,
             proto='arp',
             arp_op=0x01,
             arp_tpa='%s' % gateway_ip)
-
-        # TODO(tmorin): nothing currently prevents the base agent from
-        # deleting our rule on Router unplug (because its delete_flows is
-        # not restricted to deleting rules having its own cookie)
 
     @log_helpers.log_method_call
     def _hide_real_gw_arp(self, vlan, gateway_info):
