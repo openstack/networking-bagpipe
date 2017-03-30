@@ -104,6 +104,10 @@ class TestBaGpipeRpcTestCase(test_plugin.Ml2PluginV2TestCase):
         cast_patch = mock.patch(cast)
         self.mock_cast = cast_patch.start()
 
+        # don't wait for DHCP provisioning block to clear
+        mock.patch('neutron.plugins.ml2.db.is_dhcp_active_on_any_subnet',
+                   return_value=False).start()
+
     def _register_ml2_agents(self):
         register_linuxbridge_agent(host=HOST)
         register_linuxbridge_agent(host=HOST_2)
