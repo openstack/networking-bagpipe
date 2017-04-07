@@ -46,7 +46,7 @@ def _get_lg_local_info_recurse(obj, cls, path_prefix):
     if cls == LookingGlassMixin:
         return {}
 
-    result = cls.get_log_local_info(obj, path_prefix)
+    result = cls.get_lg_local_info(obj, path_prefix)
 
     assert isinstance(result, dict)
 
@@ -143,12 +143,12 @@ class LookingGlassMixin(object):
         """
         return {}
 
-    def _get_log_local_info(self, path_prefix):
-        # not to be overridden: calls get_log_local_info, on each of
+    def _get_lg_local_info(self, path_prefix):
+        # not to be overridden: calls get_lg_local_info, on each of
         # the super classes and merge the result in a dict
         return _get_lg_local_info_recurse(self, self.__class__, path_prefix)
 
-    def get_log_local_info(self, path_prefix):
+    def get_lg_local_info(self, path_prefix):
         """Deeper hook for LG objects
 
         Can be overriden by looking glass objects instead of get_lg_map
@@ -278,7 +278,7 @@ class LookingGlassMixin(object):
 
         # firt_segment is None or is not in our map
         # let's build LookingGlassLocalInfo
-        info = self._get_log_local_info(path_prefix)
+        info = self._get_lg_local_info(path_prefix)
         for (path_item, (mapping_type, mapping_target)) in lg_map.items():
             if path_item in info:
                 LOG.warning("overriding '%s', present both in "

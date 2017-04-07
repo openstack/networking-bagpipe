@@ -257,7 +257,7 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     # Looking Glass ####
 
-    def get_log_local_info(self, path_prefix):
+    def get_lg_local_info(self, path_prefix):
         if not self.gw_port:
             return {"gateway_port": None}
         else:

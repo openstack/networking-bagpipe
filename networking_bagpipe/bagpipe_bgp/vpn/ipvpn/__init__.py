@@ -372,5 +372,5 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         }
 
     def get_lg_readvertised_routes(self, path_prefix):
-        return [route.get_log_local_info(path_prefix)
+        return [route.get_lg_local_info(path_prefix)
                 for route in self.readvertised]

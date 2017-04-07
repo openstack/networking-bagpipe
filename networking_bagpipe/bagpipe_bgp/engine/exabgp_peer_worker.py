@@ -379,7 +379,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
 
     # Looking Glass ###############
 
-    def get_log_local_info(self, path_prefix):
+    def get_lg_local_info(self, path_prefix):
         return {
             "peeringAddresses": {"peer_address":  self.peer_address,
                                  "local_address": self.local_address},

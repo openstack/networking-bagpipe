@@ -297,7 +297,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
     # Looking glass ####
 
-    def get_log_local_info(self, path_prefix):
+    def get_lg_local_info(self, path_prefix):
         return {
             "linux_bridge": self.bridge_name,
             "vxlan_if": self.vxlan_if_name

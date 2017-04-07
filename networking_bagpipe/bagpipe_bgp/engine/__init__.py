@@ -167,7 +167,7 @@ class RouteEntry(lg.LookingGlassMixin):
             self.afi, self.safi, self.nlri, nexthop,
             self.attributes, from_string)
 
-    def get_log_local_info(self, path_prefix):
+    def get_lg_local_info(self, path_prefix):
 
         att_dict = {}
 

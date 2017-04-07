@@ -268,7 +268,7 @@ class VPNInstanceDataplane(lg.LookingGlassLocalLogger):
 
     # Looking glass info ####
 
-    def get_log_local_info(self, path_prefix):
+    def get_lg_local_info(self, path_prefix):
         driver = {"id": self.driver.type,
                   "href": lg.get_absolute_path(
                       "DATAPLANE_DRIVERS", path_prefix, [self.driver.type])}

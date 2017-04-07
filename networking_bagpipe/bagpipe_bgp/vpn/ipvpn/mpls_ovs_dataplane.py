@@ -1266,7 +1266,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
             "ports": (lg.SUBTREE, self.get_lg_ovs_ports)
         }
 
-    def get_log_local_info(self, path_prefix):
+    def get_lg_local_info(self, path_prefix):
         d = {
             "ovs_bridge": self.bridge,
             "mpls_interface": self.mpls_interface,
