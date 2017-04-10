@@ -169,6 +169,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
         self.rtc_active = False
 
         neighbor = exa_neighbor.Neighbor()
+        neighbor.make_rib()
         neighbor.router_id = exa_open.RouterID(self.local_address)
         neighbor.local_as = exa.ASN(cfg.CONF.BGP.my_as)
         # no support for eBGP yet:
