@@ -17,7 +17,7 @@ of BGP-based VPNs as a backend for Neutron.
 * Free software: Apache license
 * Documentation: https://docs.openstack.org/developer/networking-bagpipe
 * Source: http://git.openstack.org/cgit/openstack/networking-bagpipe
-* Bugs: http://bugs.launchpad.net/bagpipe
+* Bugs: http://bugs.launchpad.net/networking-bagpipe
 
 Overview
 --------
