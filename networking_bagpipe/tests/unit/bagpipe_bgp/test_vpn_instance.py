@@ -19,7 +19,9 @@
 .. module:: test_vpn_instance
    :synopsis: module that defines several test cases for the vpn_instance
               module.
-   In particular, unit tests for VPNInstance class.
+   TestInitVPNInstance defines a class dedicated to test init a VPNInstance
+   with optional vni.
+   TestVPNInstance class is dedicated to unit tests for VPNInstance class.
    Setup : Start VPNInstance thread instance.
    TearDown : Stop VPNInstance thread instance.
    VPNInstance is a base class for objects used to manage an E-VPN instance
@@ -73,6 +75,12 @@ RTRecord2 = exa.RTRecord.from_rt(t.RT2)
 RTRecord3 = exa.RTRecord.from_rt(t.RT3)
 RTRecord4 = exa.RTRecord.from_rt(t.RT4)
 
+VPN_ID = 1
+VPN_EXT_ID = 1
+GW_IP = "10.0.0.1"
+GW_MASK = 24
+VNID = 255
+
 
 def _extract_nlri_from_call(vpn_inst, method, call_index=0):
     calls = getattr(vpn_inst, method).call_args_list
@@ -122,6 +130,56 @@ class TestableVPNInstance(vpn_instance.VPNInstance):
 
     def generate_vif_bgp_route(self):
         pass
+
+
+class TestInitVPNInstance(TestCase):
+
+    def setUp(self):
+        super(TestInitVPNInstance, self).setUp()
+        self.mock_manager = Mock()
+        self.mock_manager.label_allocator.release = Mock()
+        self.mock_dp_driver = Mock()
+        self.mock_dp_driver.initialize_dataplane_instance = Mock()
+
+    def tearDown(self):
+        super(TestInitVPNInstance, self).tearDown()
+
+    def test_init_stop_VPNInstance_with_forced_vni(self):
+        # Initialize a VPNInstance with a forced VNID > 0
+        vpn = TestableVPNInstance(self.mock_manager, self.mock_dp_driver,
+                                  VPN_EXT_ID, VPN_ID,
+                                  [t.RT1], [t.RT1],
+                                  GW_IP, GW_MASK,
+                                  None, None, vni=VNID)
+
+        # Check that forced VNID is used as instance_label
+        self.assertTrue(vpn.forced_vni)
+        self.assertEqual(VNID, vpn.instance_label,
+                         "VPN instance label should be forced to VNID")
+        vpn.dp_driver.initialize_dataplane_instance.assert_called_once_with(
+            VPN_ID, VPN_EXT_ID, GW_IP, GW_MASK, VNID)
+
+        # Stop the VPNInstance to check that label release is not called
+        vpn.stop()
+        self.assertEqual(0, vpn.manager.label_allocator.release.call_count,
+                         "label allocator release should not be called")
+
+    def test_init_stop_VPNInstance_without_forced_vni(self):
+        # Initialize a VPNInstance with no vni
+        vpn = TestableVPNInstance(self.mock_manager, self.mock_dp_driver,
+                                  VPN_EXT_ID, VPN_ID, [t.RT1], [t.RT1],
+                                  GW_IP, GW_MASK, None, None)
+
+        # Check that VPN instance_label is locally-assigned
+        self.assertFalse(vpn.forced_vni)
+        vpn.dp_driver.initialize_dataplane_instance.assert_called_once_with(
+            VPN_ID, VPN_EXT_ID, GW_IP, GW_MASK, vpn.instance_label)
+
+        # Stop the VPNInstance to check that label release is called
+        # with locally assigned instance label
+        vpn.stop()
+        vpn.manager.label_allocator.release.assert_called_once_with(
+            vpn.instance_label)
 
 
 class TestVPNInstance(TestCase):

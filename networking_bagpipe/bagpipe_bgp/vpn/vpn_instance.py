@@ -279,9 +279,14 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         self.dp_driver = dataplane_driver
 
-        self.instance_label = self.manager.label_allocator.get_new_label(
-            "Incoming traffic for %s %d" % (self.instance_type,
-                                            self.instance_id))
+        if 'vni' in kwargs:
+            self.instance_label = kwargs.pop('vni')
+            self.forced_vni = True
+        else:
+            self.instance_label = self.manager.label_allocator.get_new_label(
+                "Incoming traffic for %s %d" % (self.instance_type,
+                                                self.instance_id))
+            self.forced_vni = False
 
         self.instance_rd = self.manager.rd_allocator.get_new_rd(
             "Default route distinguisher for %s %d" % (self.instance_type,
@@ -356,8 +361,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
     @log_decorator.log
     def _stop(self):
         self.dataplane.cleanup()
-
-        self.manager.label_allocator.release(self.instance_label)
+        if not self.forced_vni:
+            self.manager.label_allocator.release(self.instance_label)
 
         # this makes sure that the thread will be stopped, and any remaining
         # routes/subscriptions are released:

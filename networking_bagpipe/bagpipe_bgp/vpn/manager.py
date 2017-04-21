@@ -300,7 +300,8 @@ class VPNManager(lg.LookingGlassMixin):
                         mac_address, ip_address, gateway_ip,
                         localport, linuxbr,
                         advertise_subnet, readvertise,
-                        attract_traffic, lb_consistent_hash_order, fallback):
+                        attract_traffic, lb_consistent_hash_order, fallback,
+                        vni=None):
 
         # Verify and format IP address with prefix if necessary
         try:
@@ -329,10 +330,11 @@ class VPNManager(lg.LookingGlassMixin):
         # retrieve network mask
         mask = int(ip_address_prefix.split('/')[1])
 
+        kwargs = {}
+        if vni:
+            kwargs['vni'] = vni
         if instance_type == constants.EVPN and linuxbr:
-            kwargs = {'linuxbr': linuxbr}
-        else:
-            kwargs = {}
+            kwargs['linuxbr'] = linuxbr
 
         vpn_instance = self._get_vpn_instance(
             external_instance_id, instance_type, import_rts, export_rts,

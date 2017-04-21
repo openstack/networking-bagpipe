@@ -233,6 +233,10 @@ def main():
                       dest="lb_consistent_hash_order",
                       default=0, type="int",
                       help="Load Balancing consistent hash sort order")
+    parser.add_option("--vni", dest="vni",
+                      default=0,
+                      type="int",
+                      help="VXLAN VNI to use for this VPN instance (optional)")
     (options, _) = parser.parse_args()
 
     if not(options.operation):
@@ -356,7 +360,8 @@ def main():
          "advertise_subnet": options.advertise_subnet,
          "readvertise": readvertise,
          "attract_traffic": attract_traffic,
-         "lb_consistent_hash_order": options.lb_consistent_hash_order
+         "lb_consistent_hash_order": options.lb_consistent_hash_order,
+         "vni": options.vni
          }
     )
 
