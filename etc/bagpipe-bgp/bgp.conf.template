@@ -1,5 +1,6 @@
 [BGP]
-local_address=192.168.100.177
+local_address=eth0
+#local_address=192.168.100.177
 peers=192.168.0.101
 my_as=64512
 enable_rtc=True
@@ -19,6 +20,7 @@ root_helper_daemon = sudo /usr/local/bin/oslo-rootwrap-daemon /etc/bagpipe-bgp/r
 # we will use to send)
 # Note: does not need to be specified if different than the BGP local_address
 # Note: can be overwritten under each dataplane config
+# dataplane_local_address=eth1
 # dataplane_local_address=1.2.3.4
 
 [API]
@@ -69,6 +71,7 @@ mpls_interface=*gre*
 # local IP address (that others will use to send us encapsulated packets, and that
 # we will use to send)
 # Note: does not need to be specified if different than the BGP local_address
+# dataplane_local_address=eth1
 # dataplane_local_address=1.2.3.4
 
 # (obsolete:)
@@ -102,4 +105,5 @@ ovsbr_interfaces_mtu=4000
 # local IP address (that others will use to send us encapsulated packets, and that
 # we will use to send)
 # Note: does not need to be specified if different than the BGP local_address
-#dataplane_local_address=1.2.3.4
+# dataplane_local_address=eth1
+# dataplane_local_address=1.2.3.4

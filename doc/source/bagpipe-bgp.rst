@@ -92,7 +92,8 @@ The bagpipe-bgp config file default location is:
 It needs to be customized, at least for the following:
 
 *  ``local_address``: the local address to use for BGP sessions and traffic
-   encapsulation
+   encapsulation (can also be specified as an interface, e.g. "eth0", in which
+   the IPv4 address of this interface will be used)
 
 *  ``peers``: the list of BGP peers, it depends on the BGP setup that you
    have chosen (see above `BGP Route Reflection <#bgprr>`__)

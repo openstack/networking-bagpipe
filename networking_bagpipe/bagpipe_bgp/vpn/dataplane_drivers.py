@@ -24,6 +24,7 @@ from oslo_log import log as logging
 import six
 import stevedore
 
+from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp.common import run_command
@@ -40,11 +41,11 @@ LOG = logging.getLogger(__name__)
 # TODO(tmorin): list possible values for dataplane_driver,
 #               see what neutron-db-manage does
 dataplane_common_opts = [
-    cfg.IPOpt("dataplane_local_address", version=4,
-
-              help=("IP address to use as next-hop in our route "
-                    "advertisements, will be used to send us "
-                    "VPN traffic")),
+    cfg.Opt("dataplane_local_address",
+            type=config.InterfaceAddress(),
+            help=("IP address to use as next-hop in our route "
+                  "advertisements, will be used to send us "
+                  "VPN traffic")),
     cfg.StrOpt("dataplane_driver", default="dummy",
                help="Dataplane driver.")
 ]

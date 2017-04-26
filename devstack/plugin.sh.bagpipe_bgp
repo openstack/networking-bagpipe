@@ -6,19 +6,19 @@ set -o xtrace
 
 # Pre-install gobgp requirements
 function pre_install_gobgp {
-        # Install go language and configure environment variables
-        install_package golang-go
+	# Install go language and configure environment variables
+	install_package golang-go
 
-        if [[ ! -d $GO_DIR ]]; then
-                mkdir -p $GO_DIR
-        fi
+	if [[ ! -d $GO_DIR ]]; then
+		mkdir -p $GO_DIR
+	fi
 }
 
 # Install gobgp
 function install_gobgp {
-        # Install gobgp
-        go get $GOBGP_REPO/gobgpd
-        go get $GOBGP_REPO/gobgp
+		# Install gobgp
+		go get $GOBGP_REPO/gobgpd
+		go get $GOBGP_REPO/gobgp
 }
 
 # Set config files, create data dirs, etc
@@ -52,7 +52,7 @@ function create_bagpipe_conf {
 	else
 		iniset $BAGPIPE_CONF BGP peers "$BAGPIPE_BGP_PEERS"
 	fi
-        iniset $BAGPIPE_CONF API host ${BAGPIPE_SERVICE_HOST:-127.0.0.1}
+	iniset $BAGPIPE_CONF API host ${BAGPIPE_SERVICE_HOST:-127.0.0.1}
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_IPVPN:-dummy}
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN mpls_interface $BAGPIPE_MPLS_IFACE
 	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN ovs_bridge $BAGPIPE_MPLS_BR
@@ -77,7 +77,7 @@ function init_bagpipe {
 
 function init_bagpipe_ovsmpls {
 
-        BAGPIPE_BR_RESET_SCRIPT=$(mktemp /var/tmp/bagpipe-bgp-br-reset.XXXXX)
+	BAGPIPE_BR_RESET_SCRIPT=$(mktemp /var/tmp/bagpipe-bgp-br-reset.XXXXX)
 
 	:> $BAGPIPE_BR_RESET_SCRIPT
 

@@ -114,7 +114,8 @@ ML2/linuxbridge configuration* as a starting point:
 
 * configuring :ref:`bagpipe-bgp`:
 
-    * setting ``local_address`` to the compute node address
+    * setting ``local_address`` to the compute node address (or the name of one
+    of its interfaces e.g. 'eth0')
 
     * adding the Route Reflector IP to ``peers``
 
