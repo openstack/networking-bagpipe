@@ -16,7 +16,8 @@
 # limitations under the License.
 
 from oslo_config import cfg
-# from oslo_config import types as oslo_types
+from oslo_config import types
+
 
 cli_opts = [
     cfg.StrOpt("action", positional=True, default='unset',
@@ -29,8 +30,8 @@ cli_opts = [
 bgp_opts = [
     cfg.IPOpt('local_address', required=True,
               help="IP address used for BGP peerings"),
-    cfg.ListOpt('peers', default=[],  # NOTE(tmorin): use item_type=
-                                      # oslo_types.IPAddress
+    cfg.ListOpt('peers', default=[],
+                item_type=types.HostAddress(version=4),
                 help="IP addresses of BGP peers"),
     cfg.IntOpt('my_as', min=1, max=2**16-1, required=True,
                help="Our BGP Autonomous System"),
