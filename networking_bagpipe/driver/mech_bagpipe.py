@@ -15,6 +15,7 @@
 
 from neutron_lib import context as n_context
 from neutron_lib.plugins import constants as p_constants
+from neutron_lib.plugins.ml2 import api
 from oslo_config import cfg
 from oslo_log import log
 
@@ -22,7 +23,6 @@ from neutron.agent import securitygroups_rpc
 from neutron.db import api as db_api
 from neutron.db import models_v2
 
-from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
 
 from neutron_lib.api.definitions import portbindings
