@@ -24,11 +24,11 @@ from sqlalchemy.orm import exc as sa_exc
 from networking_bagpipe._i18n import _
 
 from neutron.db import api as db_api
-from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import helpers
 
 from neutron_lib.db import model_base
 from neutron_lib import exceptions as exc
+from neutron_lib.plugins.ml2 import api
 
 LOG = log.getLogger(__name__)
 
