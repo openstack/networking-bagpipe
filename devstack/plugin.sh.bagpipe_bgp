@@ -9,16 +9,17 @@ function pre_install_gobgp {
 	# Install go language and configure environment variables
 	install_package golang-go
 
-	if [[ ! -d $GO_DIR ]]; then
-		mkdir -p $GO_DIR
+	export GOPATH=${GOPATH:-$DEST/go}
+	if [[ ! -d $GOPATH ]]; then
+		mkdir -p $GOPATH
 	fi
 }
 
 # Install gobgp
 function install_gobgp {
-		# Install gobgp
-		go get $GOBGP_REPO/gobgpd
-		go get $GOBGP_REPO/gobgp
+	# Install gobgp
+	go get ${GOBGP_REPO:-github.com/osrg/gobgp}/gobgpd
+	go get ${GOBGP_REPO:-github.com/osrg/gobgp}/gobgp
 }
 
 # Set config files, create data dirs, etc

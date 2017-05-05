@@ -10,7 +10,3 @@ BAGPIPE_MPLS_IFACE=${BAGPIPE_MPLS_IFACE:-}
 BAGPIPE_MPLS_BR=${BAGPIPE_MPLS_BR:-br-mpls}
 BAGPIPE_INTERNAL_PORT=bagpipe
 
-GO_DIR=/opt/stack/go
-
-GOBGP_REPO=github.com/osrg/gobgp
-
