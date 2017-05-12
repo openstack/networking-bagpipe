@@ -30,6 +30,12 @@ function configure_bagpipe {
 	fi
 	sudo chown $STACK_USER $BAGPIPE_CONF_DIR
 
+	# place rootwrap config files
+	# this is done here so that these files are in place, even when
+	# bagpipe-bgp is not configured, specifically for the functional and
+        # fullstack gate jobs
+	cp -rp $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/rootwrap* $BAGPIPE_CONF_DIR
+
 	if is_service_enabled b-bgp; then
 		# build the config file from scratch
 		create_bagpipe_conf
@@ -40,9 +46,6 @@ function configure_bagpipe {
 function create_bagpipe_conf {
 	# (Re)create ``bgp.conf``
 	cp -p $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/bgp.conf.template $BAGPIPE_CONF
-
-	# place rootwrap config files
-	cp -rp $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/rootwrap* $BAGPIPE_CONF_DIR
 
 	# build config
 	iniset $BAGPIPE_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
