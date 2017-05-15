@@ -13,8 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron_lib import constants as n_constants
 from neutron_lib import context as n_context
-from neutron_lib.plugins import constants as p_constants
 from neutron_lib.plugins.ml2 import api
 from oslo_config import cfg
 from oslo_log import log
@@ -95,8 +95,8 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
 
     def get_allowed_network_types(self, agent):
         return (agent['configurations'].get('tunnel_types', []) +
-                [p_constants.TYPE_LOCAL, p_constants.TYPE_FLAT,
-                 p_constants.TYPE_VLAN])
+                [n_constants.TYPE_LOCAL, n_constants.TYPE_FLAT,
+                 n_constants.TYPE_VLAN])
 
     def get_mappings(self, agent):
         return agent['configurations'].get('interface_mappings', {})
