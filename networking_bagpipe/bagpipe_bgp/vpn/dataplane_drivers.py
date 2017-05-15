@@ -105,6 +105,7 @@ class DataplaneDriver(lg.LookingGlassLocalLogger):
               exa.Encapsulation(exa.Encapsulation.Type.MPLS)]
     makebefore4break_support = False
     ecmp_support = False
+    required_kernel = None
 
     driver_opts = []
 
@@ -129,7 +130,7 @@ class DataplaneDriver(lg.LookingGlassLocalLogger):
         # Linux kernel version check
         o = self._run_command("uname -r")
         self.kernel_release = o[0][0].split("-")[0]
-        if getattr(self, 'required_kernel', None):
+        if self.required_kernel:
             if (version.StrictVersion(self.kernel_release) <
                     version.StrictVersion(self.required_kernel)):
                 self.log.warning("%s requires at least Linux kernel %s"
