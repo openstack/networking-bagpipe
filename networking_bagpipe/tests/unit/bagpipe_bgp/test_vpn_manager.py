@@ -45,7 +45,6 @@ class TestVPNManager(t.TestCase):
                        'evpn': mock.Mock(),
                        'ipvpn': mock.Mock()
                    }).start()
-        # self.manager = manager.VPNManager.get_instance()
         self.manager = manager.VPNManager()
 
     def tearDown(self):
@@ -151,3 +150,11 @@ class TestVPNManager(t.TestCase):
 
         self.assertIsNot(0, vpn_instance.instance_label,
                          "VPN instance label should be assigned locally")
+
+    @mock.patch('networking_bagpipe.bagpipe_bgp.engine.bgp_manager.Manager')
+    def test_manager_stop(self, mocked_bgp_manager):
+        self.manager._get_vpn_instance("TEST_VPN_INSTANCE", consts.IPVPN,
+                                       [t.RT1], [t.RT1], "192.168.0.1", 24,
+                                       {}, {})
+        self.manager.stop()
+        self.assertTrue(not self.manager.vpn_instances)

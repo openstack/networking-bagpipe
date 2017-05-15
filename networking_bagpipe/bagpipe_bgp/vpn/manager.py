@@ -441,6 +441,7 @@ class VPNManager(lg.LookingGlassMixin):
                 self._cleanup_evpn2ipvpn(vpn_instance)
         for vpn_instance in six.itervalues(self.vpn_instances):
             vpn_instance.join()
+        self.vpn_instances.clear()
 
     @classmethod
     @utils.oslo_synchronized('VPNManager')
