@@ -357,7 +357,3 @@ class LinuxVXLANDataplaneDriver(dp_drivers.DataplaneDriver):
                               run_as_root=True)
             self._run_command("ip link delete %s" % interface,
                               run_as_root=True)
-
-    def _cleanup_real(self):
-        # FIXME: need to refine what would be different
-        self.reset_state()

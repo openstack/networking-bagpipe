@@ -192,10 +192,6 @@ class DataplaneDriver(lg.LookingGlassLocalLogger):
                                              gateway_ip, mask,
                                              instance_label, **kwargs)
 
-    def cleanup(self):
-        # FIXME: to be clarified: can be removed ? should call reset_state ?
-        self._cleanup_real()
-
     def get_local_address(self):
         return self.local_address
 
@@ -324,8 +320,4 @@ class DummyDataplaneDriver(DataplaneDriver):
 
     @log_decorator.log_info
     def reset_state(self):
-        pass
-
-    @log_decorator.log_info
-    def _cleanup_real(self):
         pass

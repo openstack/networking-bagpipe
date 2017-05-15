@@ -1200,9 +1200,6 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
                                   run_as_root=True,
                                   acceptable_return_codes=[0, 1])
 
-    def _cleanup_real(self):
-        self.log.warning("not implemented yet!")
-
     def find_ovs_port(self, dev_name):
         """Find OVS port number from port name"""
 
