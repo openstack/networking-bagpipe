@@ -18,7 +18,7 @@
 import abc
 import traceback
 
-from distutils import version
+from distutils import version  # pylint: disable=no-name-in-module
 from oslo_config import cfg
 from oslo_log import log as logging
 import six
@@ -100,7 +100,7 @@ class DataplaneDriver(lg.LookingGlassLocalLogger):
 
     type = None
 
-    dataplane_instance_class = None
+    dataplane_instance_class = object  # has to be overridden by subclasses
     encaps = [exa.Encapsulation(exa.Encapsulation.Type.DEFAULT),
               exa.Encapsulation(exa.Encapsulation.Type.MPLS)]
     makebefore4break_support = False

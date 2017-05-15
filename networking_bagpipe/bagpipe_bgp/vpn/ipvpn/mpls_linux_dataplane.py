@@ -31,7 +31,7 @@ from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 
 
-ipr = pyroute2.IPRoute()
+ipr = pyroute2.IPRoute()  # pylint: disable=no-member
 
 VRF_INTERFACE_PREFIX = "bvrf-"
 
@@ -369,7 +369,7 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver,
         dp_drivers.DataplaneDriver.__init__(self, config)
 
         self.config = config
-        self.ip = pyroute2.IPDB()
+        self.ip = pyroute2.IPDB()  # pylint: disable=no-member
 
     @log_decorator.log_info
     def initialize(self):

@@ -19,7 +19,7 @@ import socket
 
 from oslo_config import cfg
 from oslo_config import types
-from pyroute2 import IPDB
+from pyroute2 import IPDB  # pylint: disable=no-name-in-module
 
 
 class InterfaceAddress(types.ConfigType):
@@ -34,6 +34,7 @@ class InterfaceAddress(types.ConfigType):
 
     def __init__(self, type_name="interface address value", version=4):
         super(InterfaceAddress, self).__init__(type_name=type_name)
+        self.version = version
         self.family = self.FAMILY_MAP[version]
         self.ip_address = types.IPAddress(version)
 

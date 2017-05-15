@@ -399,12 +399,14 @@ class LookingGlassLocalLogger(LookingGlassMixin):
             self.lg_log_handler
         except AttributeError:
             self.lg_log_handler = LookingGlassLogHandler()
-            name = self.__module__  # + "." + self.__class__.__name__
+            name = self.__module__
             if append_to_name:
                 name += "." + append_to_name
             elif hasattr(self, 'instance_id'):
+                # pylint: disable=no-member
                 name += ".%d" % self.instance_id
             elif hasattr(self, 'name'):
+                # pylint: disable=no-member
                 name += ".%s" % re.sub("[. ]", "-", self.name).lower()
             self.log = logging.getLogger(name)
             self.log.logger.addHandler(self.lg_log_handler)

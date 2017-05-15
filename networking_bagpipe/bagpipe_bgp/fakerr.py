@@ -36,6 +36,8 @@ from twisted.internet import protocol
 from twisted.internet import reactor
 from twisted.protocols import basic
 
+# pylint: disable=no-member
+
 
 class FakeRR(basic.LineReceiver):
 

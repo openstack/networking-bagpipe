@@ -17,7 +17,7 @@
 
 import re
 
-from distutils import version
+from distutils import version  # pylint: disable=no-name-in-module
 import netaddr
 from oslo_config import cfg
 
