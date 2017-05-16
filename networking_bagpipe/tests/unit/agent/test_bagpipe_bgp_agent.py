@@ -1769,6 +1769,8 @@ class TestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
 
             tun_delete_flows.assert_has_calls([
                 mock.call(table=mock.ANY,
+                          priority=2,
+                          strict=True,
                           proto='arp',
                           arp_op=0x01,
                           arp_tpa='10.0.0.1',
