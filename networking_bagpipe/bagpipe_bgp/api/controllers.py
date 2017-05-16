@@ -153,6 +153,7 @@ class AttachController(VPNManagerController):
                 attach_params.get('attract_traffic'),
                 attach_params.get('lb_consistent_hash_order', 0),
                 attach_params.get('fallback'),
+                attach_params.get('vni', 0),
             )
         except exc.APIException as e:
             LOG.warning('attach_localport: API parameter error: %s', e)
