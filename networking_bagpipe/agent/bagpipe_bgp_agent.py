@@ -779,9 +779,13 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 self._unhide_real_gw_arp(vlan, net_info.gateway_info.mac)
 
     def _compile_bagpipe_l2_attach_info(self, service_info, port_info):
-        attach_info = {}
+        attach_info = {
+            EVPN: {
+                RT_IMPORT: [service_info[EVPN][RT_IMPORT]],
+                RT_EXPORT: [service_info[EVPN][RT_EXPORT]]
+            }
+        }
 
-        attach_info[EVPN] = service_info[EVPN]
         attach_info[EVPN].update(dict(
             linuxbr=LinuxBridgeManager.get_bridge_name(port_info.network.id)))
 

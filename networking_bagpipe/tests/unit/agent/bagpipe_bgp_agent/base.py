@@ -76,11 +76,11 @@ LOCAL_VLAN_MAP = {
     NETWORK2['id']: 52
 }
 
-BAGPIPE_L2_RT1 = {'import_rt': ['BAGPIPE_L2:1'],
-                  'export_rt': ['BAGPIPE_L2:1']}
+BAGPIPE_L2_RT1 = {'import_rt': 'BAGPIPE_L2:1',
+                  'export_rt': 'BAGPIPE_L2:1'}
 
-BAGPIPE_L2_RT2 = {'import_rt': ['BAGPIPE_L2:2'],
-                  'export_rt': ['BAGPIPE_L2:2']}
+BAGPIPE_L2_RT2 = {'import_rt': 'BAGPIPE_L2:2',
+                  'export_rt': 'BAGPIPE_L2:2'}
 
 BGPVPN_L2_RT10 = {'import_rt': ['BGPVPN_L2:10'],
                   'export_rt': ['BGPVPN_L2:10']}
@@ -154,17 +154,20 @@ class BaseTestBaGPipeBGPAgent(object):
     def _get_expected_local_port(self, network_id, port_id, vif_name):
         raise NotImplementedError
 
+    def _format_as_list(self, value):
+        return value if isinstance(value, list) else [value]
+
     def _get_expected_route_target(self, vpn_type, port, others_rts):
         import_rt = RTList()
         export_rt = RTList()
 
         if vpn_type in port:
-            import_rt += port[vpn_type]['import_rt']
-            export_rt += port[vpn_type]['export_rt']
+            import_rt += self._format_as_list(port[vpn_type]['import_rt'])
+            export_rt += self._format_as_list(port[vpn_type]['export_rt'])
 
         if others_rts:
-            import_rt += others_rts.get('import_rt')
-            export_rt += others_rts.get('export_rt')
+            import_rt += self._format_as_list(others_rts.get('import_rt'))
+            export_rt += self._format_as_list(others_rts.get('export_rt'))
 
         return import_rt, export_rt
 
