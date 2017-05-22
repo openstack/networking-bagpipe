@@ -110,14 +110,10 @@ TRANSLATE_EXABGP_STATE = {exa_fsm.FSM.IDLE: bgp_peer_worker.FSM.Idle,
 
 class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
 
-    enabled_families = [(exa.AFI(exa.AFI.ipv4),
-                         exa.SAFI(exa.SAFI.mpls_vpn)),
-                        # (exa.AFI(exa.exa.AFI.ipv6),
-                        #  exa.SAFI(exa.SAFI.mpls_vpn)),
-                        (exa.AFI(exa.AFI.l2vpn),
-                         exa.SAFI(exa.SAFI.evpn)),
-                        (exa.AFI(exa.AFI.ipv4),
-                         exa.SAFI(exa.SAFI.flow_vpn))]
+    enabled_families = [(exa.AFI.ipv4, exa.SAFI.mpls_vpn),
+                        # (exa.exa.AFI.ipv6, exa.SAFI.mpls_vpn),
+                        (exa.AFI.l2vpn, exa.SAFI.evpn),
+                        (exa.AFI.ipv4, exa.SAFI.flow_vpn)]
 
     def __init__(self, bgp_manager, peer_address):
         bgp_peer_worker.BGPPeerWorker.__init__(self, bgp_manager, peer_address)
@@ -139,8 +135,8 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
 
         if self.peer is not None:
             self.log.info("Clearing peer")
-            if self.peer._outgoing.proto:
-                self.peer._outgoing.proto.close()
+            if self.peer.proto:
+                self.peer.proto.close()
             self.peer.stop()
             self.peer = None
 
@@ -151,7 +147,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             self.log.debug("RTC active, subscribing to all RTC routes")
             # subscribe to RTC routes, to be able to propagate them from
             # internal workers to this peer
-            self._subscribe(exa.AFI(exa.AFI.ipv4), exa.SAFI(exa.SAFI.rtc))
+            self._subscribe(exa.AFI.ipv4, exa.SAFI.rtc)
         else:
             self.log.debug("RTC inactive, subscribing to all active families")
             # if we don't use RTC with our peer, then we need to see events for
@@ -186,16 +182,16 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             neighbor.add_family(afi_safi)
 
         if cfg.CONF.BGP.enable_rtc:
-            neighbor.add_family((exa.AFI(exa.AFI.ipv4),
-                                 exa.SAFI(exa.SAFI.rtc)))
+            # how to test fot this ?
+            neighbor.add_family((exa.AFI.ipv4, exa.SAFI.rtc))
 
         self.log.debug("Instantiate ExaBGP Peer")
         self.peer = exa_peer.Peer(neighbor, None)
 
         try:
-            for action in self.peer._connect():
+            for action in self.peer._establish():
                 self.fsm.state = TRANSLATE_EXABGP_STATE[
-                    self.peer._outgoing.fsm.state]
+                    self.peer.fsm.state]
 
                 if action == exa_peer.ACTION.LATER:
                     time.sleep(2)
@@ -227,7 +223,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
 
         # check the capabilities of the session just established...
 
-        self.protocol = self.peer._outgoing.proto
+        self.protocol = self.peer.proto
 
         received_open = self.protocol.negotiated.received_open
 
@@ -240,10 +236,9 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
         # capabilities
         self._active_families = []
         for (afi, safi) in (self.__class__.enabled_families +
-                            [(exa.AFI(exa.AFI.ipv4), exa.SAFI(exa.SAFI.rtc))]):
+                            [(exa.AFI.ipv4, exa.SAFI.rtc)]):
             if (afi, safi) not in mp_capabilities:
-                if (((afi, safi) != (exa.AFI(exa.AFI.ipv4),
-                                     exa.SAFI(exa.SAFI.rtc))) or
+                if (((afi, safi) != (exa.AFI.ipv4, exa.SAFI.rtc)) or
                         cfg.CONF.BGP.enable_rtc):
                     self.log.warning("Peer does not advertise (%s,%s) "
                                      "capability", afi, safi)
@@ -259,8 +254,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
         self.rtc_active = False
 
         if cfg.CONF.BGP.enable_rtc:
-            if (exa.AFI(exa.AFI.ipv4),
-                    exa.SAFI(exa.SAFI.rtc)) in mp_capabilities:
+            if (exa.AFI.ipv4, exa.SAFI.rtc) in mp_capabilities:
                 self.log.info(
                     "RTC successfully enabled with peer %s", self.peer_address)
                 self.rtc_active = True
@@ -333,8 +327,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             raise Exception("unsupported action ??? (%s)" % action)
 
         # TODO(tmmorin): move RTC code out-of the peer-specific code
-        if (nlri.afi, nlri.safi) == (exa.AFI(exa.AFI.ipv4),
-                                     exa.SAFI(exa.SAFI.rtc)):
+        if (nlri.afi, nlri.safi) == (exa.AFI.ipv4, exa.SAFI.rtc):
             self.log.info("Received an RTC route")
 
             if nlri.rt is None:
@@ -344,8 +337,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             # if our peer subscribed to a Route Target, it means that we needs
             # to send him all routes of any AFI/SAFI carrying this RouteTarget.
             for (afi, safi) in self._active_families:
-                if (afi, safi) != (exa.AFI(exa.AFI.ipv4),
-                                   exa.SAFI(exa.SAFI.rtc)):
+                if (afi, safi) != (exa.AFI.ipv4, exa.SAFI.rtc):
                     if action == exa_message.IN.ANNOUNCED:
                         self._subscribe(afi, safi, nlri.rt)
                     elif action == exa_message.IN.WITHDRAWN:

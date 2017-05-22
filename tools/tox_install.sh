@@ -61,8 +61,8 @@ shift
 install_project neutron
 install_project networking-bgpvpn
 
-# install exabgp master
-pip install exabgp
+# install exabgp
+pip install exabgp==4.0.1
 
 # install the rest of dependencies
 $install_cmd -U $*

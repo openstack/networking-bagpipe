@@ -99,8 +99,8 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
     '''
 
     type = constants.EVPN
-    afi = exa.AFI(exa.AFI.l2vpn)
-    safi = exa.SAFI(exa.SAFI.evpn)
+    afi = exa.AFI.l2vpn
+    safi = exa.SAFI.evpn
 
     @log_decorator.log
     def __init__(self, *args, **kwargs):

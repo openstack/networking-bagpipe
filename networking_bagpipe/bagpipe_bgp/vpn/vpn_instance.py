@@ -275,8 +275,6 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         self.afi = self.__class__.afi
         self.safi = self.__class__.safi
-        assert isinstance(self.afi, exa.AFI)
-        assert isinstance(self.safi, exa.SAFI)
 
         self.dp_driver = dataplane_driver
 
@@ -316,7 +314,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
             self._subscribe(self.afi, self.safi, rt)
             # Subscribe to FlowSpec routes
             # FIXME(tmorin): this maybe isn't applicable yet to E-VPN yet
-            self._subscribe(self.afi, exa.SAFI(exa.SAFI.flow_vpn), rt)
+            self._subscribe(self.afi, exa.SAFI.flow_vpn, rt)
 
         if readvertise:
             self.readvertise = True
@@ -402,12 +400,12 @@ class VPNInstance(tracker_worker.TrackerWorker,
         # Register to BGP with these route targets
         for rt in added_import_rt:
             self._subscribe(self.afi, self.safi, rt)
-            self._subscribe(self.afi, exa.SAFI(exa.SAFI.flow_vpn), rt)
+            self._subscribe(self.afi, exa.SAFI.flow_vpn, rt)
 
         # Unregister from BGP with these route targets
         for rt in removed_import_rt:
             self._unsubscribe(self.afi, self.safi, rt)
-            self._unsubscribe(self.afi, exa.SAFI(exa.SAFI.flow_vpn), rt)
+            self._unsubscribe(self.afi, exa.SAFI.flow_vpn, rt)
 
         # Update import and export route targets
         self.import_rts = new_import_rts

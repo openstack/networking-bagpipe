@@ -43,8 +43,6 @@ if six.PY3:
 class Match(object):
 
     def __init__(self, afi, safi, route_target):
-        assert isinstance(afi, exa.AFI)
-        assert isinstance(safi, exa.SAFI)
         assert route_target is None or isinstance(route_target,
                                                   exa.RouteTarget)
         self.afi = afi
@@ -66,12 +64,12 @@ class Match(object):
     def __cmp__(self, other):
         assert isinstance(other, Match)
 
-        self_afi = self.afi or exa.AFI(0)
-        self_safi = self.safi or exa.SAFI(0)
+        self_afi = self.afi or engine.Subscription.ANY_AFI
+        self_safi = self.safi or engine.Subscription.ANY_SAFI
         self_rt = self.route_target or exa.RouteTarget(0, 0)
 
-        other_afi = other.afi or exa.AFI(0)
-        other_safi = other.safi or exa.SAFI(0)
+        other_afi = other.afi or engine.Subscription.ANY_AFI
+        other_safi = other.safi or engine.Subscription.ANY_SAFI
         other_rt = other.route_target or exa.RouteTarget(0, 0)
 
         val = cmp((self_afi, self_safi, str(self_rt)),
@@ -561,18 +559,13 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
     def get_lg_routes(self, path_prefix):
         result = {}
 
-        match_IPVPN = Match(
-            exa.AFI(exa.AFI.ipv4),
-            exa.SAFI(exa.SAFI.mpls_vpn),
-            engine.Subscription.ANY_RT)
-        match_EVPN = Match(
-            exa.AFI(exa.AFI.l2vpn),
-            exa.SAFI(exa.SAFI.evpn),
-            engine.Subscription.ANY_RT)
-        match_RTC = Match(exa.AFI(exa.AFI.ipv4), exa.SAFI(exa.SAFI.rtc),
+        match_IPVPN = Match(exa.AFI.ipv4, exa.SAFI.mpls_vpn,
+                            engine.Subscription.ANY_RT)
+        match_EVPN = Match(exa.AFI.l2vpn, exa.SAFI.evpn,
+                           engine.Subscription.ANY_RT)
+        match_RTC = Match(exa.AFI.ipv4, exa.SAFI.rtc,
                           engine.Subscription.ANY_RT)
-        match_FlowSpecVPN = Match(exa.AFI(exa.AFI.ipv4),
-                                  exa.SAFI(exa.SAFI.flow_vpn),
+        match_FlowSpecVPN = Match(exa.AFI.ipv4, exa.SAFI.flow_vpn,
                                   engine.Subscription.ANY_RT)
         for match in [match_IPVPN, match_EVPN, match_RTC, match_FlowSpecVPN]:
             match_result = []
@@ -593,8 +586,7 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
 
     def get_all_routes_but_rtc(self):
         return [re for re in self._match_2_workers_entries[MATCH_ANY].entries
-                if not (re.afi == exa.AFI(exa.AFI.ipv4) and
-                        re.safi == exa.SAFI(exa.SAFI.rtc))
+                if (re.afi, re.safi) != (exa.AFI.ipv4, exa.SAFI.rtc)
                 ]
 
     def get_local_routes_count(self):
