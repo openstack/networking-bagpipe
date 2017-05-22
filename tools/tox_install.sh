@@ -62,7 +62,7 @@ install_project neutron
 install_project networking-bgpvpn
 
 # install exabgp master
-pip install -egit+https://github.com/Exa-Networks/exabgp.git#egg=exabgp
+pip install exabgp
 
 # install the rest of dependencies
 $install_cmd -U $*
