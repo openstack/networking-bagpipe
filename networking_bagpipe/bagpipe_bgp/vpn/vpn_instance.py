@@ -579,7 +579,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
     def validate_convert_attach_params(cls, params):
         cls.validate_convert_params(
             params,
-            also_mandatory=('import_rt', 'export_rt', 'gateway_ip')
+            also_mandatory=('import_rt', 'export_rt')
             )
 
         params['advertise_subnet'] = params.get('advertise_subnet', False)

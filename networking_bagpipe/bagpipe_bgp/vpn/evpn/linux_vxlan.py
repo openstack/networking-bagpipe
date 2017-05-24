@@ -151,8 +151,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                               run_as_root=True,
                               acceptable_return_codes=[0, 1])
 
-    def set_gateway_port(self, linuxif):
-        gw_ip = self.gateway_ip
+    def set_gateway_port(self, linuxif, gw_ip):
         gw_mac = "01:00:00:00:00:00"  # FIXME
 
         self._run_command("brctl addif %s %s" %

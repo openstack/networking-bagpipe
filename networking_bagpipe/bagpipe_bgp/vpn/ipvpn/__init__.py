@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp.common import utils
@@ -46,6 +47,12 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
     def __init__(self, *args, **kwargs):
         vpn_instance.VPNInstance.__init__(self, *args, **kwargs)
         self.readvertised = set()
+
+    @classmethod
+    def validate_convert_attach_params(cls, params):
+        super(VRF, cls).validate_convert_attach_params(params)
+        if 'gateway_ip' not in params:
+            raise exc.APIMissingParameterException('gateway_ip')
 
     def _nlri_from(self, prefix, label, rd):
         assert rd is not None

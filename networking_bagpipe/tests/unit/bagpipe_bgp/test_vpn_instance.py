@@ -139,7 +139,6 @@ API_PARAMS = {
     'vpn_instance_id': 'testinstance',
     'mac_address': 'de:ad:00:00:be:ef',
     'ip_address': '192.168.0.1/24',
-    'gateway_ip': '192.168.0.252',
     'import_rt': ['64512:47'],
     'export_rt': ['64512:47'],
     'local_port': 'tap42'
@@ -148,8 +147,10 @@ API_PARAMS = {
 
 class TestVPNInstanceAPIChecks(TestCase):
 
-    def _test_validate_convert_missing(self, method, missing_param):
-        params = copy.copy(API_PARAMS)
+    def _test_validate_convert_missing(self, method, missing_param,
+                                       params=None):
+        if params is None:
+            params = copy.copy(API_PARAMS)
         params.pop(missing_param)
         self.assertRaises(exc.APIMissingParameterException, method, params)
 
@@ -161,7 +162,6 @@ class TestVPNInstanceAPIChecks(TestCase):
         self._test_validate_convert_missing(method, 'local_port')
         self._test_validate_convert_missing(method, 'import_rt')
         self._test_validate_convert_missing(method, 'export_rt')
-        self._test_validate_convert_missing(method, 'gateway_ip')
 
     def test_validate_convert_detach(self):
         method = vpn_instance.VPNInstance.validate_convert_detach_params
@@ -177,6 +177,16 @@ class TestVPNInstanceAPIChecks(TestCase):
         self.assertIn('import_rts', params)
         self.assertIn('export_rts', params)
         self.assertIn('localport', params)
+
+    def test_check_vrf_gateway_ip(self):
+        params = copy.copy(API_PARAMS)
+        params['vpn_type'] = 'IPVPN'
+        params['gateway_ip'] = '1.1.1.1'
+        ipvpn.VRF.validate_convert_attach_params(params)
+        self._test_validate_convert_missing(
+            ipvpn.VRF.validate_convert_attach_params,
+            'gateway_ip',
+            params)
 
 
 class TestInitVPNInstance(TestCase):

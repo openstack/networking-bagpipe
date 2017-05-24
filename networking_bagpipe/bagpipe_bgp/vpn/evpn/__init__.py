@@ -41,7 +41,7 @@ class VPNInstanceDataplane(dp_drivers.VPNInstanceDataplane):
         pass
 
     @abc.abstractmethod
-    def set_gateway_port(self, linuxif):
+    def set_gateway_port(self, linuxif, gateway_ip):
         '''Set the IP gateway port
 
         Used to determine a port to which traffic at the destination of the
@@ -73,7 +73,7 @@ class DummyVPNInstanceDataplane(dp_drivers.DummyVPNInstanceDataplane,
         pass
 
     @log_decorator.log_info
-    def set_gateway_port(self, linuxif):
+    def set_gateway_port(self, linuxif, gateway_ip):
         pass
 
     @log_decorator.log_info
@@ -149,7 +149,7 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     @log_decorator.log
     def set_gateway_port(self, linuxif, ipvpn):
-        self.dataplane.set_gateway_port(linuxif)
+        self.dataplane.set_gateway_port(linuxif, ipvpn.gateway_ip)
         self.gw_port = (linuxif, ipvpn)
 
     @log_decorator.log
