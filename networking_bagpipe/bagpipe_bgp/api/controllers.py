@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import logging as python_logging
-import re
 import time
 import traceback
 import uuid
@@ -26,7 +25,6 @@ from oslo_log import log as logging
 import pbr.version
 import pecan
 from pecan import request
-import six
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -74,46 +72,6 @@ class VPNManagerController(object):
         vpn_manager.VPNManager.get_instance().stop()
 
 
-def check_attach_parameters(params, attach):
-    LOG.debug("checking params: %s", params)
-    paramList = ('vpn_instance_id', 'mac_address', 'ip_address',
-                 'local_port')
-    if attach:
-        paramList += ('vpn_type', 'import_rt', 'export_rt', 'gateway_ip')
-
-    for paramName in paramList:
-        if paramName not in params:
-            LOG.warning("Mandatory parameter '%s' is missing", paramName)
-            pecan.abort(400,
-                        "Mandatory parameter '%s' is missing" % paramName)
-
-    # if local_port is not a dict, then assume it designates a linux
-    # interface
-    if (isinstance(params['local_port'], six.string_types) or
-            isinstance(params['local_port'], six.text_type)):
-        params['local_port'] = {'linuxif': params['local_port']}
-
-    # if import_rt or export_rt are strings, convert them into lists
-    for param in ('import_rt', 'export_rt'):
-        if (isinstance(params[param], six.string_types) or
-                isinstance(params[param], six.text_type)):
-            try:
-                params[param] = re.split(',+ *', params[param])
-            except Exception:
-                pecan.abort(400, "Unable to parse string into a list: '%s'" %
-                            params[param])
-
-    if not ('linuxif' in params['local_port'] or
-            'evpn' in params['local_port']):
-        pecan.abort(400, "Mandatory key is missing in local_port parameter"
-                    "(linuxif, or evpn)")
-
-    if not isinstance(params.get('advertise_subnet', False), bool):
-        pecan.abort(400, "'advertise_subnet' must be a boolean")
-
-    return params
-
-
 class AttachController(VPNManagerController):
 
     @expose(generic=True)
@@ -133,31 +91,13 @@ class AttachController(VPNManagerController):
             LOG.error('attach_localport: No local port details received')
             pecan.abort(400, 'No local port details received')
 
-        attach_params = check_attach_parameters(attach_params, True)
-
         try:
             LOG.debug('Local port attach received: %s', attach_params)
 
-            self.manager.plug_vif_to_vpn(
-                attach_params['vpn_instance_id'],
-                attach_params['vpn_type'],
-                attach_params['import_rt'],
-                attach_params['export_rt'],
-                attach_params['mac_address'],
-                attach_params['ip_address'],
-                attach_params['gateway_ip'],
-                attach_params['local_port'],
-                attach_params.get('linuxbr'),
-                attach_params.get('advertise_subnet', False),
-                attach_params.get('readvertise'),
-                attach_params.get('attract_traffic'),
-                attach_params.get('lb_consistent_hash_order', 0),
-                attach_params.get('fallback'),
-                attach_params.get('vni', 0),
-            )
+            self.manager.plug_vif_to_vpn(**attach_params)
         except exc.APIException as e:
-            LOG.warning('attach_localport: API parameter error: %s', e)
-            pecan.abort(400, "API parameter error: %s" % e)
+            LOG.warning('attach_localport: API error: %s', e)
+            pecan.abort(400, "API error: %s" % e)
         except Exception as e:
             LOG.error('attach_localport: An error occurred during local port'
                       ' plug to VPN: %s', e)
@@ -184,20 +124,12 @@ class DetachController(VPNManagerController):
             LOG.error('detach_localport: No local port details received')
             pecan.abort(400, 'No local port details received')
 
-        detach_params = check_attach_parameters(detach_params, attach=False)
-
         try:
             LOG.debug('Local port detach received: %s', detach_params)
-            self.manager.unplug_vif_from_vpn(
-                detach_params['vpn_instance_id'],
-                detach_params['mac_address'],
-                detach_params['ip_address'],
-                detach_params['local_port'],
-                detach_params.get('advertise_subnet', False)
-            )
+            self.manager.unplug_vif_from_vpn(**detach_params)
         except exc.APIException as e:
-            LOG.warning('detach_localport: API parameter error: %s', e)
-            pecan.abort(400, "API parameter error: %s" % e)
+            LOG.warning('detach_localport: API error: %s', e)
+            pecan.abort(400, "API error: %s" % e)
         except Exception as e:
             LOG.error('detach_localport: An error occurred during local port'
                       ' unplug from VPN: %s', e)

@@ -15,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
 import threading
 
 from oslo_log import log as logging
@@ -98,14 +97,6 @@ class VPNManager(lg.LookingGlassMixin):
         self._evpn_ipvpn_ifs = {}
 
         self.lock = threading.Lock()
-
-    def _format_ip_address_prefix(self, ip_address):
-        if re.match(r'([12]?\d?\d\.){3}[12]?\d?\d\/[123]?\d', ip_address):
-            return ip_address
-        elif re.match(r'([12]?\d?\d\.){3}[12]?\d?\d', ip_address):
-            return ip_address + "/32"
-        else:
-            raise exc.MalformedIPAddress
 
     def _run_command(self, *args, **kwargs):
         run_command.run_command(LOG, *args, run_as_root=True, **kwargs)
@@ -243,17 +234,6 @@ class VPNManager(lg.LookingGlassMixin):
         # else create one with provided parameters and start it
         #   (unless create_if_none is False --> raise exc.VPNNotFound)
 
-        if instance_type not in VPNManager.type2class:
-            LOG.error("Unsupported instance_type for VPNInstance: %s",
-                      instance_type)
-            raise Exception("Unsupported vpn_instance type: %s" %
-                            instance_type)
-
-        if instance_type not in self.dataplane_drivers:
-            LOG.error("No dataplane driver for VPN type %s", instance_type)
-            raise Exception("No dataplane driver for VPN type %s" %
-                            instance_type)
-
         LOG.info("Finding %s for external vpn_instance identifier %s",
                  instance_type, external_instance_id)
 
@@ -294,20 +274,44 @@ class VPNManager(lg.LookingGlassMixin):
     def remove_from_vpn_instances(self, external_instance_id):
         del self.vpn_instances[external_instance_id]
 
-    @log_decorator.log_info
-    def plug_vif_to_vpn(self, external_instance_id, instance_type,
-                        import_rts, export_rts,
-                        mac_address, ip_address, gateway_ip,
-                        localport, linuxbr,
-                        advertise_subnet, readvertise,
-                        attract_traffic, lb_consistent_hash_order, fallback,
-                        vni=None):
+    def _check_instance_type(self, params):
+        if 'vpn_type' not in params:
+            raise exc.APIException("missing instance_type")
 
-        # Verify and format IP address with prefix if necessary
-        try:
-            ip_address_prefix = self._format_ip_address_prefix(ip_address)
-        except exc.MalformedIPAddress:
-            raise
+        instance_type = params['vpn_type']
+        if instance_type not in self.type2class:
+            raise exc.APIException("unknown vpn_type: %s" % instance_type)
+
+        if instance_type not in self.dataplane_drivers:
+            LOG.error("No dataplane driver for VPN type %s", instance_type)
+            raise exc.APIException("No dataplane driver for VPN type %s" %
+                                   instance_type)
+
+        return instance_type
+
+    @log_decorator.log_info
+    def plug_vif_to_vpn(self, **params):
+
+        instance_type = self._check_instance_type(params)
+
+        vpn_instance_class = VPNManager.type2class[instance_type]
+        vpn_instance_class.validate_convert_attach_params(params)
+
+        external_instance_id = params.get('external_instance_id')
+        import_rts = params.get('import_rts')
+        export_rts = params.get('export_rts')
+        mac_address = params.get('mac_address')
+        gateway_ip = params.get('gateway_ip')
+        localport = params.get('localport')
+        linuxbr = params.get('linuxbr')
+        advertise_subnet = params.get('advertise_subnet')
+        readvertise = params.get('readvertise')
+        attract_traffic = params.get('attract_traffic')
+        lb_consistent_hash_order = params.get('lb_consistent_hash_order')
+        fallback = params.get('fallback')
+        vni = params.get('vni')
+
+        ip_address_prefix = params.get('ip_address_prefix')
 
         # Convert route target string to RouteTarget dictionary
         import_rts = convert_route_targets(import_rts)
@@ -358,15 +362,19 @@ class VPNManager(lg.LookingGlassMixin):
                                  advertise_subnet, lb_consistent_hash_order)
 
     @log_decorator.log_info
-    def unplug_vif_from_vpn(self, external_instance_id,
-                            mac_address, ip_address,
-                            localport, readvertise):
+    def unplug_vif_from_vpn(self, **params):
 
-        # Verify and format IP address with prefix if necessary
-        try:
-            ip_address_prefix = self._format_ip_address_prefix(ip_address)
-        except exc.MalformedIPAddress:
-            raise
+        instance_type = self._check_instance_type(params)
+
+        vpn_instance_class = VPNManager.type2class[instance_type]
+        vpn_instance_class.validate_convert_detach_params(params)
+
+        external_instance_id = params.get('external_instance_id')
+        mac_address = params.get('mac_address')
+        localport = params.get('localport')
+        readvertise = params.get('readvertise')
+
+        ip_address_prefix = params.get('ip_address_prefix')
 
         # Retrieve VPN instance or raise exception if does not exist
         try:

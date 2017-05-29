@@ -38,6 +38,8 @@
 
 """
 
+import copy
+
 from mock import Mock
 from testtools import TestCase
 
@@ -132,6 +134,51 @@ class TestableVPNInstance(vpn_instance.VPNInstance):
         pass
 
 
+API_PARAMS = {
+    'vpn_type': 'EVPN',
+    'vpn_instance_id': 'testinstance',
+    'mac_address': 'de:ad:00:00:be:ef',
+    'ip_address': '192.168.0.1/24',
+    'gateway_ip': '192.168.0.252',
+    'import_rt': ['64512:47'],
+    'export_rt': ['64512:47'],
+    'local_port': 'tap42'
+}
+
+
+class TestVPNInstanceAPIChecks(TestCase):
+
+    def _test_validate_convert_missing(self, method, missing_param):
+        params = copy.copy(API_PARAMS)
+        params.pop(missing_param)
+        self.assertRaises(exc.APIMissingParameterException, method, params)
+
+    def test_validate_convert_attach(self):
+        method = vpn_instance.VPNInstance.validate_convert_attach_params
+        self._test_validate_convert_missing(method, 'vpn_instance_id')
+        self._test_validate_convert_missing(method, 'mac_address')
+        self._test_validate_convert_missing(method, 'ip_address')
+        self._test_validate_convert_missing(method, 'local_port')
+        self._test_validate_convert_missing(method, 'import_rt')
+        self._test_validate_convert_missing(method, 'export_rt')
+        self._test_validate_convert_missing(method, 'gateway_ip')
+
+    def test_validate_convert_detach(self):
+        method = vpn_instance.VPNInstance.validate_convert_detach_params
+        self._test_validate_convert_missing(method, 'vpn_instance_id')
+        self._test_validate_convert_missing(method, 'mac_address')
+        self._test_validate_convert_missing(method, 'ip_address')
+        self._test_validate_convert_missing(method, 'local_port')
+
+    def test_api_internal_translation(self):
+        params = copy.copy(API_PARAMS)
+        vpn_instance.VPNInstance.validate_convert_attach_params(params)
+        self.assertIn('external_instance_id', params)
+        self.assertIn('import_rts', params)
+        self.assertIn('export_rts', params)
+        self.assertIn('localport', params)
+
+
 class TestInitVPNInstance(TestCase):
 
     def setUp(self):
@@ -140,9 +187,6 @@ class TestInitVPNInstance(TestCase):
         self.mock_manager.label_allocator.release = Mock()
         self.mock_dp_driver = Mock()
         self.mock_dp_driver.initialize_dataplane_instance = Mock()
-
-    def tearDown(self):
-        super(TestInitVPNInstance, self).tearDown()
 
     def test_init_stop_VPNInstance_with_forced_vni(self):
         # Initialize a VPNInstance with a forced VNID > 0

@@ -18,6 +18,7 @@
 import abc
 import collections
 import copy
+import re
 import socket
 import threading
 
@@ -517,6 +518,81 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         self.log.debug("Synthesized redirect route entry: %s", route_entry)
         return route_entry
+
+    @classmethod
+    def validate_convert_params(cls, params, also_mandatory=()):
+
+        for param in ('vpn_instance_id', 'mac_address', 'ip_address',
+                      'local_port') + also_mandatory:
+            if param not in params:
+                raise exc.APIMissingParameterException(param)
+
+        # if local_port is not a dict, then assume it designates a linux
+        # interface
+        if (isinstance(params['local_port'], six.string_types) or
+                isinstance(params['local_port'], six.text_type)):
+            params['local_port'] = {'linuxif': params['local_port']}
+
+        # if import_rt or export_rt are strings, convert them into lists
+        for param in ('import_rt', 'export_rt'):
+            if (isinstance(params[param], six.string_types) or
+                    isinstance(params[param], six.text_type)):
+                try:
+                    params[param] = re.split(',+ *', params[param])
+                except Exception:
+                    raise exc.APIException("Unable to parse RT string into "
+                                           " a list: '%s'" % params[param])
+
+        if not ('linuxif' in params['local_port'] or
+                'evpn' in params['local_port']):
+            raise exc.APIException("Mandatory key is missing in local_port "
+                                   "parameter (linuxif, or evpn)")
+
+        # Verify and format IP address with prefix if necessary
+        if re.match(r'([12]?\d?\d\.){3}[12]?\d?\d\/[123]?\d',
+                    params['ip_address']):
+            params['ip_address_prefix'] = params['ip_address']
+        elif re.match(r'([12]?\d?\d\.){3}[12]?\d?\d', params['ip_address']):
+            params['ip_address_prefix'] = params['ip_address'] + "/32"
+        else:
+            raise exc.MalformedIPAddress()
+
+        if not isinstance(params.get('advertise_subnet', False), bool):
+            raise exc.APIException("'advertise_subnet' must be a boolean")
+
+    @classmethod
+    def translate_api_internal(cls, params):
+        # some API parameters have different internal names
+        _TRANSLATE_API_TO_INTERNAL = {
+            'vpn_instance_id': 'external_instance_id',
+            'local_port': 'localport',
+            'import_rt': 'import_rts',  # API name is singular, hence wrong...
+            'export_rt': 'export_rts',  # API name is singular, hence wrong...
+        }
+
+        for param in params.keys():
+            internal = _TRANSLATE_API_TO_INTERNAL.get(param)
+            if internal:
+                params[internal] = params.pop(param)
+
+    @classmethod
+    def validate_convert_attach_params(cls, params):
+        cls.validate_convert_params(
+            params,
+            also_mandatory=('import_rt', 'export_rt', 'gateway_ip')
+            )
+
+        params['advertise_subnet'] = params.get('advertise_subnet', False)
+        params['lb_consistent_hash_order'] = params.get(
+            'lb_consistent_hash_order', 0)
+        params['vni'] = params.get('vni', 0)
+
+        cls.translate_api_internal(params)
+
+    @classmethod
+    def validate_convert_detach_params(cls, params):
+        cls.validate_convert_params(params)
+        cls.translate_api_internal(params)
 
     @utils.synchronized
     @log_decorator.log_info

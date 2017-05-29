@@ -107,12 +107,16 @@ class TestVPNManager(t.TestCase):
     def test_plug_vif_to_vpn_with_forced_vni(self):
         with mock.patch.object(self.manager, "_get_vpn_instance") as mock_get_vpn_instance, \
                 mock.patch.object(manager, "convert_route_targets"):
-            self.manager.plug_vif_to_vpn(VPN_EXT_ID, consts.EVPN,
-                                         [t.RT1], [t.RT1],
-                                         MAC, IP, GW_IP,
-                                         LOCAL_PORT, BRIDGE_NAME,
-                                         None, None, None, None, None,
-                                         VNID)
+            self.manager.plug_vif_to_vpn(vpn_instance_id=VPN_EXT_ID,
+                                         vpn_type=consts.EVPN,
+                                         import_rt=[t.RT1],
+                                         export_rt=[t.RT1],
+                                         mac_address=MAC,
+                                         ip_address=IP,
+                                         gateway_ip=GW_IP,
+                                         local_port=LOCAL_PORT,
+                                         linuxbr=BRIDGE_NAME,
+                                         vni=VNID)
         mock_get_vpn_instance.assert_called_once_with(
             VPN_EXT_ID, consts.EVPN, mock.ANY, mock.ANY, GW_IP, mock.ANY,
             None, None, None, linuxbr=BRIDGE_NAME, vni=VNID)
@@ -120,11 +124,15 @@ class TestVPNManager(t.TestCase):
     def test_plug_vif_to_vpn_without_forced_vni(self):
         with mock.patch.object(self.manager, "_get_vpn_instance") as mock_get_vpn_instance, \
                 mock.patch.object(manager, "convert_route_targets"):
-            self.manager.plug_vif_to_vpn(VPN_EXT_ID, consts.EVPN,
-                                         [t.RT1], [t.RT1],
-                                         MAC, IP, GW_IP,
-                                         LOCAL_PORT, BRIDGE_NAME,
-                                         None, None, None, None, None)
+            self.manager.plug_vif_to_vpn(vpn_instance_id=VPN_EXT_ID,
+                                         vpn_type=consts.EVPN,
+                                         import_rt=[t.RT1],
+                                         export_rt=[t.RT1],
+                                         mac_address=MAC,
+                                         ip_address=IP,
+                                         gateway_ip=GW_IP,
+                                         local_port=LOCAL_PORT,
+                                         linuxbr=BRIDGE_NAME)
 
         mock_get_vpn_instance.assert_called_once_with(
             VPN_EXT_ID, consts.EVPN, mock.ANY, mock.ANY, GW_IP, mock.ANY,

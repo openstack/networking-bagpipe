@@ -16,43 +16,6 @@
 # limitations under the License.
 
 
-class VPNNotFound(Exception):
-
-    def __init__(self, vrf_id):
-        self.message = "VRF %s could not be found" % vrf_id
-
-    def __str__(self):
-        return repr(self.message)
-
-
-class MalformedIPAddress(Exception):
-
-    def __init__(self, ip_address):
-        self.message = "Address %s doesn't look valid" % ip_address
-
-    def __str__(self):
-        return repr(self.message)
-
-
-class OVSBridgeNotFound(Exception):
-
-    def __init__(self, bridge):
-        self.message = "OVS bridge '%s' doesn't exist" % bridge
-
-    def __str__(self):
-        return str(self.message)
-
-
-class OVSBridgePortNotFound(Exception):
-
-    def __init__(self, interface, bridge):
-        self.message = ("OVS Port %s doesn't exist on OVS Bridge %s" %
-                        (interface, bridge))
-
-    def __str__(self):
-        return repr(self.message)
-
-
 class RemotePEMACAddressNotFound(Exception):
 
     def __init__(self, ip_address):
@@ -65,3 +28,48 @@ class RemotePEMACAddressNotFound(Exception):
 
 class APIException(Exception):
     pass
+
+
+class VPNNotFound(APIException):
+
+    def __init__(self, vrf_id):
+        self.message = "VPN %s could not be found" % vrf_id
+
+    def __str__(self):
+        return repr(self.message)
+
+
+class MalformedIPAddress(APIException):
+
+    def __init__(self, ip_address):
+        self.message = "Address %s doesn't look valid" % ip_address
+
+    def __str__(self):
+        return repr(self.message)
+
+
+class OVSBridgeNotFound(APIException):
+
+    def __init__(self, bridge):
+        self.message = "OVS bridge '%s' doesn't exist" % bridge
+
+    def __str__(self):
+        return str(self.message)
+
+
+class OVSBridgePortNotFound(APIException):
+
+    def __init__(self, interface, bridge):
+        self.message = ("OVS Port %s doesn't exist on OVS Bridge %s" %
+                        (interface, bridge))
+
+    def __str__(self):
+        return repr(self.message)
+
+
+class APIMissingParameterException(APIException):
+    def __init__(self, parameter):
+        self.message = "Missing parameter: '%s'" % parameter
+
+    def __str__(self):
+        return self.message
