@@ -150,7 +150,7 @@ class TestVPNInstanceAPIChecks(TestCase):
     def _test_validate_convert_missing(self, method, missing_param,
                                        params=None):
         if params is None:
-            params = copy.copy(API_PARAMS)
+            params = copy.deepcopy(API_PARAMS)
         params.pop(missing_param)
         self.assertRaises(exc.APIMissingParameterException, method, params)
 
@@ -171,7 +171,7 @@ class TestVPNInstanceAPIChecks(TestCase):
         self._test_validate_convert_missing(method, 'local_port')
 
     def test_api_internal_translation(self):
-        params = copy.copy(API_PARAMS)
+        params = copy.deepcopy(API_PARAMS)
         vpn_instance.VPNInstance.validate_convert_attach_params(params)
         self.assertIn('external_instance_id', params)
         self.assertIn('import_rts', params)
@@ -179,7 +179,7 @@ class TestVPNInstanceAPIChecks(TestCase):
         self.assertIn('localport', params)
 
     def test_check_vrf_gateway_ip(self):
-        params = copy.copy(API_PARAMS)
+        params = copy.deepcopy(API_PARAMS)
         params['vpn_type'] = 'IPVPN'
         params['gateway_ip'] = '1.1.1.1'
         ipvpn.VRF.validate_convert_attach_params(params)
