@@ -44,9 +44,7 @@ class InterfaceAddress(types.ConfigType):
         except ValueError:
             # pyroute2 call to take the first address of this interface having
             # the right IP version (family)
-            # TODO(tmorin): use IPDB(plugins=("interfaces",)) is better, need
-            # to wait for next pyroute2 release
-            with IPDB() as ipdb:
+            with IPDB(plugins=("interfaces",)) as ipdb:
                 try:
                     interface = ipdb.interfaces[value]
                 except KeyError:
