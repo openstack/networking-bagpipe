@@ -63,6 +63,11 @@ from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 LOG = logging.getLogger(__name__)
 
+
+# Having this at line 231 is apparently not enough, so adding here as well:
+# pylint: disable=not-callable
+
+
 DEFAULT_GATEWAY_MAC = "00:00:5e:00:43:64"
 FALLBACK_SRC_MAC = "00:00:5e:2a:10:00"
 
@@ -222,6 +227,7 @@ class keydefaultdict(defaultdict):
         if self.default_factory is None:
             raise KeyError(key)
         else:
+            # pylint: disable=not-callable
             ret = self[key] = getattr(self, 'default_factory')(key)
             return ret
 

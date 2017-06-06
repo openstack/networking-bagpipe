@@ -555,7 +555,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         elif re.match(r'([12]?\d?\d\.){3}[12]?\d?\d', params['ip_address']):
             params['ip_address_prefix'] = params['ip_address'] + "/32"
         else:
-            raise exc.MalformedIPAddress()
+            raise exc.MalformedIPAddress(params['ip_address'])
 
         if not isinstance(params.get('advertise_subnet', False), bool):
             raise exc.APIException("'advertise_subnet' must be a boolean")

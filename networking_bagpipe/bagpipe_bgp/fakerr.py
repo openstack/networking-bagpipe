@@ -29,6 +29,11 @@ two bagpipe-bgp instances.  But it won't support more than 2 !
 
 import threading
 
+# fakerr is provided as a helper for manuals tests, but we don't want to draw
+# twisted as a dependency for the whole package so it is not installed in
+# test venvs, so we need that to keep pylint happy:
+# pylint: disable=import-error
+
 from twisted.application import internet
 from twisted.application import service
 from twisted.internet import endpoints
