@@ -17,7 +17,6 @@ import os
 
 import networking_bgpvpn
 
-from neutron.common import utils
 from neutron.tests.fullstack.resources import config as neutron_cfg
 
 BGPVPN_SERVICE = 'bgpvpn'
@@ -39,37 +38,6 @@ class NeutronConfigFixture(neutron_cfg.NeutronConfigFixture):
                 os.path.join(networking_bgpvpn.__path__[0],
                              '..', 'etc', 'neutron', 'policy.d')
             )
-
-
-class OVSConfigFixture(neutron_cfg.OVSConfigFixture):
-
-    def __init__(self, env_desc, host_desc, temp_dir, local_ip, mpls_bridge):
-        super(OVSConfigFixture, self).__init__(
-            env_desc, host_desc, temp_dir, local_ip)
-
-        agent_exts = self.config['agent'].get('extensions', '').split(',')
-        agent_exts.append('bagpipe_bgpvpn')
-
-        self.config['agent']['extensions'] = ','.join(filter(None, agent_exts))
-
-        self.config.update({
-            'bagpipe': {
-                'bagpipe_bgp_ip': local_ip,
-                'mpls_bridge': mpls_bridge,
-                'tun_to_mpls_peer_patch_port':
-                    utils.get_rand_device_name(prefix='to-mpls'),
-                'tun_from_mpls_peer_patch_port':
-                    utils.get_rand_device_name(prefix='from-mpls'),
-                'mpls_to_tun_peer_patch_port':
-                    utils.get_rand_device_name(prefix='to-tun'),
-                'mpls_from_tun_peer_patch_port':
-                    utils.get_rand_device_name(prefix='from-tun'),
-                'mpls_to_int_peer_patch_port':
-                    utils.get_rand_device_name(prefix='mpls-to-int'),
-                'int_from_mpls_peer_patch_port':
-                    utils.get_rand_device_name(prefix='int-from-mpls'),
-            }
-        })
 
 
 class BGPVPNProviderConfigFixture(neutron_cfg.ConfigFixture):

@@ -25,6 +25,67 @@ ROOTWRAP_DAEMON_CMD_DFLT = ("sudo /usr/local/bin/oslo-rootwrap-daemon "
                             "/etc/bagpipe-bgp/rootwrap.conf")
 
 
+def bagpipe_agent_config_fixture_init_common(self, env_desc, host_desc,
+                                             local_ip):
+    agent_config = self.config.get('agent')
+    if agent_config is None:
+        self.config.update({'agent': {}})
+        agent_config = self.config.get('agent')
+
+    agent_exts = agent_config.get('extensions', '').split(',')
+
+    if env_desc.bagpipe_ml2:
+        agent_exts.append('bagpipe')
+    if env_desc.bgpvpn:
+        agent_exts.append('bagpipe_bgpvpn')
+
+    agent_config.update({
+        'extensions': ','.join(filter(None, agent_exts))
+    })
+
+    self.config.update({
+        'bagpipe': {
+            'bagpipe_bgp_ip': local_ip
+        }
+    })
+
+
+class LinuxBridgeConfigFixture(neutron_cfg.LinuxBridgeConfigFixture):
+
+    def __init__(self, env_desc, host_desc, temp_dir, local_ip,
+                 physical_device_name):
+        super(LinuxBridgeConfigFixture, self).__init__(env_desc, host_desc,
+                                                       temp_dir, local_ip,
+                                                       physical_device_name)
+        bagpipe_agent_config_fixture_init_common(
+            self, env_desc, host_desc, local_ip)
+
+
+class OVSConfigFixture(neutron_cfg.OVSConfigFixture):
+
+    def __init__(self, env_desc, host_desc, temp_dir, local_ip, mpls_bridge):
+        super(OVSConfigFixture, self).__init__(env_desc, host_desc,
+                                               temp_dir, local_ip)
+        bagpipe_agent_config_fixture_init_common(
+            self, env_desc, host_desc, local_ip)
+
+        self.config.bagpipe.update({
+            'mpls_bridge': mpls_bridge,
+            'tun_to_mpls_peer_patch_port':
+                utils.get_rand_device_name(prefix='to-mpls'),
+            'tun_from_mpls_peer_patch_port':
+                utils.get_rand_device_name(prefix='from-mpls'),
+            'mpls_to_tun_peer_patch_port':
+                utils.get_rand_device_name(prefix='to-tun'),
+            'mpls_from_tun_peer_patch_port':
+                utils.get_rand_device_name(prefix='from-tun'),
+            'mpls_to_int_peer_patch_port':
+                utils.get_rand_device_name(prefix='mpls-to-int'),
+            'int_from_mpls_peer_patch_port':
+                utils.get_rand_device_name(prefix='int-from-mpls'),
+        })
+
+
 class JsonFixture(neutron_cfg.ConfigFixture):
     """A fixture that holds a JSON configuration."""
     def _setUp(self):

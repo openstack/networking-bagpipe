@@ -32,24 +32,32 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
     bagpipe_ml2 = False
     evpn_driver = None
     network_type = 'vxlan'
-    mech_drivers = 'openvswitch'
     service_plugins = 'router,%s' % bgpvpn_cfg.BGPVPN_SERVICE
 
-    l2_agent_type = constants.AGENT_TYPE_OVS
     of_interface = 'ovs-ofctl'
+    bgpvpn = True
 
     port_per_compute_per_net = 2
+    compute_node_count = 2
 
     scenarios = [
         ('OpenVSwitch MPLS-over-GRE', {
-            'bgpvpn': True,
+            'mech_drivers': 'openvswitch',
+            'l2_agent_type': constants.AGENT_TYPE_OVS,
             'ipvpn_driver': 'ovs',
             'ipvpn_encap': 'mpls-gre'
         }),
         ('OpenVSwitch bare MPLS', {
-            'bgpvpn': True,
+            'mech_drivers': 'openvswitch',
+            'l2_agent_type': constants.AGENT_TYPE_OVS,
             'ipvpn_driver': 'ovs',
             'ipvpn_encap': 'bare-mpls'
+        }),
+        ('Linuxbridge', {
+            'mech_drivers': 'linuxbridge',
+            'l2_agent_type': constants.AGENT_TYPE_LINUXBRIDGE,
+            'ipvpn_driver': 'linux',
+            'ipvpn_encap': 'bare-mpls',
         })
     ]
 

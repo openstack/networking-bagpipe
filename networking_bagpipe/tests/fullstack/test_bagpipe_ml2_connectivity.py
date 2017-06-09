@@ -36,6 +36,7 @@ class TestBaGPipeML2ConnectivitySameNetwork(base.BaGPipeBaseFullStackTestCase):
     of_interface = None
 
     compute_node_count = 5
+    port_per_compute_per_net = 2
 
     scenarios = [
         ('BaGPipe native VXLAN', {'bagpipe_ml2': True,
@@ -56,7 +57,8 @@ class TestBaGPipeML2ConnectivitySameNetwork(base.BaGPipeBaseFullStackTestCase):
                     network['id'],
                     tenant_uuid,
                     self.safe_client))
-            for i in range(self.compute_node_count)])
+            for i in
+            range(self.compute_node_count)*self.port_per_compute_per_net])
 
         vms.block_until_all_boot()
         vms.ping_all()

@@ -29,29 +29,3 @@ class ML2ConfigFixture(neutron_cfg.ML2ConfigFixture):
                     'rt_nn_ranges': '100:199'
                 }
             })
-
-
-class LinuxBridgeConfigFixture(neutron_cfg.LinuxBridgeConfigFixture):
-
-    def __init__(self, env_desc, host_desc, temp_dir, local_ip,
-                 physical_device_name):
-        super(LinuxBridgeConfigFixture, self).__init__(
-            env_desc, host_desc, temp_dir, local_ip,
-            physical_device_name)
-
-        agent_exts = list()
-        if self.config.get('agent'):
-            agent_exts = self.config['agent'].get('extensions', '').split(',')
-        agent_exts.append('bagpipe')
-
-        self.config.update({
-            'agent': {
-                'extensions': ','.join(agent_exts)
-            }
-        })
-
-        self.config.update({
-            'bagpipe': {
-                'bagpipe_bgp_ip': local_ip
-            }
-        })
