@@ -5,11 +5,29 @@ Installation
 Networking-bagpipe installation
 -------------------------------
 
-The networking-bagpipe package (including the :ref:`bagpipe-bgp` component)
-can be installed with::
+The details related to how a package should be installed may depend on your
+environment.
 
-    pip install -c http://git.openstack.org/cgit/openstack/requirements/plain/upper-constraints.txt?h=stable/<release> networking-bagpipe
+If possible, you should rely on packages provided by your Linux and/or
+Openstack distribution.
 
+If you use ``pip``, follow these steps to install networking-bagpipe:
+
+    * identify the version of the networking-bagpipe package that matches
+      your Openstack version:
+
+      * Liberty: most recent of 3.0.x
+      * Mitaka: most recent of 4.0.x
+      * Newton: most recent of 5.0.x
+      * Ocata: most recent of 6.0.x
+      * Pike: most recent of 7.0.x
+      * (see `<https://releases.openstack.org/index.html>`_)
+
+    * indicate pip to (a) install precisely this version and (b) take into
+      account Openstack upper constraints on package versions for dependencies
+      (example for ocata)::
+
+          $ pip install -c  https://git.openstack.org/cgit/openstack/requirements/plain/upper-constraints.txt?h=stable/ocata networking-bagpipe=6.0.0
 
 BaGPipe for Neutron L2
 ----------------------
