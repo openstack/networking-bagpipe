@@ -1040,6 +1040,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
             # Check if MPLS interface is attached to OVS bridge
             (output, _) = self._run_command("ovs-vsctl port-to-br %s" %
                                             self.mpls_interface,
+                                            run_as_root=True,
                                             raise_on_error=False)
             if not output or output[0] != self.bridge:
                 raise Exception("Specified mpls_interface %s is not plugged to"
