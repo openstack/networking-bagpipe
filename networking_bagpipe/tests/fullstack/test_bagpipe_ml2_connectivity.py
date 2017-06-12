@@ -35,6 +35,8 @@ class TestBaGPipeML2ConnectivitySameNetwork(base.BaGPipeBaseFullStackTestCase):
     l2_agent_type = constants.AGENT_TYPE_LINUXBRIDGE
     of_interface = None
 
+    compute_node_count = 5
+
     scenarios = [
         ('BaGPipe native VXLAN', {'bagpipe_ml2': True,
                                   'network_type': 'route_target',
@@ -54,7 +56,7 @@ class TestBaGPipeML2ConnectivitySameNetwork(base.BaGPipeBaseFullStackTestCase):
                     network['id'],
                     tenant_uuid,
                     self.safe_client))
-            for i in range(3)])
+            for i in range(self.compute_node_count)])
 
         vms.block_until_all_boot()
         vms.ping_all()

@@ -28,11 +28,14 @@ SUBNET_CIDR3 = '30.0.0.0/24'
 
 class BaGPipeBaseFullStackTestCase(base.BaseFullStackTestCase):
 
+    compute_node_count = 3
+
     def setUp(self):
         host_descriptions = [
-            neutron_env.HostDescription(
-                of_interface=self.of_interface,
-                l2_agent_type=self.l2_agent_type) for _ in range(3)]
+            neutron_env.HostDescription(of_interface=self.of_interface,
+                                        l2_agent_type=self.l2_agent_type)
+            for _ in range(self.compute_node_count)
+        ]
         env = common_env.BaGPipeEnvironment(
             common_env.BaGPipeEnvironmentDescription(
                 bagpipe_ml2=self.bagpipe_ml2,

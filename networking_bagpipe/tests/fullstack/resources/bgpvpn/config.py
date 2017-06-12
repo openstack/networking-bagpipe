@@ -57,27 +57,19 @@ class OVSConfigFixture(neutron_cfg.OVSConfigFixture):
                 'bagpipe_bgp_ip': local_ip,
                 'mpls_bridge': mpls_bridge,
                 'tun_to_mpls_peer_patch_port':
-                    self._generate_tun_to_mpls_peer(),
+                    utils.get_rand_device_name(prefix='to-mpls'),
                 'tun_from_mpls_peer_patch_port':
-                    self._generate_tun_from_mpls_peer(),
+                    utils.get_rand_device_name(prefix='from-mpls'),
                 'mpls_to_tun_peer_patch_port':
-                    self._generate_mpls_to_tun_peer(),
+                    utils.get_rand_device_name(prefix='to-tun'),
                 'mpls_from_tun_peer_patch_port':
-                    self._generate_mpls_from_tun_peer(),
+                    utils.get_rand_device_name(prefix='from-tun'),
+                'mpls_to_int_peer_patch_port':
+                    utils.get_rand_device_name(prefix='mpls-to-int'),
+                'int_from_mpls_peer_patch_port':
+                    utils.get_rand_device_name(prefix='int-from-mpls'),
             }
         })
-
-    def _generate_tun_to_mpls_peer(self):
-        return utils.get_rand_device_name(prefix='to-mpls')
-
-    def _generate_tun_from_mpls_peer(self):
-        return utils.get_rand_device_name(prefix='from-mpls')
-
-    def _generate_mpls_to_tun_peer(self):
-        return utils.get_rand_device_name(prefix='to-tun')
-
-    def _generate_mpls_from_tun_peer(self):
-        return utils.get_rand_device_name(prefix='from-tun')
 
 
 class BGPVPNProviderConfigFixture(neutron_cfg.ConfigFixture):

@@ -53,9 +53,11 @@ if [[ "$venv" == *functional* ]] || [[ "$venv" == *fullstack* ]]; then
     cd $PROJECT_DIR
     sudo chown -R $owner:stack $PROJECT_DIR
 
-    # fix iptables so that BGP traffic from simulated computes to gobgp in default netns
-    # isn't dropped
+    # fix iptables so that BGP traffic from simulated computes to the gobgp instance
+    # in th default netns, isn't dropped
     sudo iptables -I openstack-INPUT -i cnt-+ -j ACCEPT
+    # ditto for traffic on br- interfaces
+    sudo iptables -I openstack-INPUT -i br-+ -j ACCEPT
 
     # Run tests
     echo "Running neutron $venv test suite"

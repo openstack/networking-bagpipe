@@ -29,7 +29,9 @@ from networking_bagpipe.tests.fullstack.resources.common \
     import process as common_proc
 
 from neutron.agent.linux import ip_lib
+from neutron.agent.linux import utils as a_utils
 from neutron.common import utils
+from neutron.tests.common.exclusive_resources import ip_network
 from neutron.tests.common import net_helpers
 from neutron.tests.fullstack.resources import environment as neutron_env
 from neutron.tests.fullstack.resources import process as neutron_proc
@@ -77,6 +79,10 @@ class BaGPipeHost(neutron_env.Host):
             self.mpls_bridge.set_secure_mode()
 
         super(BaGPipeHost, self)._setUp()
+
+        if self.env_desc.bgpvpn:
+                    self.connect_to_internal_network_via_tunneling()
+
         self.setup_host_with_bagpipe_bgp()
 
     def generate_mpls_bridge(self):
@@ -91,9 +97,6 @@ class BaGPipeHost(neutron_env.Host):
         self.useFixture(
             net_helpers.OVSBridgeFixture(
                 agent_cfg_fixture.get_br_tun_name())).bridge
-
-        if self.env_desc.ipvpn_encap != 'bare-mpls':
-            self.connect_to_internal_network_via_tunneling()
 
         self.ovs_agent = self.useFixture(
             neutron_proc.OVSAgentFixture(
@@ -231,6 +234,24 @@ class BaGPipeEnvironment(neutron_env.Environment):
         self.rabbitmq_environment = self.useFixture(
             neutron_proc.RabbitmqEnvironmentFixture(host=rabbitmq_ip_address)
         )
+
+        if self.env_desc.ipvpn_encap == 'bare-mpls':
+            # for bare MPLS all compute nodes must be in the same subnet
+            # so we can't rely on auto allocation by
+            # neutron_env.Host.allocate_ip
+            self.env_desc.network_range = self.useFixture(
+                ip_network.ExclusiveIPNetwork("240.0.0.0",
+                                              "240.255.255.255", "24")).network
+
+            # we will have many br-mplsXXXXX interfaces on the same subnet
+            # and we don't want the IP stack to drop the packets received
+            # on these because they are from "us" but coming from "the outside"
+            a_utils.execute(['sudo', 'sysctl', '-w',
+                             'net.ipv4.conf.default.accept_local=1'])
+            a_utils.execute(['sudo', 'sysctl', '-w',
+                             'net.ipv4.conf.all.rp_filter=0'])
+            a_utils.execute(['sudo', 'sysctl', '-w',
+                             'net.ipv4.conf.default.rp_filter=0'])
 
         plugin_cfg_fixture = self.useFixture(
             bagpipe_ml2_cfg.ML2ConfigFixture(

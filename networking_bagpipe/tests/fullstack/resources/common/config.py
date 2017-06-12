@@ -43,6 +43,9 @@ class BagpipeBGPConfigFixture(neutron_cfg.ConfigFixture):
             base_filename='bgp.conf')
 
         self.config.update({
+            'DEFAULT': {
+                'debug': True,
+            },
             'COMMON': {
                 'root_helper_daemon': os.environ.get('OS_ROOTWRAP_DAEMON_CMD',
                                                      ROOTWRAP_DAEMON_CMD_DFLT)

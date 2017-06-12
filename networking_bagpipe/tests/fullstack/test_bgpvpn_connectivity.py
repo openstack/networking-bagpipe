@@ -38,10 +38,20 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
     l2_agent_type = constants.AGENT_TYPE_OVS
     of_interface = 'ovs-ofctl'
 
+    port_per_compute_per_net = 2
+
     scenarios = [
-        ('OpenVSwitch MPLS-over-GRE', {'bgpvpn': True,
-                                       'ipvpn_driver': 'ovs',
-                                       'ipvpn_encap': 'mpls-gre'})]
+        ('OpenVSwitch MPLS-over-GRE', {
+            'bgpvpn': True,
+            'ipvpn_driver': 'ovs',
+            'ipvpn_encap': 'mpls-gre'
+        }),
+        ('OpenVSwitch bare MPLS', {
+            'bgpvpn': True,
+            'ipvpn_driver': 'ovs',
+            'ipvpn_encap': 'bare-mpls'
+        })
+    ]
 
     def test_network_connectivity(self):
         tenant_uuid = uuidutils.generate_uuid()
@@ -65,7 +75,8 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
                         network_id,
                         tenant_uuid,
                         self.safe_client))
-                for i in range(3)])
+                for i in
+                range(self.compute_node_count)*self.port_per_compute_per_net])
 
         vms = machine.FakeFullstackMachinesList(fake_machines)
 
@@ -110,7 +121,8 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
                         network['id'],
                         tenant_uuid,
                         self.safe_client))
-                for i in range(3)])
+                for i in
+                range(self.compute_node_count)*self.port_per_compute_per_net])
 
         vms = machine.FakeFullstackMachinesList(fake_machines)
 

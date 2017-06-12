@@ -75,6 +75,11 @@ case $VENV in
         compile_ovs_kernel_module
     fi
 
+    # to be replaced by project config bindep trigger
+    sudo PATH=/usr/sbin:/sbin:$PATH DEBIAN_FRONTEND=noninteractive \
+            apt-get -q --option "Dpkg::Options::=--force-confold" \
+            --assume-yes install fping
+
     # prepare base environment for ./stack.sh
     load_neutron_rc_hook stack_base
 
