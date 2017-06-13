@@ -89,7 +89,7 @@ function init_bagpipe_ovsmpls {
 
 		cat >> $BAGPIPE_BR_RESET_SCRIPT <<EOF
 
-echo "Setting up $BAGPIPE_MPLS_BR OVS bridge and associated IP interface $BAGPIPE_INTERNAL_PORT based on current $BAGPIPE_MPLS_IFACE settings"
+echo "Setting up $BAGPIPE_MPLS_BR OVS bridge based on current $BAGPIPE_MPLS_IFACE settings"
 MPLS_IFACE_IP=\`ip addr show $BAGPIPE_MPLS_IFACE | grep 'inet ' | awk '{ print \$2 }'\`
 
 if [ -z "\$MPLS_IFACE_IP" ]; then
@@ -107,15 +107,13 @@ sudo ip addr flush dev $BAGPIPE_MPLS_IFACE
 sudo ovs-vsctl del-br $BAGPIPE_MPLS_BR || true
 sudo ovs-vsctl --may-exist add-br $BAGPIPE_MPLS_BR -- set-fail-mode $BAGPIPE_MPLS_BR secure
 sudo ovs-vsctl --may-exist add-port $BAGPIPE_MPLS_BR $BAGPIPE_MPLS_IFACE
-#echo "adding iface $BAGPIPE_INTERNAL_PORT to bridge $BAGPIPE_MPLS_BR"
-#when devstack is run on a VM deployed on openstack, by default, openstack will forbid this VM to use another MAC address than the one it has allocated
-#use a port with the same MAC as the one used by BAGPIPE_MPLS_IFACE
+# when devstack is ran in a VM deployed on openstack, by default, openstac
+# will forbid this VM to use another MAC address than the one it has allocated
+# use a port with the same MAC as the one used by BAGPIPE_MPLS_IFACE
 MAC=\`ip link show dev $BAGPIPE_MPLS_IFACE | grep link/ether | awk '{ print \$2 }'\`
-sudo ovs-vsctl -- --may-exist add-port $BAGPIPE_MPLS_BR $BAGPIPE_INTERNAL_PORT -- set interface $BAGPIPE_INTERNAL_PORT type=internal -- set interface $BAGPIPE_INTERNAL_PORT mac=\"\$MAC\"
-	sudo ip link set dev $BAGPIPE_INTERNAL_PORT address \$MAC
-#echo "setting ip and port on $BAGPIPE_INTERNAL_PORT"
-sudo ip addr add \$MPLS_IFACE_IP dev $BAGPIPE_INTERNAL_PORT
-sudo ip link set $BAGPIPE_INTERNAL_PORT up
+sudo ip link set dev $BAGPIPE_MPLS_BR address \$MAC
+#echo "setting ip and port on $BAGPIPE_MPLS_BR"
+sudo ip addr add \$MPLS_IFACE_IP dev $BAGPIPE_MPLS_BR
 sudo ip link set $BAGPIPE_MPLS_BR up
 if [ -n "\$GW_IP" ]; then
 	#echo "adding route to $\GW_IP"
@@ -126,7 +124,7 @@ fi
 # traffic from the phy interface only goes to internal port as a last
 # resort (if it did not match an MPLS rule)
 BAGPIPE_MPLS_IFACE_PORT_NUMBER=\`sudo ovs-ofctl show $BAGPIPE_MPLS_BR | grep "($BAGPIPE_MPLS_IFACE)" | awk '-F(' '{print \$1}' | tr -d ' '\`
-BAGPIPE_INTERNAL_PORT_NUMBER=\`sudo ovs-ofctl show $BAGPIPE_MPLS_BR | grep "($BAGPIPE_INTERNAL_PORT)" | awk '-F(' '{print \$1}' | tr -d ' '\`
+BAGPIPE_INTERNAL_PORT_NUMBER=\`sudo ovs-ofctl show $BAGPIPE_MPLS_BR | grep "($BAGPIPE_MPLS_BR)" | awk '-F(' '{print \$1}' | tr -d ' '\`
 sudo ovs-ofctl add-flow $BAGPIPE_MPLS_BR priority=0,in_port=\$BAGPIPE_MPLS_IFACE_PORT_NUMBER,action=output:\$BAGPIPE_INTERNAL_PORT_NUMBER
 sudo ovs-ofctl add-flow $BAGPIPE_MPLS_BR in_port=\$BAGPIPE_INTERNAL_PORT_NUMBER,action=output:\$BAGPIPE_MPLS_IFACE_PORT_NUMBER
 

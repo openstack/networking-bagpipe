@@ -259,11 +259,16 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane,
         """Find MAC address for a remote IP address"""
 
         # PING remote IP address
-        (_, exit_code) = self._run_command("fping -r4 -t100 -q %s" % remote_ip,
+        (_, exit_code) = self._run_command("fping -r4 -t100 -q -I %s %s" %
+                                           (self.driver.bridge, remote_ip),
                                            raise_on_error=False,
                                            acceptable_return_codes=[-1])
         if exit_code != 0:
-            raise exc.RemotePEMACAddressNotFound(remote_ip)
+            self.log.info("can't ping %s via %s, proceeding anyways",
+                          remote_ip, self.driver.bridge)
+            # we proceed even if the ping failed, since the ping was
+            # just a way to trigger an ARP resolution which may have
+            # succeeded even if the ping failed
 
         # Look in ARP cache to find remote MAC address
         (output, _) = self._run_command("ip neigh show to %s" % (remote_ip))
