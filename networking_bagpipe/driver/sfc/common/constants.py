@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Orange.
+# Copyright (c) 2017 Orange.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -13,11 +13,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron.db.migration.models import head
+INGRESS = 'ingress'
+EGRESS = 'egress'
+REVERSE_PORT_SIDE = {INGRESS: EGRESS,
+                     EGRESS: INGRESS}
 
-# pylint: disable=unused-import
-import networking_bagpipe.db.sfc.sfc_db  # noqa
-
-
-def get_metadata():
-    return head.model_base.BASEV2.metadata
+SOURCE = 'source'
+DESTINATION = 'destination'
+REVERSE_FLOW_SIDE = {SOURCE: DESTINATION,
+                     DESTINATION: SOURCE}

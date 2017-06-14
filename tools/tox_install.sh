@@ -63,6 +63,7 @@ shift
 
 install_project neutron
 install_project networking-bgpvpn
+install_project networking-sfc
 
 # install the rest of dependencies
 $install_cmd -U $*

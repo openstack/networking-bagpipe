@@ -77,6 +77,7 @@ class PortInfo(CommonInfo):
         self.ip_address = None
         self.mac_address = None
         self.network = None
+        self.chain_hops = dict()
 
     def __eq__(self, other):
         return (isinstance(other, self.__class__) and
@@ -93,6 +94,14 @@ class PortInfo(CommonInfo):
 
     def has_any_association(self):
         return any(True for _ in self.all_associations)
+
+    def add_chain_hop(self, chain_hop):
+        if not chain_hop:
+            return
+
+        if not all(item in self.chain_hops.items()
+                   for item in chain_hop.items()):
+            self.chain_hops.update(chain_hop)
 
     def __repr__(self):
         return "PortInfo: %s" % self.id
