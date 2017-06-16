@@ -71,11 +71,10 @@ def join_s(*args):
     return ','.join([_f for _f in args if _f])
 
 
-class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane,
-                          lg.LookingGlassMixin):
+class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     def __init__(self, *args, **kwargs):
-        dp_drivers.VPNInstanceDataplane.__init__(self, *args)
+        super(MPLSOVSVRFDataplane, self).__init__(*args, **kwargs)
 
         self.arp_netns = ("%s%d" % (ARPNETNS_PREFIX,
                                     self.instance_id))[:consts.LINUX_DEV_LEN]
@@ -866,7 +865,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane,
                                             self._cookie(add=False))
 
 
-class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
+class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
 
     """Dataplane driver using OpenVSwitch
 
@@ -936,11 +935,8 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver, lg.LookingGlassMixin):
         cfg.IntOpt("ovsbr_interfaces_mtu")
     ]
 
-    def __init__(self, init=True):
-        lg.LookingGlassLocalLogger.__init__(self)
-
-        self.log.info("Initializing MPLSOVSVRFDataplane")
-        dp_drivers.DataplaneDriver.__init__(self)
+    def __init__(self):
+        super(MPLSOVSDataplaneDriver, self).__init__()
 
         try:
             (o, _) = self._run_command("ovs-ofctl -V | head -1 |"

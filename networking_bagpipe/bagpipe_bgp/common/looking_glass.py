@@ -314,7 +314,7 @@ class LookingGlassMixin(object):
 class NoSuchLookingGlassObject(Exception):
 
     def __init__(self, path_prefix, path):
-        Exception.__init__(self)
+        super(NoSuchLookingGlassObject, self).__init__()
         assert isinstance(path_prefix, six.string_types)
         self.path_prefix = path_prefix
 
@@ -358,7 +358,7 @@ class LookingGlassLogHandler(python_logging.Handler):
     """
 
     def __init__(self, level=logging.WARNING, max_size=100):
-        python_logging.Handler.__init__(self, level)
+        super(LookingGlassLogHandler, self).__init__(level)
         self.records = []
         self.max_size = max_size
         self.setFormatter(
