@@ -221,7 +221,7 @@ class VPNInstanceDataplane(lg.LookingGlassLocalLogger):
 
     @log_decorator.log_info
     def __init__(self, dataplane_driver, instance_id, external_instance_id,
-                 gateway_ip, mask, instance_label=None):
+                 gateway_ip, mask, instance_label=None, **kwargs):
         lg.LookingGlassLocalLogger.__init__(self, repr(instance_id))
         self.driver = dataplane_driver
         self.config = dataplane_driver.config

@@ -63,11 +63,10 @@ def proxy_arp(ifname, enable):
     sysctl(['net', 'ipv4', 'conf', ifname, 'proxy_arp_pvlan'], int(enable))
 
 
-class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane,
-                            lg.LookingGlassMixin):
+class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     def __init__(self, *args, **kwargs):
-        dp_drivers.VPNInstanceDataplane.__init__(self, *args)
+        super(MPLSLinuxVRFDataplane, self).__init__(*args, **kwargs)
 
         # FIXME: maybe not thread safe ?
         self.ip = self.driver.ip
@@ -341,8 +340,7 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane,
                 for r in routes]
 
 
-class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver,
-                               lg.LookingGlassMixin):
+class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
 
     """Dataplane driver relying on the MPLS stack in the Linux kernel
 
@@ -362,13 +360,9 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver,
                          " interface for MPLS/GRE encap")),
     ]
 
-    def __init__(self, config):
-        lg.LookingGlassLocalLogger.__init__(self)
+    def __init__(self):
+        super(MPLSLinuxDataplaneDriver, self).__init__()
 
-        self.log.info("Initializing MPLSLinuxVRFDataplane")
-        dp_drivers.DataplaneDriver.__init__(self, config)
-
-        self.config = config
         self.ip = pyroute2.IPDB()  # pylint: disable=no-member
 
     @log_decorator.log_info

@@ -18,7 +18,6 @@
 from oslo_config import cfg
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
-from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp import constants as consts
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
@@ -32,7 +31,7 @@ VXLAN_INTERFACE_PREFIX = "vxlan--"
 class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
     def __init__(self, *args, **kwargs):
-        evpn.VPNInstanceDataplane.__init__(self, *args)
+        super(LinuxVXLANEVIDataplane, self).__init__(*args, **kwargs)
 
         if 'linuxbr' in kwargs:
             self.bridge_name = kwargs.get('linuxbr')
@@ -318,21 +317,13 @@ class LinuxVXLANDataplaneDriver(dp_drivers.DataplaneDriver):
                          "to standard IANA-allocated port)")),
     ]
 
-    def __init__(self):
-        lg.LookingGlassLocalLogger.__init__(self, __name__)
-
-        self.log.info("Initializing %s", self.__class__.__name__)
-        dp_drivers.DataplaneDriver.__init__(self)
-
+    @log_decorator.log_info
     def initialize(self):
-        self.log.info("Really initializing %s", self.__class__.__name__)
-
         self._run_command("modprobe vxlan",
                           run_as_root=True)
 
+    @log_decorator.log_info
     def reset_state(self):
-        self.log.debug("Resetting %s dataplane", self.__class__.__name__)
-
         # delete all EVPN bridges
         cmd = "brctl show | tail -n +2 | awk '{print $1}'| grep '%s'"
         for bridge in self._run_command(cmd % BRIDGE_NAME_PREFIX,
