@@ -45,11 +45,11 @@ class TestServiceBGPVPNMixin(object):
         with mock.patch.object(self.agent,
                                '_send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.IPVPN,
+                self._mock_send_expected_call(agent.BGPVPN_L3,
                                               dummy_port10,
                                               self.DUMMY_VIF10,
                                               others_rts=base.BGPVPN_L3_RT100),
-                self._mock_send_expected_call(agent.IPVPN,
+                self._mock_send_expected_call(agent.BGPVPN_L3,
                                               dummy_port11,
                                               self.DUMMY_VIF11,
                                               others_rts=base.BGPVPN_L3_RT100)

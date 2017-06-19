@@ -904,12 +904,19 @@ class BaGPipeBGPAgent(HTTPClientBase,
                         }
                     })
         else:
-            for vpn_type in VPN_TYPES:
-                if has_attachement(attach_info, vpn_type):
-                    attach_info[vpn_type].update(
-                        dict(linuxbr=LinuxBridgeManager.get_bridge_name(
-                             port_info.network.id))
-                    )
+            if has_attachement(attach_info, EVPN):
+                attach_info[EVPN]['linuxbr'] = (
+                    LinuxBridgeManager.get_bridge_name(port_info.network.id)
+                )
+            if has_attachement(attach_info, IPVPN):
+                # the interface we need to pass to bagpipe is the
+                # bridge
+                attach_info[IPVPN]['local_port'] = {
+                    'linuxif':
+                        LinuxBridgeManager.get_bridge_name(
+                            port_info.network.id)
+                }
+                # NOTE(tmorin): fallback support still missing
 
         return attach_info
 

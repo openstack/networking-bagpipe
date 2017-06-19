@@ -21,10 +21,7 @@ from oslo_config import cfg
 
 from oslo_utils import uuidutils
 
-from networking_bagpipe.agent.bagpipe_bgp_agent import BaGPipeBGPAgent
-
-from networking_bagpipe.agent.bagpipe_bgp_agent import BGPVPN_TYPES
-from networking_bagpipe.agent.bagpipe_bgp_agent import BGPVPN_TYPES_MAP
+from networking_bagpipe.agent import bagpipe_bgp_agent as agent
 
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
@@ -151,7 +148,8 @@ class BaseTestBaGPipeBGPAgent(object):
     DUMMY_VIF20 = None
     DUMMY_VIF21 = None
 
-    def _get_expected_local_port(self, network_id, port_id, vif_name):
+    def _get_expected_local_port(self, vpn_type,
+                                 network_id, port_id, vif_name):
         raise NotImplementedError
 
     def _format_as_list(self, value):
@@ -176,7 +174,8 @@ class BaseTestBaGPipeBGPAgent(object):
         network_id = port['network_id']
 
         vif_name = vif.port_name if vif else None
-        local_port, linuxbr = self._get_expected_local_port(network_id,
+        local_port, linuxbr = self._get_expected_local_port(vpn_type,
+                                                            network_id,
                                                             port['id'],
                                                             vif_name)
         # Change local port if plugging evpn into ipvpn
@@ -187,8 +186,8 @@ class BaseTestBaGPipeBGPAgent(object):
                                                                port,
                                                                others_rts)
 
-        if vpn_type in BGPVPN_TYPES:
-            vpn_type = BGPVPN_TYPES_MAP[vpn_type]
+        if vpn_type in agent.BGPVPN_TYPES:
+            vpn_type = agent.BGPVPN_TYPES_MAP[vpn_type]
 
         expected_call = dict(vpn_instance_id=network_id + '_' + vpn_type,
                              vpn_type=vpn_type,
@@ -250,14 +249,24 @@ class BaseTestBaGPipeBGPAgentLinuxBridge(base.BaseTestCase,
         self.bridge_mappings = {}
         self.interface_mappings = {}
 
-        self.agent = BaGPipeBGPAgent(n_const.AGENT_TYPE_LINUXBRIDGE,
-                                     mock.Mock())
+        self.agent = agent.BaGPipeBGPAgent(n_const.AGENT_TYPE_LINUXBRIDGE,
+                                           mock.Mock())
 
-    def _get_expected_local_port(self, network_id, port_id, vif_name):
-        local_port = dict(
-            linuxif=LinuxBridgeManager.get_tap_device_name(port_id)
-        )
-        linuxbr = LinuxBridgeManager.get_bridge_name(network_id)
+    def _get_expected_local_port(self, vpn_type,
+                                 network_id, port_id, vif_name):
+        if vpn_type == agent.EVPN or vpn_type == agent.BGPVPN_L2:
+            local_port = dict(
+                linuxif=LinuxBridgeManager.get_tap_device_name(port_id)
+            )
+            linuxbr = LinuxBridgeManager.get_bridge_name(network_id)
+        elif vpn_type == agent.BGPVPN_L3:
+            local_port = dict(
+                linuxif=LinuxBridgeManager.get_bridge_name(network_id)
+            )
+            linuxbr = None
+        else:
+            raise Exception("not supported by current test suite: %s",
+                            vpn_type)
 
         return local_port, linuxbr
 
@@ -287,10 +296,10 @@ class BaseTestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
                         'bridge_exists', return_value=True), \
                 mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                            'add_patch_port', side_effect=PATCH_MPLS_OFPORTS):
-            self.agent = BaGPipeBGPAgent(n_const.AGENT_TYPE_OVS,
-                                         mock.Mock(),
-                                         int_br=self.mock_int_br,
-                                         tun_br=self.mock_tun_br)
+            self.agent = agent.BaGPipeBGPAgent(n_const.AGENT_TYPE_OVS,
+                                               mock.Mock(),
+                                               int_br=self.mock_int_br,
+                                               tun_br=self.mock_tun_br)
 
         self.vlan_manager = vlanmanager.LocalVlanManager()
         for net_id, vlan in LOCAL_VLAN_MAP.items():
@@ -299,7 +308,8 @@ class BaseTestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
             except vlanmanager.MappingAlreadyExists:
                 pass
 
-    def _get_expected_local_port(self, network_id, port_id, vif_name):
+    def _get_expected_local_port(self, vpn_type,
+                                 network_id, port_id, vif_name):
         vlan = self.vlan_manager.get(network_id).vlan
         local_port = dict(
             linuxif="patch2tun:%s" % vlan,

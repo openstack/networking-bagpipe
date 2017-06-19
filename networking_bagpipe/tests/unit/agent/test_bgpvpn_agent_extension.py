@@ -18,10 +18,13 @@ import mock
 from networking_bagpipe.agent.bgpvpn import agent_extension as bagpipe_agt_ext
 
 from neutron.agent.common import ovs_lib
+from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
+    import constants as lnx_agt_constants
 from neutron.plugins.ml2.drivers.openvswitch.agent.common \
     import constants as ovs_agt_constants
 from neutron.plugins.ml2.drivers.openvswitch.agent \
     import ovs_agent_extension_api as ovs_ext_agt
+from neutron.tests import base
 from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent \
     import ovs_test_base
 
@@ -58,3 +61,25 @@ class TestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase):
 
         self.assertIsInstance(call_kwargs['int_br'], ovs_lib.OVSBridge)
         self.assertIsInstance(call_kwargs['tun_br'], ovs_lib.OVSBridge)
+
+
+class TestLinuxbridgeAgentExtension(base.BaseTestCase):
+
+    def setUp(self):
+        super(TestLinuxbridgeAgentExtension, self).setUp()
+        self.agent_ext = bagpipe_agt_ext.BagpipeBgpvpnAgentExtension()
+        self.connection = mock.Mock()
+
+    @mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent.BaGPipeBGPAgent')
+    def test_init(self, mocked_bagpipe_bgp_agent):
+        agent_extension_api = mock.Mock()
+
+        self.agent_ext.consume_api(agent_extension_api)
+        self.agent_ext.initialize(self.connection,
+                                  lnx_agt_constants.EXTENSION_DRIVER_TYPE,
+                                  )
+
+        mocked_bagpipe_bgp_agent.assert_called_once_with(
+            const.AGENT_TYPE_LINUXBRIDGE,
+            self.connection
+            )
