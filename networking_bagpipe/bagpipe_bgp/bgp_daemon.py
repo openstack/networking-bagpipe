@@ -42,20 +42,22 @@ def setup_config():
                       .release_string()))
 
 
-BAGPIPE_BGP_MODULE = "networking_bagpipe.bagpipe_bpg"
+BAGPIPE_BGP_MODULE = "networking_bagpipe.bagpipe_bgp"
 
 
 def setup_logging():
     # even in debug mode we don't want to much talk from these
     extra_log_level_defaults = [
         '%s.engine.exa_bgp_peer_worker.exabgp=INFO' % BAGPIPE_BGP_MODULE,
-        '%s.common.looking_glass=WARNING' % BAGPIPE_BGP_MODULE
+        '%s.common.looking_glass=WARNING' % BAGPIPE_BGP_MODULE,
+        '%s.engine.route_table_manager=INFO' % BAGPIPE_BGP_MODULE,
+        '%s.engine.tracker_worker=INFO' % BAGPIPE_BGP_MODULE
     ]
 
     logging.set_defaults(default_log_levels=(logging.get_default_log_levels() +
                                              extra_log_level_defaults))
 
-    logging.setup(cfg.CONF, "bagpipe-bpg")
+    logging.setup(cfg.CONF, "bagpipe-bgp")
 
 
 def fix_log_file():
