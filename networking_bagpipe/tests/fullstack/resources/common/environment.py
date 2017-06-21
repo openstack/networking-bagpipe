@@ -24,9 +24,13 @@ from networking_bagpipe.tests.fullstack.resources.bagpipe_ml2 \
 from networking_bagpipe.tests.fullstack.resources.bgpvpn \
     import config as bgpvpn_cfg
 from networking_bagpipe.tests.fullstack.resources.common \
+    import config
+from networking_bagpipe.tests.fullstack.resources.common \
     import config as common_cfg
 from networking_bagpipe.tests.fullstack.resources.common \
     import process as common_proc
+
+from neutron_lib import constants
 
 from neutron.agent.linux import ip_lib
 from neutron.agent.linux import utils as a_utils
@@ -72,7 +76,8 @@ class BaGPipeHost(neutron_env.Host):
         self.bgp_port = bgp_port
 
     def _setUp(self):
-        if self.env_desc.bgpvpn:
+        if (self.env_desc.bgpvpn and
+                self.host_desc.l2_agent_type == constants.AGENT_TYPE_OVS):
             self.mpls_bridge = self.useFixture(
                 net_helpers.OVSBridgeFixture(self.generate_mpls_bridge())
             ).bridge
@@ -80,16 +85,13 @@ class BaGPipeHost(neutron_env.Host):
 
         super(BaGPipeHost, self)._setUp()
 
-        if self.env_desc.bgpvpn:
-                    self.connect_to_internal_network_via_tunneling()
-
         self.setup_host_with_bagpipe_bgp()
 
     def generate_mpls_bridge(self):
         return utils.get_rand_device_name(prefix='br-mpls')
 
     def setup_host_with_ovs_agent(self):
-        agent_cfg_fixture = bgpvpn_cfg.OVSConfigFixture(
+        agent_cfg_fixture = config.OVSConfigFixture(
             self.env_desc, self.host_desc, self.neutron_config.temp_dir,
             self.local_ip, self.mpls_bridge.br_name)
         self.useFixture(agent_cfg_fixture)
@@ -110,7 +112,7 @@ class BaGPipeHost(neutron_env.Host):
 
         self.connect_namespace_to_control_network()
 
-        agent_cfg_fixture = bagpipe_ml2_cfg.LinuxBridgeConfigFixture(
+        agent_cfg_fixture = config.LinuxBridgeConfigFixture(
             self.env_desc, self.host_desc,
             self.neutron_config.temp_dir,
             self.local_ip,
@@ -118,8 +120,13 @@ class BaGPipeHost(neutron_env.Host):
         )
         self.useFixture(agent_cfg_fixture)
 
+        if self.env_desc.bagpipe_ml2:
+            agent_fixture_cls = bagpipe_ml2_proc.LinuxBridgeAgentFixture
+        else:
+            agent_fixture_cls = neutron_proc.LinuxBridgeAgentFixture
+
         self.linuxbridge_agent = self.useFixture(
-            bagpipe_ml2_proc.LinuxBridgeAgentFixture(
+            agent_fixture_cls(
                 self.env_desc, self.host_desc,
                 self.test_name, self.neutron_config, agent_cfg_fixture,
                 namespace=self.host_namespace
@@ -127,15 +134,22 @@ class BaGPipeHost(neutron_env.Host):
         )
 
     def setup_host_with_bagpipe_bgp(self):
-        mpls_bridge = self.mpls_bridge.br_name if self.env_desc.bgpvpn else ''
+        if self.host_desc.l2_agent_type == constants.AGENT_TYPE_OVS:
+            mpls_bridge = (self.mpls_bridge.br_name
+                           if self.env_desc.bgpvpn
+                           else '')
+            mpls_interface = ''
+            if self.env_desc.bgpvpn:
+                self.connect_to_internal_network_via_tunneling()
 
-        mpls_interface = ''
-        if self.env_desc.bgpvpn:
-            if self.env_desc.ipvpn_encap == 'bare-mpls':
-                self.connect_to_internal_network_via_mpls_bridge()
-                mpls_interface = filter(
-                    lambda port: net_helpers.VETH0_PREFIX
-                    in port, self.mpls_bridge.get_port_name_list())[0]
+                if self.env_desc.ipvpn_encap == 'bare-mpls':
+                    self.connect_to_internal_network_via_mpls_bridge()
+                    mpls_interface = filter(
+                        lambda port: net_helpers.VETH0_PREFIX
+                        in port, self.mpls_bridge.get_port_name_list())[0]
+        elif self.host_desc.l2_agent_type == constants.AGENT_TYPE_LINUXBRIDGE:
+            mpls_bridge = None
+            mpls_interface = self.host_port.name
 
         bgp_cfg_fixture = common_cfg.BagpipeBGPConfigFixture(
             self.env_desc, self.host_desc, self.neutron_config.temp_dir,
@@ -220,6 +234,31 @@ class BaGPipeEnvironment(neutron_env.Environment):
                          self.central_data_bridge,
                          self.central_external_bridge)
 
+    def _dont_be_paranoid(self):
+        # we will have many br-mplsXXXXX or host-xxx interfaces on the
+        # same subnet (the one for self.env_desc.network_range)
+        # and we don't want the IP stack to drop the packets received
+        # on these because they are from "us" but coming from "the outside"
+        a_utils.execute(['sudo', 'sysctl', '-w',
+                         'net.ipv4.conf.default.accept_local=1'])
+        a_utils.execute(['sudo', 'sysctl', '-w',
+                         'net.ipv4.conf.all.rp_filter=0'])
+        a_utils.execute(['sudo', 'sysctl', '-w',
+                         'net.ipv4.conf.default.rp_filter=0'])
+
+    def _get_network_range(self):
+        # for bare MPLS all compute nodes must be in the same subnet
+        if self.env_desc.ipvpn_encap == 'bare-mpls':
+            self._dont_be_paranoid()
+            return self.useFixture(
+                ip_network.ExclusiveIPNetwork(
+                    "240.0.0.0", "240.255.255.255", "24")).network
+
+        r = super(BaGPipeEnvironment, self)._get_network_range()
+        if r:
+            self._dont_be_paranoid()
+            return r
+
     def _setUp(self):
         self.temp_dir = self.useFixture(fixtures.TempDir()).path
 
@@ -234,24 +273,6 @@ class BaGPipeEnvironment(neutron_env.Environment):
         self.rabbitmq_environment = self.useFixture(
             neutron_proc.RabbitmqEnvironmentFixture(host=rabbitmq_ip_address)
         )
-
-        if self.env_desc.ipvpn_encap == 'bare-mpls':
-            # for bare MPLS all compute nodes must be in the same subnet
-            # so we can't rely on auto allocation by
-            # neutron_env.Host.allocate_ip
-            self.env_desc.network_range = self.useFixture(
-                ip_network.ExclusiveIPNetwork("240.0.0.0",
-                                              "240.255.255.255", "24")).network
-
-            # we will have many br-mplsXXXXX interfaces on the same subnet
-            # and we don't want the IP stack to drop the packets received
-            # on these because they are from "us" but coming from "the outside"
-            a_utils.execute(['sudo', 'sysctl', '-w',
-                             'net.ipv4.conf.default.accept_local=1'])
-            a_utils.execute(['sudo', 'sysctl', '-w',
-                             'net.ipv4.conf.all.rp_filter=0'])
-            a_utils.execute(['sudo', 'sysctl', '-w',
-                             'net.ipv4.conf.default.rp_filter=0'])
 
         plugin_cfg_fixture = self.useFixture(
             bagpipe_ml2_cfg.ML2ConfigFixture(
