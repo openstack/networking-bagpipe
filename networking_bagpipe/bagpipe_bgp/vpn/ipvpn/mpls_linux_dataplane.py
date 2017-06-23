@@ -404,10 +404,16 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
 
                 ipr.link('del', ifname=itf)
         # Flush all routes setup by us in past runs
-        ipr.flush_routes(proto=RT_PROT_BAGPIPE)
+        # TODO(tmorin): use ipr.flush when pyroute2 ships 0.4.17 with a fix
+        # for https://github.com/svinota/pyroute2/issues/378
+        self._run_command("ip route flush proto %d" % RT_PROT_BAGPIPE,
+                          run_as_root=True)
+        # ipr.flush_routes(proto=RT_PROT_BAGPIPE)
         # Flush all MPLS routes redirecting traffic to network namespaces
         # (just in case, should be covered by the above)
-        ipr.flush_routes(family=pyroute2.common.AF_MPLS)
+        self._run_command("ip route flush family %d" % pyroute2.common.AF_MPLS,
+                          run_as_root=True)
+        # ipr.flush_routes(family=pyroute2.common.AF_MPLS)
 
     def supported_encaps(self):
         yield exa.Encapsulation(exa.Encapsulation.Type.MPLS)
