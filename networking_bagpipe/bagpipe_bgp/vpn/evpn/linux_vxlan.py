@@ -318,11 +318,6 @@ class LinuxVXLANDataplaneDriver(dp_drivers.DataplaneDriver):
     ]
 
     @log_decorator.log_info
-    def initialize(self):
-        self._run_command("modprobe vxlan",
-                          run_as_root=True)
-
-    @log_decorator.log_info
     def reset_state(self):
         # delete all EVPN bridges
         cmd = "brctl show | tail -n +2 | awk '{print $1}'| grep '%s'"
@@ -347,3 +342,8 @@ class LinuxVXLANDataplaneDriver(dp_drivers.DataplaneDriver):
                               run_as_root=True)
             self._run_command("ip link delete %s" % interface,
                               run_as_root=True)
+
+    @log_decorator.log_info
+    def initialize(self):
+        self._run_command("modprobe vxlan",
+                          run_as_root=True)

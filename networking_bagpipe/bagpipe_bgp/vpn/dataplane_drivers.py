@@ -97,6 +97,26 @@ def instantiate_dataplane_drivers():
 
 @six.add_metaclass(abc.ABCMeta)
 class DataplaneDriver(lg.LookingGlassLocalLogger):
+    '''Dataplane driver
+
+    The initialisation workflow is the following:
+    - on startup, the selected dataplane driver is loaded (its __init__ is
+      called)
+    - on the first attachment of an interface that matches the driver's type
+      the following happens:
+      * the driver reset_state() method is called
+      * the driver initialize() method is called
+
+    The cleanup workflow (what happens when bagpipe-bgp-cleanup is called) is
+    the following:
+    - the dataplane driver is loaded (its __init__ is called)
+    - reset_state() method is called
+
+    As a consequence, whether some init action should go in __init__ or
+    initialize depends on what reset_state does:
+    - __init__ should not do things that reset_state will revert
+    - initialize can do things that reset_state will revert
+    '''
 
     type = None
 
@@ -145,16 +165,22 @@ class DataplaneDriver(lg.LookingGlassLocalLogger):
 
     @abc.abstractmethod
     def reset_state(self):
+        '''dataplane cleanup hook (abstract)
+
+        This method is called:
+        - right before the work on the first attachment begins (initialize()
+        is called afterwards)
+        - by bagpipe-bgp-cleanup
+        '''
         pass
 
-    @abc.abstractmethod
     def initialize(self):
-        '''dataplane initialization hook (abstract)
+        '''dataplane initialization hook
 
         This is called after reset_state (which, e.g. cleans up the stuff
-        possibly left-out by a previous failed run).
+        possibly left-out by a previous run).
 
-        All init things that should not be cleaned up go here.
+        Things that are reverted by reset_state() should go here.
         '''
         pass
 

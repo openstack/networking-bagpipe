@@ -366,31 +366,6 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
         self.ip = pyroute2.IPDB()  # pylint: disable=no-member
 
     @log_decorator.log_info
-    def initialize(self):
-        self._run_command("modprobe mpls_router")
-        self._run_command("modprobe mpls_gso")
-        self._run_command("modprobe mpls_iptunnel")
-        self._run_command("modprobe vrf")
-
-        sysctl('net.mpls.platform_labels', 2**20-1)
-
-        if "*gre*" in self.config["mpls_interface"]:
-            self.mpls_interface = "gre_wildcard"
-            raise Exception("MPLS/GRE not supported yet")
-        else:
-            self.mpls_interface = self.config["mpls_interface"]
-
-        sysctl('net.mpls.conf.%s.input' % self.mpls_interface, 1)
-
-        self.mpls_interface_index = self.ip.interfaces[self.mpls_interface
-                                                       ].index
-        # for traffic from ourselves:
-        sysctl('net.mpls.conf.lo.input', 1)
-
-        # enable forwarding
-        sysctl('net.ipv4.ip_forward', 1)
-
-    @log_decorator.log_info
     def reset_state(self):
         # remove all VRF interfaces
         for itf in self.ip.interfaces.keys():
@@ -414,6 +389,31 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
         self._run_command("ip route flush family %d" % pyroute2.common.AF_MPLS,
                           run_as_root=True)
         # ipr.flush_routes(family=pyroute2.common.AF_MPLS)
+
+    @log_decorator.log_info
+    def initialize(self):
+        self._run_command("modprobe mpls_router")
+        self._run_command("modprobe mpls_gso")
+        self._run_command("modprobe mpls_iptunnel")
+        self._run_command("modprobe vrf")
+
+        sysctl('net.mpls.platform_labels', 2**20-1)
+
+        if "*gre*" in self.config["mpls_interface"]:
+            self.mpls_interface = "gre_wildcard"
+            raise Exception("MPLS/GRE not supported yet")
+        else:
+            self.mpls_interface = self.config["mpls_interface"]
+
+        sysctl('net.mpls.conf.%s.input' % self.mpls_interface, 1)
+
+        self.mpls_interface_index = self.ip.interfaces[self.mpls_interface
+                                                       ].index
+        # for traffic from ourselves:
+        sysctl('net.mpls.conf.lo.input', 1)
+
+        # enable forwarding
+        sysctl('net.ipv4.ip_forward', 1)
 
     def supported_encaps(self):
         yield exa.Encapsulation(exa.Encapsulation.Type.MPLS)

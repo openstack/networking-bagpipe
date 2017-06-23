@@ -1072,64 +1072,6 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
             return self.ovs_mpls_if_port_number
 
     @log_decorator.log_info
-    def initialize(self):
-        if self.use_gre:
-            self.log.info("Setting up tunnel for MPLS/GRE (%s)",
-                          self.config.gre_tunnel)
-
-            self._run_command("ovs-vsctl del-port %s %s" %
-                              (self.bridge, self.config.gre_tunnel),
-                              run_as_root=True,
-                              acceptable_return_codes=[0, 1])
-            self._run_command("ovs-vsctl add-port %s %s -- set Interface %s"
-                              " type=gre options:local_ip=%s "
-                              "options:remote_ip=flow %s" %
-                              (self.bridge, self.config.gre_tunnel,
-                               self.config.gre_tunnel,
-                               self.get_local_address(),
-                               self.config.gre_tunnel_options),
-                              run_as_root=True)
-
-            self.gre_tunnel_port_number = self.find_ovs_port(
-                self.config.gre_tunnel)
-            self.mpls_if_mac_address = None
-        else:
-            # Find ethX MPLS interface MAC address
-            try:
-                self.mpls_if_mac_address = net_utils.get_device_mac(
-                    self._run_command,
-                    self.mpls_interface)
-            except Exception:
-                # Interface without MAC address (patch port case), use MPLS
-                # bridge MAC address instead
-                self.mpls_if_mac_address = net_utils.get_device_mac(
-                    self._run_command,
-                    self.bridge)
-
-        self._ovs_flow_add("in_port=%d,mpls" % self.mpls_in_port(),
-                           "resubmit(,%d)" % self.encap_in_table,
-                           self.input_table)
-
-        if self.vxlan_encap:
-            self.log.info("Enabling VXLAN encapsulation")
-
-            self._run_command("ovs-vsctl del-port %s %s" % (self.bridge,
-                                                            VXLAN_TUNNEL),
-                              run_as_root=True,
-                              acceptable_return_codes=[0, 1])
-            self._run_command("ovs-vsctl add-port %s %s -- set Interface %s"
-                              " type=vxlan options:local_ip=%s "
-                              "options:remote_ip=flow options:key=flow" %
-                              (self.bridge, VXLAN_TUNNEL, VXLAN_TUNNEL,
-                               self.get_local_address()),
-                              run_as_root=True)
-            self.vxlan_tunnel_port_number = self.find_ovs_port(VXLAN_TUNNEL)
-
-            self._ovs_flow_add("in_port=%d" % self.vxlan_tunnel_port_number,
-                               "resubmit(,%d)" % self.encap_in_table,
-                               self.input_table)
-
-    @log_decorator.log_info
     def reset_state(self):
         # Flush all MPLS and ARP flows, if bridge exists
 
@@ -1201,6 +1143,64 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                 self._run_command("ovs-vsctl list-ports %s" % self.bridge,
                                   run_as_root=True,
                                   acceptable_return_codes=[0, 1])
+
+    @log_decorator.log_info
+    def initialize(self):
+        if self.use_gre:
+            self.log.info("Setting up tunnel for MPLS/GRE (%s)",
+                          self.config.gre_tunnel)
+
+            self._run_command("ovs-vsctl del-port %s %s" %
+                              (self.bridge, self.config.gre_tunnel),
+                              run_as_root=True,
+                              acceptable_return_codes=[0, 1])
+            self._run_command("ovs-vsctl add-port %s %s -- set Interface %s"
+                              " type=gre options:local_ip=%s "
+                              "options:remote_ip=flow %s" %
+                              (self.bridge, self.config.gre_tunnel,
+                               self.config.gre_tunnel,
+                               self.get_local_address(),
+                               self.config.gre_tunnel_options),
+                              run_as_root=True)
+
+            self.gre_tunnel_port_number = self.find_ovs_port(
+                self.config.gre_tunnel)
+            self.mpls_if_mac_address = None
+        else:
+            # Find ethX MPLS interface MAC address
+            try:
+                self.mpls_if_mac_address = net_utils.get_device_mac(
+                    self._run_command,
+                    self.mpls_interface)
+            except Exception:
+                # Interface without MAC address (patch port case), use MPLS
+                # bridge MAC address instead
+                self.mpls_if_mac_address = net_utils.get_device_mac(
+                    self._run_command,
+                    self.bridge)
+
+        self._ovs_flow_add("in_port=%d,mpls" % self.mpls_in_port(),
+                           "resubmit(,%d)" % self.encap_in_table,
+                           self.input_table)
+
+        if self.vxlan_encap:
+            self.log.info("Enabling VXLAN encapsulation")
+
+            self._run_command("ovs-vsctl del-port %s %s" % (self.bridge,
+                                                            VXLAN_TUNNEL),
+                              run_as_root=True,
+                              acceptable_return_codes=[0, 1])
+            self._run_command("ovs-vsctl add-port %s %s -- set Interface %s"
+                              " type=vxlan options:local_ip=%s "
+                              "options:remote_ip=flow options:key=flow" %
+                              (self.bridge, VXLAN_TUNNEL, VXLAN_TUNNEL,
+                               self.get_local_address()),
+                              run_as_root=True)
+            self.vxlan_tunnel_port_number = self.find_ovs_port(VXLAN_TUNNEL)
+
+            self._ovs_flow_add("in_port=%d" % self.vxlan_tunnel_port_number,
+                               "resubmit(,%d)" % self.encap_in_table,
+                               self.input_table)
 
     def find_ovs_port(self, dev_name):
         """Find OVS port number from port name"""
