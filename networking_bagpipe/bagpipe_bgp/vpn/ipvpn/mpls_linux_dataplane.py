@@ -363,6 +363,11 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
     def __init__(self):
         super(MPLSLinuxDataplaneDriver, self).__init__()
 
+        self._run_command("modprobe mpls_router")
+        self._run_command("modprobe mpls_gso")
+        self._run_command("modprobe mpls_iptunnel")
+        self._run_command("modprobe vrf")
+
         self.ip = pyroute2.IPDB()  # pylint: disable=no-member
 
     @log_decorator.log_info
@@ -392,11 +397,6 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
 
     @log_decorator.log_info
     def initialize(self):
-        self._run_command("modprobe mpls_router")
-        self._run_command("modprobe mpls_gso")
-        self._run_command("modprobe mpls_iptunnel")
-        self._run_command("modprobe vrf")
-
         sysctl('net.mpls.platform_labels', 2**20-1)
 
         if "*gre*" in self.config["mpls_interface"]:
