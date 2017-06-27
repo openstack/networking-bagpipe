@@ -40,8 +40,8 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
     # - cleanup: calling the driver, unregistering for BGP routes
 
     type = constants.IPVPN
-    afi = exa.AFI(exa.AFI.ipv4)
-    safi = exa.SAFI(exa.SAFI.mpls_vpn)
+    afi = exa.AFI.ipv4
+    safi = exa.SAFI.mpls_vpn
 
     @log_decorator.log
     def __init__(self, *args, **kwargs):

@@ -203,7 +203,8 @@ if [[ "$1" == "source" ]]; then
 		:
 elif [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
 		echo_summary "Installing exabgp"
-		pip_install exabgp==$EXABGP_VERSION
+		#pip_install exabgp==$EXABGP_VERSION
+		pip_install '-egit+https://github.com/Exa-Networks/exabgp.git#egg=exabgp'
 		if is_service_enabled gobgp ; then
 			echo_summary "Installing golang package"
 			pre_install_gobgp
