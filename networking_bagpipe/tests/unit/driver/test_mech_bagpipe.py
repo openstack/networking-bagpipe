@@ -74,8 +74,7 @@ class TestBaGpipeRpcTestCase(test_plugin.Ml2PluginV2TestCase):
                                      'ml2')
         config.cfg.CONF.set_override('tenant_network_types',
                                      TYPE_ROUTE_TARGET,
-                                     'ml2',
-                                     enforce_type=True)
+                                     'ml2')
 
         super(TestBaGpipeRpcTestCase, self).setUp()
 
