@@ -16,3 +16,5 @@ if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
   perl -i -pe 's:^( *)AGENT_BINARY=.*:${1}AGENT_BINARY="\$NEUTRON_BIN_DIR/neutron-bagpipe-linuxbridge-agent":' $TOP_DIR/lib/neutron_plugins/linuxbridge_agent || die $LINENO "Could not patch linuxbridge agent devstack plugin"
 fi
 
+# temporary, to work around the crossgating preventing us to cleanly solve a simultaneous breakage in both n8g-bagpipe CI and n8g-bgpvpn CI
+ENABLED_SERVICES=n-api,n-crt,n-cpu,n-cond,n-sch,placement-api,q-svc,q-agt,g-api,g-reg,q-dhcp,q-l3,q-meta,key,mysql,rabbit,b-bgp,tempest,n-api-meta
