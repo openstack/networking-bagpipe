@@ -189,14 +189,14 @@ This example assumes that there is a pre-existing tap interface 'tap42'.
 *  on server A, plug tap interface tap42, MAC de:ad:00:00:be:ef, IP
    11.11.11.1 into an IP VPN VRF with route-target 64512:77:
 
-   ::
+   .. code-block:: console
 
        bagpipe-rest-attach --attach --port tap42 --mac de:ad:00:00:be:ef --ip 11.11.11.1 --gateway-ip 11.11.11.254 --network-type ipvpn --rt 64512:77
 
 *  on server B, plug tap interface tap56, MAC ba:d0:00:00:ca:fe, IP
    11.11.11.2 into an IP VPN VRF with route-target 64512:77:
 
-   ::
+   .. code-block:: console
 
        bagpipe-rest-attach --attach --port tap56 --mac ba:d0:00:00:ca:fe --ip 11.11.11.2 --gateway-ip 11.11.11.254 --network-type ipvpn --rt 64512:77
 
@@ -219,14 +219,14 @@ will plug one of the veth to the VRF:
 *  on server A, plug a netns interface with IP 12.11.11.1 into a new IP
    VPN VRF named "test", with route-target 64512:78
 
-   ::
+   .. code-block:: console
 
        bagpipe-rest-attach --attach --port netns --ip 12.11.11.1 --network-type ipvpn --vpn-instance-id test --rt 64512:78
 
 *  on server B, plug a netns interface with IP 12.11.11.2 into a new IP
    VPN VRF named "test", with route-target 64512:78
 
-   ::
+   .. code-block:: console
 
        bagpipe-rest-attach --attach --port netns --ip 12.11.11.2 --network-type ipvpn --vpn-instance-id test --rt 64512:78
 
@@ -234,7 +234,7 @@ For this last example, assuming that you have configured bagpipe-bgp to
 use the ``ovs`` dataplane driver for IP VPN, you will actually be able
 to have traffic exchanged between the network namespaces:
 
-::
+.. code-block:: console
 
     ip netns exec test ping 12.11.11.2
     PING 12.11.11.2 (12.11.11.2) 56(84) bytes of data.
@@ -252,14 +252,14 @@ instance:
 *  on server A, plug a netns interface with IP 12.11.11.1 into a new
    E-VPN named "test2", with route-target 64512:79
 
-   ::
+   .. code-block:: console
 
        bagpipe-rest-attach --attach --port netns --ip 12.11.11.1 --network-type evpn --vpn-instance-id test2 --rt 64512:79
 
 *  on server B, plug a netns interface with IP 12.11.11.2 into a new
    E-VPN named "test2", with route-target 64512:79
 
-   ::
+   .. code-block:: console
 
        bagpipe-rest-attach --attach --port netns --ip 12.11.11.2 --network-type evpn --vpn-instance-id test2 --rt 64512:79
 
@@ -268,7 +268,7 @@ use the ``linux`` dataplane driver for E-VPN, you will
 actually be able to have traffic exchanged between the network
 namespaces:
 
-::
+.. code-block:: console
 
     ip netns exec test2 ping 12.11.11.2
     PING 12.11.11.2 (12.11.11.2) 56(84) bytes of data.
@@ -288,7 +288,7 @@ display JSON data is recommended).
 
 It can also be accessed with the ``bagpipe-looking-glass`` utility:
 
-::
+.. code-block:: console
 
     # bagpipe-looking-glass
     bgp:  (...)
@@ -303,13 +303,13 @@ It can also be accessed with the ``bagpipe-looking-glass`` utility:
       vpn_instances_count: 1
       received_routes_count: 0
 
-::
+.. code-block:: console
 
     # bagpipe-looking-glass bgp peers
     * 192.168.122.1 (...)
       state: Idle
 
-::
+.. code-block:: console
 
     # bagpipe-looking-glass bgp routes
     match:IPv4/mpls-vpn,*:
@@ -419,16 +419,16 @@ port attachment information and BGP routes.
 Caveats
 -------
 
-*  release early, release often: not everything is perfect yet
-*  BGP implementation not written for compliancy
+* release early, release often: not everything is perfect yet
+* BGP implementation not written for compliancy
 
-  -  the BaGPipe-BGP service does not listen for incoming BGP connections
+  - the BaGPipe-BGP service does not listen for incoming BGP connections
 
-  -  the state machine, in particular retry timers is possibly not fully compliant yet
+  - the state machine, in particular retry timers is possibly not fully compliant yet
 
-  -  however, interop testing has been done with a fair amount of implementations
+  - however, interop testing has been done with a fair amount of implementations
 
-*  MPLS-over-GRE is supported for IP VPNs, but is not yet standard (OpenVSwitch currently does MPLS-o-Ethernet-o-GRE and not MPLS-o-GRE)
+* MPLS-over-GRE is supported for IP VPNs, but is not yet standard (OpenVSwitch currently does MPLS-o-Ethernet-o-GRE and not MPLS-o-GRE)
 
 
 .. _sample configuration: http://git.openstack.org/cgit/openstack/networking-bagpipe/tree/samples/gobgp.conf

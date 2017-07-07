@@ -20,7 +20,7 @@ via RabbitMQ) with Neutron server to setup a corresponding E-VPN instance with
 this identifier on the local :ref:`bagpipe-bgp` instance on the compute node and
 attach ports to this instance as needed.
 
-  .. blockdiag:: ml2.blockdiag
+.. blockdiag:: ml2.blockdiag
 
 This solution is currently supported with the linux networking stack (i.e. with
 the linuxbridge agent enabled with bagpipe extension, and :ref:`bagpipe-bgp` driver
@@ -58,7 +58,7 @@ When used along with the ``openvswitch`` ML2 mechanism driver, it involves:
 
 * :ref:`bagpipe-bgp` lightweight BGP VPN implementation
 
-  .. blockdiag:: bgpvpn.blockdiag
+.. blockdiag:: bgpvpn.blockdiag
 
 ----------------------------------------
 Work in progress and future applications
