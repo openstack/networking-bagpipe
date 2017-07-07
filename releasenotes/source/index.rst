@@ -1,5 +1,5 @@
 ================================
- Networking-bagpipe Release Notes
+Networking-bagpipe Release Notes
 ================================
 
 .. toctree::
