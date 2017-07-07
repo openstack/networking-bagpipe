@@ -3,25 +3,21 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-networking-bagpipe's documentation
-==================================
+.. The main title comes from README.rst
 
 .. include:: ../../README.rst
 
 Documentation
-=============
+-------------
 
 .. toctree::
    :maxdepth: 2
 
-   design
-   applications
-   bagpipe-bgp
-   installation
-   contributing
+   user/index
+   install/index
+   contributor/index
 
-Indices and tables
-==================
+.. rubric:: Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`

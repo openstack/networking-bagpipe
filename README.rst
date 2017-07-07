@@ -1,15 +1,6 @@
-========================
-Team and repository tags
-========================
-
-.. image:: http://governance.openstack.org/badges/networking-bagpipe.svg
-    :target: http://governance.openstack.org/reference/tags/index.html
-
-.. Change things from this point on
-
-=====================
+==================
 networking-bagpipe
-=====================
+==================
 
 Driver and agent code to use BaGPipe lightweight implementation
 of BGP-based VPNs as a backend for Neutron.
@@ -18,6 +9,14 @@ of BGP-based VPNs as a backend for Neutron.
 * Documentation: https://docs.openstack.org/developer/networking-bagpipe
 * Source: http://git.openstack.org/cgit/openstack/networking-bagpipe
 * Bugs: http://bugs.launchpad.net/networking-bagpipe
+
+Team and repository tags
+------------------------
+
+.. image:: http://governance.openstack.org/badges/networking-bagpipe.svg
+    :target: http://governance.openstack.org/reference/tags/index.html
+
+.. Change things from this point on
 
 Overview
 --------
