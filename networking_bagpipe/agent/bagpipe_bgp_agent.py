@@ -152,8 +152,9 @@ class HTTPClientBase(object):
         self.client_name = client_name
 
     def do_request(self, method, action, body=None):
-        LOG.debug("bagpipe-bgp client request: %s %s [%s]" %
-                  (method, action, str(body)))
+        LOG.debug("bagpipe-bgp client request: %(method)s %(action)s "
+                  "[%(body)s]",
+                  {'method': method, 'action': action, 'body': str(body)})
 
         if isinstance(body, dict):
             body = json.dumps(body)
@@ -165,8 +166,8 @@ class HTTPClientBase(object):
 
             http = httplib2.Http()
             response, content = http.request(uri, method, body, headers)
-            LOG.debug("bagpipe-bgp returns [%s:%s]" %
-                      (str(response.status), content))
+            LOG.debug("bagpipe-bgp returns [%(status)s:%(content)s]",
+                      {'status': str(response.status), 'content': content})
 
             if response.status == 200:
                 if content and len(content) > 1:
@@ -387,8 +388,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 # Re-send all registered ports to bagpipe-bgp
                 if self.ports_info:
                     LOG.info("Sending all registered ports to bagpipe-bgp")
-                    LOG.debug("Registered ports list: %s" %
-                              self.ports_info)
+                    LOG.debug("Registered ports list: %s", self.ports_info)
                     for port_id in self.ports_info:
                         self._do_port_plug(port_id)
                 else:
@@ -531,7 +531,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         try:
             response = self.get('ping')
             LOG.debug("bagpipe-bgp PING response received with "
-                      "sequence number %s" % response)
+                      "sequence number %s", response)
             return response
         except BaGPipeBGPException as e:
             LOG.warning(str(e))
@@ -543,7 +543,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             try:
                 self.post('attach_localport', local_port_details)
                 LOG.debug("Local port has been attached to bagpipe-bgp with "
-                          "details %s" % local_port_details)
+                          "details %s", local_port_details)
             except BaGPipeBGPException as e:
                 LOG.error("Can't attach local port on bagpipe-bgp: %s", str(e))
         else:
@@ -555,7 +555,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             try:
                 self.post('detach_localport', local_port_details)
                 LOG.debug("Local port has been detached from bagpipe-bgp "
-                          "with details %s" % local_port_details)
+                          "with details %s", local_port_details)
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach local port from bagpipe-bgp: %s",
                           str(e))

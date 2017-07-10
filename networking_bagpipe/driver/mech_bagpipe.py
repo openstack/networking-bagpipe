@@ -54,7 +54,7 @@ def get_network_info_for_port(session, port_id):
     Get network informations (MAC, IP and gateway addresses and
     subnet mask) from database associated to a port
     """
-    LOG.debug("get_network_info_for_port() called for port %s" % port_id)
+    LOG.debug("get_network_info_for_port() called for port %s", port_id)
 
     with session.begin(subtransactions=True):
         try:
