@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import itertools
+
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -131,6 +133,19 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         return entry
 
     @log_decorator.log
+    def _route_for_attract_static_dest_prefixes(self, label, rd):
+        if not self.attract_static_dest_prefixes:
+            return
+
+        for prefix in self.attract_static_dest_prefixes:
+            nlri = self._nlri_from(prefix, label, rd)
+
+            entry = engine.RouteEntry(nlri, self.readvertise_to_rts)
+            self.log.debug("RouteEntry for attract static destination prefix: "
+                           "%s", entry)
+            yield entry
+
+    @log_decorator.log
     def _route_for_redirect_prefix(self, prefix):
         prefix_classifier = utils.dict_camelcase_to_underscore(
             self.attract_classifier)
@@ -225,7 +240,9 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         label = self.mac_2_localport_data[mac_address]['label']
         rd = self.endpoint_2_rd[(mac_address, ip_address_prefix)]
-        for route in self.readvertised:
+        for route in itertools.chain(
+                self.readvertised,
+                self._route_for_attract_static_dest_prefixes(label, rd)):
             self.log.debug("Re-advertising %s with this port as next hop",
                            route.nlri)
             self._advertise_route_or_default(route, label, rd,
@@ -243,7 +260,9 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         lb_consistent_hash_order = (self.mac_2_localport_data[mac_address]
                                     ["lb_consistent_hash_order"])
         rd = self.endpoint_2_rd[(mac_address, ip_address_prefix)]
-        for route in self.readvertised:
+        for route in itertools.chain(
+                self.readvertised,
+                self._route_for_attract_static_dest_prefixes(label, rd)):
             self.log.debug("Stop re-advertising %s with this port as next hop",
                            route.nlri)
             self._withdraw_route_or_default(route, label, rd,

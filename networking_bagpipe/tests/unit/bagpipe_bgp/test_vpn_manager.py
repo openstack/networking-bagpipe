@@ -18,6 +18,8 @@
 import mock
 
 from networking_bagpipe.bagpipe_bgp import constants as consts
+
+from networking_bagpipe.bagpipe_bgp.common import utils
 from networking_bagpipe.bagpipe_bgp.vpn import manager
 from networking_bagpipe.tests.unit.bagpipe_bgp import base as t
 
@@ -106,7 +108,7 @@ class TestVPNManager(t.TestCase):
 
     def test_plug_vif_to_vpn_with_forced_vni(self):
         with mock.patch.object(self.manager, "_get_vpn_instance") as mock_get_vpn_instance, \
-                mock.patch.object(manager, "convert_route_targets"):
+                mock.patch.object(utils, "convert_route_targets"):
             self.manager.plug_vif_to_vpn(vpn_instance_id=VPN_EXT_ID,
                                          vpn_type=consts.EVPN,
                                          import_rt=[t.RT1],
@@ -123,7 +125,7 @@ class TestVPNManager(t.TestCase):
 
     def test_plug_vif_to_vpn_without_forced_vni(self):
         with mock.patch.object(self.manager, "_get_vpn_instance") as mock_get_vpn_instance, \
-                mock.patch.object(manager, "convert_route_targets"):
+                mock.patch.object(utils, "convert_route_targets"):
             self.manager.plug_vif_to_vpn(vpn_instance_id=VPN_EXT_ID,
                                          vpn_type=consts.EVPN,
                                          import_rt=[t.RT1],

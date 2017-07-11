@@ -763,6 +763,9 @@ IP_ADDR_PREFIX1 = '1.1.1.1/32'
 IP_ADDR_PREFIX2 = '2.2.2.2/32'
 IP_ADDR_PREFIX3 = '3.3.3.3/32'
 
+STATIC_ADDR_PREFIX1 = '10.10.10.10/32'
+STATIC_ADDR_PREFIX2 = '20.20.20.20/32'
+
 DEFAULT_ADDR_PREFIX = '0.0.0.0/0'
 
 ATTRACT_TRAFFIC_1 = {'redirect_rts': [t.RT5],
@@ -771,6 +774,23 @@ ATTRACT_TRAFFIC_1 = {'redirect_rts': [t.RT5],
                                     }
                      }
 
+ATTRACT_STATIC_1 = {'to_rt': [t.RT4],
+                    'static_destination_prefixes': [STATIC_ADDR_PREFIX1],
+                    'redirect_rts': [t.RT5],
+                    'classifier': {'destinationPort': '80',
+                                   'protocol': 'tcp'
+                                   }
+                    }
+
+ATTRACT_STATIC_2 = {'to_rt': [t.RT4],
+                    'static_destination_prefixes': [STATIC_ADDR_PREFIX1,
+                                                    STATIC_ADDR_PREFIX2],
+                    'redirect_rts': [t.RT5],
+                    'classifier': {'destinationPort': '80',
+                                   'protocol': 'tcp'
+                                   }
+                    }
+
 TC1 = vpn_instance.TrafficClassifier(destination_prefix="1.1.1.1/32",
                                      destination_port="80",
                                      protocol="tcp")
@@ -778,6 +798,18 @@ TC1 = vpn_instance.TrafficClassifier(destination_prefix="1.1.1.1/32",
 TC2 = vpn_instance.TrafficClassifier(destination_prefix="2.2.2.2/32",
                                      destination_port="80",
                                      protocol="tcp")
+
+TC_STATIC1 = vpn_instance.TrafficClassifier(
+    destination_prefix=STATIC_ADDR_PREFIX1,
+    destination_port="80",
+    protocol="tcp"
+)
+
+TC_STATIC2 = vpn_instance.TrafficClassifier(
+    destination_prefix=STATIC_ADDR_PREFIX2,
+    destination_port="80",
+    protocol="tcp"
+)
 
 
 class TestVRF(t.BaseTestBagPipeBGP, TestCase):
@@ -829,10 +861,26 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
         self.vpn.stop()
         self.vpn.join()
 
-    def _config_vrf_with_attract_traffic(self, attract_traffic):
+    def _config_vrf_with_attract_traffic(self, attract_traffic,
+                                         no_readvertise=False):
         self.vpn.attract_traffic = True
         self.vpn.attract_rts = attract_traffic['redirect_rts']
         self.vpn.attract_classifier = attract_traffic['classifier']
+
+        if no_readvertise:
+            self.vpn.readvertise = False
+            self.vpn.readvertise_from_rts = []
+            self.vpn.readvertise_to_rts = attract_traffic['to_rt']
+        else:
+            if attract_traffic.get('to_rt'):
+                self.assertEqual(self.vpn.readvertise_to_rts,
+                                 attract_traffic['to_rt'])
+
+        if (attract_traffic.get('to_rt') and
+                attract_traffic.get('static_destination_prefixes')):
+            self.vpn.attract_static_dest_prefixes = (
+                attract_traffic['static_destination_prefixes']
+            )
 
     def _mock_vpnmanager_for_attract_traffic(self):
         self.manager.redirect_traffic_to_vpn = Mock()
@@ -1008,9 +1056,10 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
                 ipvpn_nlri = _extract_nlri_from_call(self.vpn, method, index)
                 self.assertEqual(DEFAULT_ADDR_PREFIX, ipvpn_nlri.cidr.prefix())
 
-                self.assertNotIn(self.vpn.readvertise_from_rts[0],
-                                 _extract_rt_from_call(self.vpn,
-                                                       method, index))
+                if self.vpn.readvertise:
+                    self.assertNotIn(self.vpn.readvertise_from_rts[0],
+                                     _extract_rt_from_call(self.vpn,
+                                                           method, index))
             else:
                 # 2 - advertisement of FlowSpec NLRI supposed to happen to RT5
                 #     for traffic redirection to RT4 on TCP destination port 80
@@ -1145,6 +1194,77 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
             '_withdraw_route',
             ATTRACT_TRAFFIC_1['redirect_rts'],
             [None, TC2, None, TC1])
+
+    def test_attract_traffic_static_dest_prefix_no_readvertise_advertise(self):
+        # Configure VRF to generate traffic redirection, based on a 5-tuple
+        # classifier and a static destination prefix, to a specific route
+        # target
+        self._config_vrf_with_attract_traffic(ATTRACT_STATIC_1,
+                                              no_readvertise=True)
+
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+
+        self._check_attract_traffic('_advertise_route',
+                                    ATTRACT_STATIC_1['redirect_rts'],
+                                    [None, None, TC_STATIC1])
+
+        self._reset_mocks()
+
+        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+
+        vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
+        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
+                              worker_a, t.NH1, 200)
+
+        self.assertEqual(0, self.vpn._advertise_route.call_count)
+
+    def test_attract_traffic_static_dest_prefix_advertise(self):
+        # Configure VRF to generate traffic redirection, based on a 5-tuple
+        # classifier and a static destination prefix, to a specific route
+        # target
+        self._config_vrf_with_attract_traffic(ATTRACT_STATIC_1)
+
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+
+        self._check_attract_traffic('_advertise_route',
+                                    ATTRACT_STATIC_1['redirect_rts'],
+                                    [None, None, TC_STATIC1])
+
+        self._reset_mocks()
+
+        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+
+        vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
+        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
+                              worker_a, t.NH1, 200)
+
+        self._check_attract_traffic('_advertise_route',
+                                    ATTRACT_STATIC_1['redirect_rts'],
+                                    [None, TC1])
+
+    def test_attract_traffic_static_dest_prefix_advertise_multiple(self):
+        # Configure VRF to generate traffic redirection, based on a 5-tuple
+        # classifier and multiple static destination prefixes, to a specific
+        # route target
+        self._config_vrf_with_attract_traffic(ATTRACT_STATIC_2)
+
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+
+        self._check_attract_traffic('_advertise_route',
+                                    ATTRACT_STATIC_1['redirect_rts'],
+                                    [None, None, TC_STATIC1, None, TC_STATIC2])
+
+        self._reset_mocks()
+
+        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+
+        vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
+        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
+                              worker_a, t.NH1, 200)
+
+        self._check_attract_traffic('_advertise_route',
+                                    ATTRACT_STATIC_1['redirect_rts'],
+                                    [None, TC1])
 
     def test_redirected_vrf_single_flow_advertised(self):
         self._mock_vpnmanager_for_attract_traffic()

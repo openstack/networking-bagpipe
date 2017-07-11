@@ -229,6 +229,16 @@ def main():
                       type="string", help="Traffic classifier IP protocol "
                       "filter",
                       action="callback", callback=classifier_callback)
+    parser.add_option("--attract-to-rt", dest="attract_to_rts",
+                      help="enables route advertisement to these RTs,"
+                      " works in conjunction with "
+                      "--static-destination-prefix",
+                      default=[], action="append")
+    parser.add_option("--static-destination-prefix",
+                      dest="static_dest_prefixes",
+                      help="static destination prefix to advertise,"
+                      " works in conjunction with --attract-to-rts",
+                      default=[], action="append")
     parser.add_option("--lb-consistent-hash-order",
                       dest="lb_consistent_hash_order",
                       default=0, type="int",
@@ -342,11 +352,21 @@ def main():
     attract_traffic = dict()
     if options.redirect_rts:
         if options.classifier:
-            attract_traffic.update(dict({'redirect_rts': options.redirect_rts,
-                                         'classifier': options.classifier}))
+            attract_traffic.update(dict(redirect_rts=options.redirect_rts,
+                                        classifier=options.classifier))
         else:
             parser.error("Need to specify --redirect-rt and at least one "
                          "traffic classifier option")
+
+        if options.attract_to_rts:
+            if options.static_dest_prefixes:
+                attract_traffic.update(dict(
+                    to=options.attract_to_rts,
+                    static_destination_prefixes=options.static_dest_prefixes
+                ))
+            else:
+                parser.error("Need to specify --attract-to-rt and at least "
+                             "one static destination prefix option")
 
     json_data = jsonutils.dumps(
         {"import_rt":  import_rts,
