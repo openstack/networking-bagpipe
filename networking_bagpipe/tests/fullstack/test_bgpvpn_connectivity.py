@@ -41,11 +41,17 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
     compute_node_count = 2
 
     scenarios = [
-        ('OpenVSwitch MPLS-over-GRE', {
+        ('OpenVSwitch MPLS-over-TEB-over-GRE', {
             'mech_drivers': 'openvswitch',
             'l2_agent_type': constants.AGENT_TYPE_OVS,
             'ipvpn_driver': 'ovs',
             'ipvpn_encap': 'mpls-gre'
+        }),
+        ('OpenVSwitch MPLS-over-GRE', {
+            'mech_drivers': 'openvswitch',
+            'l2_agent_type': constants.AGENT_TYPE_OVS,
+            'ipvpn_driver': 'ovs',
+            'ipvpn_encap': 'mpls-gre-l3'
         }),
         ('OpenVSwitch bare MPLS', {
             'mech_drivers': 'openvswitch',

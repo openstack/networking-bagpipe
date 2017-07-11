@@ -20,6 +20,7 @@ import re
 from distutils import version  # pylint: disable=no-name-in-module
 import netaddr
 from oslo_config import cfg
+from oslo_config import types
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
@@ -919,9 +920,13 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         cfg.IntOpt("ovs_table_id_start", default=1),
         cfg.StrOpt("gre_tunnel", default="mpls_gre",
                    help="OVS interface name for MPLS/GRE encap"),
-        cfg.StrOpt("gre_tunnel_options", default="",
-                   help=("Options passed to OVS for GRE tunnel port creation"
-                         " e.g. 'options:l3port=true options:... (future)'")),
+        cfg.ListOpt("gre_tunnel_options", default=[],
+                    item_type=types.String(),
+                    help=("Options, comma-separated, passed to OVS for GRE "
+                          "tunnel port creation (e.g. 'packet_type=legacy_l3"
+                          ", ...') that will be added as OVS tunnel "
+                          "interface options (e.g. 'options:packet_type="
+                          "legacy_l3 options:...')")),
         cfg.IntOpt("ovsbr_interfaces_mtu")
     ]
 
@@ -1150,7 +1155,10 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                               (self.bridge, self.config.gre_tunnel,
                                self.config.gre_tunnel,
                                self.get_local_address(),
-                               self.config.gre_tunnel_options),
+                               " ".join([
+                                   "options:%s" % o
+                                   for o in self.config.gre_tunnel_options])
+                               ),
                               run_as_root=True)
 
             self.gre_tunnel_port_number = self.find_ovs_port(
