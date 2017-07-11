@@ -133,10 +133,14 @@ class BagpipeBGPConfigFixture(neutron_cfg.ConfigFixture):
                     'vxlan_encap': 'True',
                     'mpls_interface': ''
                 })
-            if self.env_desc.ipvpn_encap == 'mpls-gre':
+            if 'mpls-gre' in self.env_desc.ipvpn_encap:
                 self.config['DATAPLANE_DRIVER_IPVPN'].update({
                     'mpls_interface': '*gre*',
                     'gre_tunnel': self._generate_gre_tunnel()
+                })
+            if self.env_desc.ipvpn_encap == 'mpls-gre-l3':
+                self.config['DATAPLANE_DRIVER_IPVPN'].update({
+                    'gre_tunnel_options': "packet_type=legacy_l3"
                 })
             if self.env_desc.ipvpn_encap == 'bare-mpls':
                 self.config['DATAPLANE_DRIVER_IPVPN'].update({
