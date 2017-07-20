@@ -82,5 +82,5 @@ Considered:
 
 
 .. _networking-bgpvpn: https://github.com/openstack/networking-bgpvpn
-.. _BGPVPN documentation: http://docs.openstack.org/developer/networking-bgpvpn/bagpipe
+.. _BGPVPN documentation: https://docs.openstack.org/networking-bgpvpn/latest/user/drivers/bagpipe/index.html
 .. _draft-ietf-bess-service-chaining: https://tools.ietf.org/html/draft-ietf-bess-service-chaining
