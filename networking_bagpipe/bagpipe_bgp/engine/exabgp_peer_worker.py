@@ -78,7 +78,7 @@ def setup_exabgp_env():
     exa_logger.Logger._syslog.removeHandler = noop
 
     # no need to format all the information twice:
-    def patched_format(self, timestamp, level, source, message):
+    def patched_format(self, message, source, level, timestamp=None):
         if self.short:
             return message
         return "%-13s %s" % (source, message)
