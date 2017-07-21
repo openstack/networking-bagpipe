@@ -165,4 +165,4 @@ in `BGPVPN bagpipe driver documentation`_.
 .. _networking-bgpvpn: http://git.openstack.org/cgit/openstack/networking-bgpvpn
 .. _GoBGP: http://osrg.github.io/gobgp
 .. _sample configuration: http://git.openstack.org/cgit/openstack/networking-bagpipe/tree/samples/gobgp.conf
-.. _BGPVPN bagpipe driver documentation: http://docs.openstack.org/developer/networking-bgpvpn/bagpipe
+.. _BGPVPN bagpipe driver documentation: https://docs.openstack.org/networking-bgpvpn/latest/user/drivers/bagpipe/index.html

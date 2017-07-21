@@ -6,7 +6,7 @@ Driver and agent code to use BaGPipe lightweight implementation
 of BGP-based VPNs as a backend for Neutron.
 
 * Free software: Apache license
-* Documentation: https://docs.openstack.org/developer/networking-bagpipe
+* Documentation: https://docs.openstack.org/networking-bagpipe/latest/
 * Source: http://git.openstack.org/cgit/openstack/networking-bagpipe
 * Bugs: http://bugs.launchpad.net/networking-bagpipe
 
