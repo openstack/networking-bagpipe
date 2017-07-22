@@ -42,6 +42,7 @@ output/*/index.html
 
 # Documentation
 doc/build
+doc/source/_static/config_samples/*.sample
 etc/*.sample
 
 # pbr generates these
