@@ -73,16 +73,12 @@ class OVSConfigFixture(neutron_cfg.OVSConfigFixture):
             'mpls_bridge': mpls_bridge,
             'tun_to_mpls_peer_patch_port':
                 utils.get_rand_device_name(prefix='to-mpls'),
-            'tun_from_mpls_peer_patch_port':
-                utils.get_rand_device_name(prefix='from-mpls'),
             'mpls_to_tun_peer_patch_port':
                 utils.get_rand_device_name(prefix='to-tun'),
-            'mpls_from_tun_peer_patch_port':
-                utils.get_rand_device_name(prefix='from-tun'),
             'mpls_to_int_peer_patch_port':
                 utils.get_rand_device_name(prefix='mpls-to-int'),
-            'int_from_mpls_peer_patch_port':
-                utils.get_rand_device_name(prefix='int-from-mpls'),
+            'int_to_mpls_peer_patch_port':
+                utils.get_rand_device_name(prefix='int-to-mpls'),
         })
 
 

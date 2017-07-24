@@ -104,23 +104,13 @@ bagpipe_bgp_opts = [
     cfg.StrOpt('mpls_bridge', default='br-mpls',
                help=_("OVS MPLS bridge to use")),
     cfg.StrOpt('tun_to_mpls_peer_patch_port', default='patch-to-mpls',
-               help=_("OVS Peer patch port in tunnel bridge to MPLS bridge "
-                      "(traffic to MPLS bridge)")),
-    cfg.StrOpt('tun_from_mpls_peer_patch_port', default='patch-from-mpls',
-               help=_("OVS Peer patch port in tunnel bridge to MPLS bridge "
-                      "(traffic from MPLS bridge)")),
-    cfg.StrOpt('mpls_to_tun_peer_patch_port', default='patch-to-tun',
-               help=_("OVS Peer patch port in MPLS bridge to tunnel bridge "
-                      "(traffic to tunnel bridge)")),
-    cfg.StrOpt('mpls_from_tun_peer_patch_port', default='patch-from-tun',
-               help=_("OVS Peer patch port in MPLS bridge to tunnel bridge "
-                      "(traffic from tunnel bridge)")),
+               help=_("OVS Peer patch port in tunnel bridge to MPLS bridge ")),
+    cfg.StrOpt('mpls_to_tun_peer_patch_port', default='patch-from-tun',
+               help=_("OVS Peer patch port in MPLS bridge to tunnel bridge ")),
     cfg.StrOpt('mpls_to_int_peer_patch_port', default='patch-mpls-to-int',
-               help=_("OVS Peer patch port in MPLS bridge to int bridge "
-                      "(traffic to int bridge)")),
-    cfg.StrOpt('int_from_mpls_peer_patch_port', default='patch-int-from-mpls',
-               help=_("OVS Peer patch port in int bridge to MPLS bridge "
-                      "(traffic from MPLS bridge)")),
+               help=_("OVS Peer patch port in MPLS bridge to int bridge ")),
+    cfg.StrOpt('int_to_mpls_peer_patch_port', default='patch-int-from-mpls',
+               help=_("OVS Peer patch port in int bridge to MPLS bridge ")),
 ]
 
 cfg.CONF.register_opts(bagpipe_bgp_opts, "BAGPIPE")
@@ -583,32 +573,22 @@ class BaGPipeBGPAgent(HTTPClientBase,
         # patch ports for traffic from tun bridge to mpls bridge
         self.patch_tun_to_mpls_ofport = self.tun_br.add_patch_port(
             cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port,
-            cfg.CONF.BAGPIPE.mpls_from_tun_peer_patch_port)
-        self.patch_mpls_from_tun_ofport = self.mpls_br.add_patch_port(
-            cfg.CONF.BAGPIPE.mpls_from_tun_peer_patch_port,
-            cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port)
-
-        # patch ports for traffic from mpls bridge to tun bridge
+            cfg.CONF.BAGPIPE.mpls_to_tun_peer_patch_port)
         self.patch_mpls_to_tun_ofport = self.mpls_br.add_patch_port(
             cfg.CONF.BAGPIPE.mpls_to_tun_peer_patch_port,
-            cfg.CONF.BAGPIPE.tun_from_mpls_peer_patch_port)
-        self.patch_tun_from_mpls_ofport = self.tun_br.add_patch_port(
-            cfg.CONF.BAGPIPE.tun_from_mpls_peer_patch_port,
-            cfg.CONF.BAGPIPE.mpls_to_tun_peer_patch_port)
+            cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port)
 
         # patch ports for traffic from mpls bridge to int bridge
         self.patch_mpls_to_int_ofport = self.mpls_br.add_patch_port(
             cfg.CONF.BAGPIPE.mpls_to_int_peer_patch_port,
-            cfg.CONF.BAGPIPE.int_from_mpls_peer_patch_port)
-        self.patch_int_from_mpls_ofport = self.int_br.add_patch_port(
-            cfg.CONF.BAGPIPE.int_from_mpls_peer_patch_port,
+            cfg.CONF.BAGPIPE.int_to_mpls_peer_patch_port)
+        self.patch_int_to_mpls_ofport = self.int_br.add_patch_port(
+            cfg.CONF.BAGPIPE.int_to_mpls_peer_patch_port,
             cfg.CONF.BAGPIPE.mpls_to_int_peer_patch_port)
 
         if (int(self.patch_tun_to_mpls_ofport) < 0 or
-                int(self.patch_mpls_from_tun_ofport) < 0 or
                 int(self.patch_mpls_to_tun_ofport) < 0 or
-                int(self.patch_tun_from_mpls_ofport) < 0 or
-                int(self.patch_int_from_mpls_ofport) < 0 or
+                int(self.patch_int_to_mpls_ofport) < 0 or
                 int(self.patch_mpls_to_int_ofport) < 0):
             LOG.error("Failed to create OVS patch port. Cannot have "
                       "MPLS enabled on this agent, since this version "
@@ -633,7 +613,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         )
 
         # Redirect traffic from the MPLS bridge to br-int
-        self.tun_br.add_flow(in_port=self.patch_tun_from_mpls_ofport,
+        self.tun_br.add_flow(in_port=self.patch_tun_to_mpls_ofport,
                              actions="output:%s" % patch_int_ofport)
 
     def ovs_restarted(self, resources, event, trigger):
@@ -886,8 +866,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     'local_port': {
                         'ovs': {
                             'plugged': True,
-                            'port_number': self.patch_mpls_from_tun_ofport,
-                            'to_vm_port_number': self.patch_mpls_to_tun_ofport,
+                            'port_number': self.patch_mpls_to_tun_ofport,
                             'vlan': vlan
                         }
                     }

@@ -309,9 +309,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     def _get_ovs_port_specifics(self, localport):
         # Returns a tuple of:
-        # - OVS port numbers:
-        #     - First port number is the port for traffic from the VM.
-        #     - Second port number is the port for traffic to the VM.
+        # - OVS port number for traffic to/from VMs
         # - OVS actions and rules, based on whether or not a vlan is specified
         #   in localport:
         #     - OVS port match rule
@@ -361,18 +359,6 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             self.log.error("Incomplete port specification: %s", e)
             raise Exception("Incomplete port specification: %s" % e)
 
-        try:
-            port2vm = localport['ovs']['to_vm_port_number']
-        except KeyError:
-            self.log.debug("No specific OVS port number provided for traffic "
-                           "to VM, trying to use a port name")
-            try:
-                port2vm = self.driver.find_ovs_port(
-                    localport['ovs']['to_vm_port_name'])
-            except KeyError:
-                self.log.debug("No specific OVS port found for traffic to VM")
-                port2vm = port
-
         # Create OVS actions
         try:
             localport_match, push_vlan_action = (
@@ -387,8 +373,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                 None
             )
 
-        return (port, port2vm, localport_match, push_vlan_action,
-                port_unplug_action)
+        return (port, localport_match, push_vlan_action, port_unplug_action)
 
     @log_decorator.log_info
     def update_fallback(self, fallback=None):
@@ -444,8 +429,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
     @log_decorator.log
     def vif_plugged(self, mac_address, ip_address, localport, label):
 
-        (ovs_port_from_vm, ovs_port_to_vm, localport_match,
-         push_vlan_action, port_unplug_action) = (
+        (ovs_port, localport_match, push_vlan_action, port_unplug_action) = (
             self._get_ovs_port_specifics(localport)
         )
 
@@ -462,7 +446,19 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         self._mtu_fixup(localport)
 
         # Map traffic from plugged port to VRF
-        actions = '%sset_field:%d->reg%d,resubmit(,%d)' % (
+
+        # Note that we first reset the in_port so that OVS will allow the
+        # packet to eventually go back to this port after a VRF lookup
+        # (the case where that happens is where in port is a patch-port on
+        # which different VLANs are used to reach different networks):
+        # patch port vlan X -- VRFX --- VRF Y -- patch-port vlan Y
+        #
+        # ( see http://docs.openvswitch.org/en/latest/faq/openflow/
+        # "Q: I added a flow to send packets out the ingress port..." )
+        actions = ('%s'
+                   'load:0->NXM_OF_IN_PORT[],'
+                   'set_field:%d->reg%d,'
+                   'resubmit(,%d)') % (
             strip_vlan_action_str, self.instance_id, VRF_REGISTER,
             self.driver.vrf_table
         )
@@ -479,26 +475,21 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                 join_s('in_port=%s' % self.arp_net_nsport,
                        'ip',
                        'nw_dst=%s' % ip_address),
-                '%soutput:%s' % (push_vlan_action_str, ovs_port_to_vm),
+                '%soutput:%s' % (push_vlan_action_str, ovs_port),
                 self.driver.input_table)
 
-            # 'ovs_port_from_vm' is used to send ARP replies to the VM because
-            # the interface plugged into the bridge may be an OVS patch port
-            # with an OVS bridge doing MAC learning and we want this learning
-            # bridge to learn the gw MAC via the right interface so that the
-            # traffic from the VM to the gw will arrive on our OVS bridge
-            # through 'ovs_from_from_vm'
+            # ARP
             self._ovs_flow_add(
                 join_s('in_port=%s' % self.arp_net_nsport,
                        'arp',
                        'dl_dst=%s' % mac_address),
-                '%soutput:%s' % (push_vlan_action_str, ovs_port_from_vm),
+                '%soutput:%s' % (push_vlan_action_str, ovs_port),
                 self.driver.input_table)
 
         # Map incoming MPLS traffic going to the VM port
         incoming_actions = ("%smod_dl_src:%s,mod_dl_dst:%s,output:%s" %
                             (push_vlan_action_str, GATEWAY_MAC,
-                             mac_address, ovs_port_to_vm))
+                             mac_address, ovs_port))
 
         self._ovs_flow_add(self._match_mpls_in(label),
                            "pop_mpls:0x0800,%s" % incoming_actions,
@@ -514,8 +505,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         # FIXME: check check check, is linuxif the right key??
         self.log.debug("Adding OVS port %s with numbers (%s,%s) for address "
                        "%s to ports plugged in VRF list",
-                       localport['linuxif'], ovs_port_from_vm, ovs_port_to_vm,
-                       ip_address)
+                       localport['linuxif'], ovs_port, ovs_port, ip_address)
         self._ovs_port_info[localport['linuxif']] = {
             "localport_match": localport_match,
             "port_unplug_action": port_unplug_action,

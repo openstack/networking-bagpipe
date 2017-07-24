@@ -34,17 +34,14 @@ from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent import (
 from neutron_lib import constants as n_const
 
 PATCH_TUN_TO_MPLS_OFPORT = 1
-PATCH_TUN_FROM_MPLS_OFPORT = 3
-PATCH_TUN_OFPORTS = [PATCH_TUN_TO_MPLS_OFPORT, PATCH_TUN_FROM_MPLS_OFPORT]
+PATCH_TUN_OFPORTS = [PATCH_TUN_TO_MPLS_OFPORT]
 
 PATCH_INT_TO_MPLS_OFPORT = 5
 PATCH_INT_OFPORTS = [PATCH_INT_TO_MPLS_OFPORT]
 
-PATCH_MPLS_FROM_TUN_OFPORT = 2
-PATCH_MPLS_TO_TUN_OFPORT = 4
+PATCH_MPLS_TO_TUN_OFPORT = 2
 PATCH_MPLS_TO_INT_OFPORT = 6
-PATCH_MPLS_OFPORTS = [PATCH_MPLS_FROM_TUN_OFPORT, PATCH_MPLS_TO_TUN_OFPORT,
-                      PATCH_MPLS_TO_INT_OFPORT]
+PATCH_MPLS_OFPORTS = [PATCH_MPLS_TO_TUN_OFPORT, PATCH_MPLS_TO_INT_OFPORT]
 
 PORT10 = {'id': uuidutils.generate_uuid(),
           'mac_address': '00:00:de:ad:be:ef',
@@ -314,8 +311,7 @@ class BaseTestBaGPipeBGPAgentOVS(ovs_test_base.OVSOFCtlTestBase,
         local_port = dict(
             linuxif="patch2tun:%s" % vlan,
             ovs=dict(plugged=True,
-                     port_number=PATCH_MPLS_FROM_TUN_OFPORT,
-                     to_vm_port_number=PATCH_MPLS_TO_TUN_OFPORT,
+                     port_number=PATCH_MPLS_TO_TUN_OFPORT,
                      vlan=vlan)
         )
 
