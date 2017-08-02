@@ -40,8 +40,9 @@ nosetests.xml
 output/*.html
 output/*/index.html
 
-# Sphinx
+# Documentation
 doc/build
+etc/*.sample
 
 # pbr generates these
 AUTHORS
