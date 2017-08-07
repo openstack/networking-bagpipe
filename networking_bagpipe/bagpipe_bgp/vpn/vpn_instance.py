@@ -690,15 +690,11 @@ class VPNInstance(tracker_worker.TrackerWorker,
                     del self.localport_2_endpoints[linuxif]
             if mac_address in self.mac_2_localport_data:
                 del self.mac_2_localport_data[mac_address]
-            if ip_address_prefix in self.ip_address_2_mac:
-                try:
-                    self.ip_address_2_mac[ip_address_prefix].remove(
-                        mac_address)
-                except ValueError:
-                    # ok, value just had not been added
-                    pass
+            if (ip_address_prefix in self.ip_address_2_mac and
+                    mac_address in self.ip_address_2_mac[ip_address_prefix]):
+                self.ip_address_2_mac[ip_address_prefix].remove(mac_address)
 
-            raise e
+            raise
 
         self.log.info("localport_2_endpoints: %s", self.localport_2_endpoints)
         self.log.info("endpoint_2_rd: %s", self.endpoint_2_rd)
