@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    Base support was added to allow the use of 'bagpipe' driver for
+    networking-bgpvpn with the linuxbridge compute node agent, using the
+    kernel network stack MPLS implementation. This is usable although not fully
+    complete yet (see bug `1627902 <https://launchpad.net/bugs/1709627>`_).
