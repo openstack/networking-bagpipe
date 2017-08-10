@@ -38,8 +38,6 @@
 
 """
 
-import copy
-
 from mock import Mock
 from testtools import TestCase
 
@@ -145,12 +143,18 @@ API_PARAMS = {
 }
 
 
+def api_params():
+    # return a new dict each time
+    # to avoid concurrency issues
+    return dict(API_PARAMS)
+
+
 class TestVPNInstanceAPIChecks(TestCase):
 
     def _test_validate_convert_missing(self, method, missing_param,
                                        params=None):
         if params is None:
-            params = copy.deepcopy(API_PARAMS)
+            params = api_params()
         params.pop(missing_param)
         self.assertRaises(exc.APIMissingParameterException, method, params)
 
@@ -171,7 +175,7 @@ class TestVPNInstanceAPIChecks(TestCase):
         self._test_validate_convert_missing(method, 'local_port')
 
     def test_api_internal_translation(self):
-        params = copy.deepcopy(API_PARAMS)
+        params = api_params()
         vpn_instance.VPNInstance.validate_convert_attach_params(params)
         self.assertIn('external_instance_id', params)
         self.assertIn('import_rts', params)
@@ -179,7 +183,7 @@ class TestVPNInstanceAPIChecks(TestCase):
         self.assertIn('localport', params)
 
     def test_check_vrf_gateway_ip(self):
-        params = copy.deepcopy(API_PARAMS)
+        params = api_params()
         params['vpn_type'] = 'IPVPN'
         params['gateway_ip'] = '1.1.1.1'
         ipvpn.VRF.validate_convert_attach_params(params)
