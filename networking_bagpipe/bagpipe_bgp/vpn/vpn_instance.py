@@ -568,10 +568,10 @@ class VPNInstance(tracker_worker.TrackerWorker,
             'export_rt': 'export_rts',  # API name is singular, hence wrong...
         }
 
-        for param in params.keys():
-            internal = _TRANSLATE_API_TO_INTERNAL.get(param)
-            if internal:
-                params[internal] = params.pop(param)
+        for api_param_name in list(params):
+            internal_name = _TRANSLATE_API_TO_INTERNAL.get(api_param_name)
+            if internal_name:
+                params[internal_name] = params.pop(api_param_name)
 
     @classmethod
     def validate_convert_attach_params(cls, params):
