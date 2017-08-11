@@ -51,7 +51,6 @@ def setup_logging():
         '%s.engine.exabgp_peer_worker.exabgp=INFO' % BAGPIPE_BGP_MODULE,
         '%s.common.looking_glass=WARNING' % BAGPIPE_BGP_MODULE,
         '%s.engine.route_table_manager=INFO' % BAGPIPE_BGP_MODULE,
-        '%s.engine.tracker_worker=INFO' % BAGPIPE_BGP_MODULE
     ]
 
     logging.set_defaults(default_log_levels=(logging.get_default_log_levels() +
