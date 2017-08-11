@@ -27,6 +27,7 @@ from exabgp.bgp import message as exa_message
 from exabgp.bgp.message import open as exa_open
 from exabgp.bgp import neighbor as exa_neighbor
 from exabgp import logger as exa_logger
+from exabgp.protocol import family as exa_family
 from exabgp import reactor as exa_reactor
 from exabgp.reactor import peer as exa_peer
 from oslo_config import cfg
@@ -70,7 +71,7 @@ def setup_exabgp_env():
 
     exa_logger.Logger._syslog = logging.getLogger(__name__ + ".exabgp").logger
 
-    # prevent exabgp Logger code from adding or removing handlers from
+    # prevent exabgp Logger code from adding or removing handlers for
     # this logger
     def noop(handler):
         pass
@@ -106,6 +107,13 @@ def setup_exabgp_env():
         env.log.level = environment.syslog_value('INFO')
     env.log.all = True
     env.log.packets = True
+
+    # monkey patch exabgp to work around exabgp issue #690
+    # only relevant for exabgp 4.0.2
+    # ( https://github.com/Exa-Networks/exabgp/issues/690 )
+    if hasattr(exa_family.Family, 'size'):
+        exa_family.Family.size[(exa_family.AFI.l2vpn,
+                                exa_family.SAFI.evpn)] = ((4,), 0)
 
 
 TRANSLATE_EXABGP_STATE = {exa_fsm.FSM.IDLE: bgp_peer_worker.FSM.Idle,
