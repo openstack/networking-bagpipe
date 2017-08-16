@@ -838,6 +838,12 @@ class BaGPipeBGPAgent(HTTPClientBase,
         if self.agent_type == n_const.AGENT_TYPE_OVS:
             # Add OVS VLAN information
             vlan = self.vlan_manager.get(port_info.network.id).vlan
+
+            # no OVS driver yet for EVPN
+            if b_const.EVPN in attach_info:
+                LOG.warning("BGPVPN type L2 (EVPN) is not supported with "
+                            "OVS yet")
+
             for vpn_type in (vt for vt in b_const.VPN_TYPES
                              if vt in attach_info):
                 attach_info[vpn_type].update({
