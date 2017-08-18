@@ -180,10 +180,9 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
         except netlink.exceptions.NetlinkError as x:
             if x.code == errno.EEXIST:
                 # the route already exists, fine
-                self.log.warning("route %s already exists on %s",
-                                 self.gateway_ip,
-                                 interface)
-                pass
+                self.log.debug("route %s already exists on %s",
+                               self.gateway_ip,
+                               interface)
             else:
                 raise
 
@@ -202,7 +201,6 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
             if x.code == errno.EEXIST:
                 # the route already exists, fine
                 self.log.warning("MPLS state for %d already exists", label)
-                pass
             else:
                 raise
 
