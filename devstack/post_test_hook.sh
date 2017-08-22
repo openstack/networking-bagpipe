@@ -62,9 +62,14 @@ if [[ "$venv" == *functional* ]] || [[ "$venv" == *fullstack* ]]; then
     # Run tests
     echo "Running neutron $venv test suite"
     set +e
-    sudo -H -u $owner $sudo_env tox -e $venv
+    sudo -E -H -u $owner $sudo_env tox -ve $venv
     testr_exit_code=$?
     set -e
+
+    # move and zip tox logs into log directory
+    sudo mv $PROJECT_DIR/.tox/$venv/log /opt/stack/logs/tox
+    sudo -H -u $owner chmod o+rw -R /opt/stack/logs/tox/
+    gzip -9 /opt/stack/logs/tox/*.log
 
     # Collect and parse results
     generate_testr_results

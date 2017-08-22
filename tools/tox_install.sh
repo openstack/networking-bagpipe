@@ -30,7 +30,8 @@ install_project() {
 
     if [ $project_installed -eq 0 ]; then
         echo "ALREADY INSTALLED" > /tmp/tox_install.txt
-        echo "$project already installed; using existing package"
+        where=`python -c "import $module_name; print($module_name.__file__)"`
+        echo "$project already installed; using existing package: $where"
     elif [ -x "$ZUUL_CLONER" ]; then
         echo "ZUUL CLONER" > /tmp/tox_install.txt
         # Make this relative to current working directory so that
@@ -39,8 +40,7 @@ install_project() {
         mkdir -p .tmp
         PROJECT_DIR=$(/bin/mktemp -d -p $(pwd)/.tmp)
         pushd $PROJECT_DIR
-        $ZUUL_CLONER --cache-dir \
-            /opt/git \
+        $ZUUL_CLONER -v --cache-dir /opt/git \
             --branch $BRANCH_NAME \
             http://git.openstack.org \
             openstack/$project
