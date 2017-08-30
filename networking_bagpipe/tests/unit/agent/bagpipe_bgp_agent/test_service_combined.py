@@ -16,6 +16,7 @@
 import mock
 
 from networking_bagpipe.agent import bagpipe_bgp_agent as agent
+from networking_bagpipe.agent.common import constants as b_const
 
 from networking_bagpipe.tests.unit.agent.bagpipe_bgp_agent import base
 
@@ -32,10 +33,10 @@ class TestServiceCombinedMixin(object):
         with mock.patch.object(self.agent,
                                '_send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.BGPVPN_L2,
+                self._mock_send_expected_call(b_const.BGPVPN_L2,
                                               bgpvpn_port10,
                                               self.DUMMY_VIF10,
                                               others_rts=base.BAGPIPE_L2_RT1)
@@ -48,13 +49,13 @@ class TestServiceCombinedMixin(object):
 
             self._check_network_info(base.NETWORK1['id'],
                                      1,
-                                     agent.BAGPIPE_L2_SERVICE,
-                                     agent.EVPN,
+                                     b_const.BAGPIPE_L2_SERVICE,
+                                     b_const.EVPN,
                                      base.BAGPIPE_L2_RT1)
             self._check_network_info(base.NETWORK1['id'],
                                      1,
-                                     agent.BGPVPN_SERVICE,
-                                     agent.BGPVPN_L2,
+                                     b_const.BGPVPN_SERVICE,
+                                     b_const.BGPVPN_L2,
                                      base.BGPVPN_L2_RT10)
 
     def test_combined_attach_single_port_different_vpns(self):
@@ -67,13 +68,13 @@ class TestServiceCombinedMixin(object):
         with mock.patch.object(self.agent,
                                '_send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.BGPVPN_L3,
+                self._mock_send_expected_call(b_const.BGPVPN_L3,
                                               bgpvpn_port10,
                                               self.DUMMY_VIF10,
                                               evpn2ipvpn=True)
@@ -86,13 +87,13 @@ class TestServiceCombinedMixin(object):
 
             self._check_network_info(base.NETWORK1['id'],
                                      1,
-                                     agent.BAGPIPE_L2_SERVICE,
-                                     agent.EVPN,
+                                     b_const.BAGPIPE_L2_SERVICE,
+                                     b_const.EVPN,
                                      base.BAGPIPE_L2_RT1)
             self._check_network_info(base.NETWORK1['id'],
                                      1,
-                                     agent.BGPVPN_SERVICE,
-                                     agent.BGPVPN_L3,
+                                     b_const.BGPVPN_SERVICE,
+                                     b_const.BGPVPN_L3,
                                      base.BGPVPN_L3_RT100)
 
     def test_combined_attach_multiple_ports_same_evpns(self):
@@ -111,18 +112,18 @@ class TestServiceCombinedMixin(object):
         with mock.patch.object(self.agent,
                                '_send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.BGPVPN_L2,
+                self._mock_send_expected_call(b_const.BGPVPN_L2,
                                               bgpvpn_port10,
                                               self.DUMMY_VIF10,
                                               others_rts=base.BAGPIPE_L2_RT1),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port11,
                                               self.DUMMY_VIF11,
                                               others_rts=base.BGPVPN_L2_RT10),
-                self._mock_send_expected_call(agent.BGPVPN_L2,
+                self._mock_send_expected_call(b_const.BGPVPN_L2,
                                               bgpvpn_port11,
                                               self.DUMMY_VIF11,
                                               others_rts=base.BAGPIPE_L2_RT1)
@@ -138,13 +139,13 @@ class TestServiceCombinedMixin(object):
 
             self._check_network_info(base.NETWORK1['id'],
                                      2,
-                                     agent.BAGPIPE_L2_SERVICE,
-                                     agent.EVPN,
+                                     b_const.BAGPIPE_L2_SERVICE,
+                                     b_const.EVPN,
                                      base.BAGPIPE_L2_RT1)
             self._check_network_info(base.NETWORK1['id'],
                                      2,
-                                     agent.BGPVPN_SERVICE,
-                                     agent.BGPVPN_L2,
+                                     b_const.BGPVPN_SERVICE,
+                                     b_const.BGPVPN_L2,
                                      base.BGPVPN_L2_RT10)
 
     def test_combined_attach_multiple_ports_different_evpns(self):
@@ -163,17 +164,17 @@ class TestServiceCombinedMixin(object):
         with mock.patch.object(self.agent,
                                '_send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.BGPVPN_L2,
+                self._mock_send_expected_call(b_const.BGPVPN_L2,
                                               bgpvpn_port10,
                                               self.DUMMY_VIF10,
                                               others_rts=base.BAGPIPE_L2_RT1),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port20,
                                               self.DUMMY_VIF20),
-                self._mock_send_expected_call(agent.BGPVPN_L2,
+                self._mock_send_expected_call(b_const.BGPVPN_L2,
                                               bgpvpn_port20,
                                               self.DUMMY_VIF20,
                                               others_rts=base.BAGPIPE_L2_RT2)
@@ -195,13 +196,13 @@ class TestServiceCombinedMixin(object):
                      base.BGPVPN_L2_RT20)]:
                 self._check_network_info(network_id,
                                          1,
-                                         agent.BAGPIPE_L2_SERVICE,
-                                         agent.EVPN,
+                                         b_const.BAGPIPE_L2_SERVICE,
+                                         b_const.EVPN,
                                          bagpipe_rts)
                 self._check_network_info(network_id,
                                          1,
-                                         agent.BGPVPN_SERVICE,
-                                         agent.BGPVPN_L2,
+                                         b_const.BGPVPN_SERVICE,
+                                         b_const.BGPVPN_L2,
                                          bgpvpn_rts)
 
     def test_combined_attach_multiple_ports_different_vpns(self):
@@ -220,23 +221,23 @@ class TestServiceCombinedMixin(object):
         with mock.patch.object(self.agent,
                                '_send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.BGPVPN_L3,
+                self._mock_send_expected_call(b_const.BGPVPN_L3,
                                               bgpvpn_port10,
                                               self.DUMMY_VIF10,
                                               evpn2ipvpn=True),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port20,
                                               self.DUMMY_VIF20),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port20,
                                               self.DUMMY_VIF20),
-                self._mock_send_expected_call(agent.BGPVPN_L3,
+                self._mock_send_expected_call(b_const.BGPVPN_L3,
                                               bgpvpn_port20,
                                               self.DUMMY_VIF20,
                                               evpn2ipvpn=True)
@@ -258,13 +259,13 @@ class TestServiceCombinedMixin(object):
                      base.BGPVPN_L3_RT200)]:
                 self._check_network_info(network_id,
                                          1,
-                                         agent.BAGPIPE_L2_SERVICE,
-                                         agent.EVPN,
+                                         b_const.BAGPIPE_L2_SERVICE,
+                                         b_const.EVPN,
                                          bagpipe_rts)
                 self._check_network_info(network_id,
                                          1,
-                                         agent.BGPVPN_SERVICE,
-                                         agent.BGPVPN_L3,
+                                         b_const.BGPVPN_SERVICE,
+                                         b_const.BGPVPN_L3,
                                          bgpvpn_rts)
 
     def test_combined_detach_single_port_evpns1(self):
@@ -279,7 +280,7 @@ class TestServiceCombinedMixin(object):
         with mock.patch.object(self.agent,
                                '_send_detach_local_port') as send_detach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.BGPVPN_L2,
+                self._mock_send_expected_call(b_const.BGPVPN_L2,
                                               bgpvpn_port10,
                                               self.DUMMY_VIF10,
                                               others_rts=base.BAGPIPE_L2_RT1)
@@ -320,7 +321,7 @@ class TestServiceCombinedMixin(object):
                          agent.BaGPipeBGPException(reason="Port not plugged")]
         ) as send_detach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10,
                                               others_rts=base.BGPVPN_L2_RT10)
@@ -357,11 +358,11 @@ class TestServiceCombinedMixin(object):
         with mock.patch.object(self.agent,
                                '_send_detach_local_port') as send_detach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.BGPVPN_L3,
+                self._mock_send_expected_call(b_const.BGPVPN_L3,
                                               bgpvpn_port10,
                                               self.DUMMY_VIF10,
                                               evpn2ipvpn=True),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10)
             ]
@@ -401,11 +402,11 @@ class TestServiceCombinedMixin(object):
         with mock.patch.object(self.agent,
                                '_send_detach_local_port') as send_detach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.BGPVPN_L2,
+                self._mock_send_expected_call(b_const.BGPVPN_L2,
                                               bgpvpn_port10,
                                               self.DUMMY_VIF10,
                                               others_rts=base.BAGPIPE_L2_RT1),
-                self._mock_send_expected_call(agent.BGPVPN_L2,
+                self._mock_send_expected_call(b_const.BGPVPN_L2,
                                               bgpvpn_port11,
                                               self.DUMMY_VIF11,
                                               others_rts=base.BAGPIPE_L2_RT1)
@@ -452,18 +453,18 @@ class TestServiceCombinedMixin(object):
         with mock.patch.object(self.agent,
                                '_send_detach_local_port') as send_detach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.BGPVPN_L3,
+                self._mock_send_expected_call(b_const.BGPVPN_L3,
                                               bgpvpn_port10,
                                               self.DUMMY_VIF10,
                                               evpn2ipvpn=True),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.BGPVPN_L3,
+                self._mock_send_expected_call(b_const.BGPVPN_L3,
                                               bgpvpn_port20,
                                               self.DUMMY_VIF20,
                                               evpn2ipvpn=True),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               bagpipe_port20,
                                               self.DUMMY_VIF20)
             ]
