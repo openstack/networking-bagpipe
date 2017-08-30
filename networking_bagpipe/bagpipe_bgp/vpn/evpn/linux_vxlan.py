@@ -312,7 +312,7 @@ class LinuxVXLANDataplaneDriver(dp_drivers.DataplaneDriver):
     encaps = [exa.Encapsulation(exa.Encapsulation.Type.VXLAN)]
 
     driver_opts = [
-        cfg.IntOpt("vxlan_dst_port", default="0",
+        cfg.IntOpt("vxlan_dst_port", default="4789",
                    help=("UDP port toward which send VXLAN traffic (defaults "
                          "to standard IANA-allocated port)")),
     ]
