@@ -14,7 +14,8 @@
 #    under the License.
 
 import mock
-from neutron_lib import context
+
+from networking_bagpipe.agent import bagpipe_bgp_agent
 
 from neutron.plugins.ml2.drivers.linuxbridge.agent.common import constants as\
     a_const
@@ -29,9 +30,15 @@ class LinuxbridgeAgentExtensionTest(base.BaseTestCase):
     def setUp(self):
         super(LinuxbridgeAgentExtensionTest, self).setUp()
         self.agent_ext = linuxbridge_agent.BagpipeAgentExtension()
-        self.context = context.get_admin_context()
         self.connection = mock.Mock()
 
+        self.mocked_bagpipe_bgp_agent = mock.Mock(
+            spec=bagpipe_bgp_agent.BaGPipeBGPAgent
+        )
+
     def test_initialize_linuxbridge(self):
-        self.agent_ext.initialize(self.connection,
-                                  a_const.EXTENSION_DRIVER_TYPE)
+        with mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent.'
+                        'BaGPipeBGPAgent.get_instance',
+                        return_value=self.mocked_bagpipe_bgp_agent):
+            self.agent_ext.initialize(self.connection,
+                                      a_const.EXTENSION_DRIVER_TYPE)
