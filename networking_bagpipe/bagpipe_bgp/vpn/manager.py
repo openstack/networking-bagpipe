@@ -27,7 +27,6 @@ from networking_bagpipe.bagpipe_bgp.common import run_command
 from networking_bagpipe.bagpipe_bgp.common import utils
 from networking_bagpipe.bagpipe_bgp import constants
 from networking_bagpipe.bagpipe_bgp.engine import bgp_manager
-from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 from networking_bagpipe.bagpipe_bgp.vpn import evpn
 from networking_bagpipe.bagpipe_bgp.vpn import ipvpn
@@ -41,20 +40,6 @@ LOG = logging.getLogger(__name__)
 def redirect_instance_extid(instance_type, rt):
     '''generate the ext intance id of a redirection VPN instance'''
     return "redirect-to-%s-%s" % (instance_type, rt.replace(":", "_"))
-
-
-def convert_route_targets(orig_list):
-    assert isinstance(orig_list, list)
-    list_ = []
-    for rt in orig_list:
-        if rt == '':
-            continue
-        try:
-            asn, nn = rt.split(':')
-            list_.append(exa.RouteTarget(int(asn), int(nn)))
-        except Exception:
-            raise Exception("Malformed route target: '%s'" % rt)
-    return list_
 
 
 class NoSuchVPNInstance(Exception):
@@ -314,12 +299,12 @@ class VPNManager(lg.LookingGlassMixin):
         ip_address_prefix = params.get('ip_address_prefix')
 
         # Convert route target string to RouteTarget dictionary
-        import_rts = convert_route_targets(import_rts)
-        export_rts = convert_route_targets(export_rts)
+        import_rts = utils.convert_route_targets(import_rts)
+        export_rts = utils.convert_route_targets(export_rts)
 
         if readvertise:
             try:
-                readvertise = {k: convert_route_targets(readvertise[k])
+                readvertise = {k: utils.convert_route_targets(readvertise[k])
                                for k in ['from_rt', 'to_rt']}
             except KeyError as e:
                 raise Exception("Wrong 'readvertise' parameters: %s" % e)
@@ -327,7 +312,9 @@ class VPNManager(lg.LookingGlassMixin):
         if attract_traffic:
             try:
                 attract_traffic['redirect_rts'] = (
-                    convert_route_targets(attract_traffic['redirect_rts']))
+                    utils.convert_route_targets(
+                        attract_traffic['redirect_rts'])
+                )
             except KeyError as e:
                 raise Exception("Wrong 'attract_traffic' parameters: %s" % e)
 
@@ -401,7 +388,7 @@ class VPNManager(lg.LookingGlassMixin):
                  "target %s", external_instance_id, redirect_rt)
 
         # Convert route target string to RouteTarget dictionary
-        import_rts = convert_route_targets([redirect_rt])
+        import_rts = utils.convert_route_targets([redirect_rt])
 
         # Retrieve a redirect VPN instance or create a new one if none exists
         # yet

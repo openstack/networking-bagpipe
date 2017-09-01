@@ -21,6 +21,8 @@ import re
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 
+from networking_bagpipe.bagpipe_bgp.engine import exa
+
 
 def synchronized(method):
 
@@ -69,3 +71,17 @@ def osloconfig_json_serialize(obj):
         return {osloconfig_json_serialize(k): osloconfig_json_serialize(v)
                 for k, v in obj.items()}
     return obj
+
+
+def convert_route_targets(orig_list):
+    assert isinstance(orig_list, list)
+    list_ = []
+    for rt in orig_list:
+        if rt == '':
+            continue
+        try:
+            asn, nn = rt.split(':')
+            list_.append(exa.RouteTarget(int(asn), int(nn)))
+        except Exception:
+            raise Exception("Malformed route target: '%s'" % rt)
+    return list_

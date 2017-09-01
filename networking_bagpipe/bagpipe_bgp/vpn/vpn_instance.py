@@ -35,7 +35,6 @@ from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.engine import flowspec
 from networking_bagpipe.bagpipe_bgp.engine import tracker_worker
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -332,11 +331,40 @@ class VPNInstance(tracker_worker.TrackerWorker,
             self.log.debug("readvertise not enabled")
             self.readvertise = False
 
-        if self.readvertise and attract_traffic:
+        self.attract_static_dest_prefixes = None
+
+        if (attract_traffic and (self.readvertise or
+                                 attract_traffic.get('to_rt'))):
+            # Convert route target string to RouteTarget dictionary
+            attract_to_rts = attract_traffic.get('to_rt')
+
+            if attract_to_rts:
+                converted_to_rts = (
+                    utils.convert_route_targets(attract_to_rts)
+                )
+                if self.readvertise:
+                    if converted_to_rts != self.readvertise_to_rts:
+                        raise exc.APIException("if both are set, then "
+                                               "'attract_traffic/to_rt' and "
+                                               "'readvertise/to_rt' have to "
+                                               "be equal")
+                else:
+                    self.readvertise_to_rts = converted_to_rts
+
+                try:
+                    self.attract_static_dest_prefixes = (
+                        attract_traffic['static_destination_prefixes']
+                    )
+                except KeyError:
+                    raise exc.APIException("'attract_traffic/to_rt' specified "
+                                           "without "
+                                           "'static_destination_prefixes'")
+
             if len(self.readvertise_to_rts) != 1:
                 raise exc.APIException("attract_traffic requires exactly one "
                                        "RT to be provided in "
-                                       "readvertise/to_rt")
+                                       "'readvertise/to_rt' and "
+                                       "'attract_traffic/to_rt'")
             self.attract_traffic = True
             self.attract_rts = attract_traffic['redirect_rts']
             try:
@@ -941,6 +969,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
             "instance_dataplane_id": (lg.VALUE, self.instance_label),
             "ports":                 (lg.SUBTREE, self.get_lg_local_port_data),
             "readvertise":           (lg.SUBITEM, self.get_lg_readvertise),
+            "attract_traffic":       (lg.SUBITEM, self.get_lg_attract_traffic),
             "fallback":              (lg.VALUE, self.fallback)
         }
 
@@ -972,12 +1001,27 @@ class VPNInstance(tracker_worker.TrackerWorker,
     def get_lg_readvertise(self):
         r = {}
         if self.readvertise:
-            r = {'from': [repr(rt) for rt in self.readvertise_from_rts],
-                 'to': [repr(rt) for rt in self.readvertise_to_rts]}
+            r = {
+                'from': [repr(rt) for rt in self.readvertise_from_rts],
+                'to': [repr(rt) for rt in self.readvertise_to_rts]
+            }
+        return r
 
-            if self.attract_traffic:
-                r['attract_traffic'] = {
-                    'redirect_rts': [repr(rt) for rt in self.attract_rts],
-                    'classifier': self.attract_classifier
-                }
+    def get_lg_attract_traffic(self):
+        r = {}
+        if self.attract_traffic:
+            r = {
+                'redirect_rts': [repr(rt) for rt in self.attract_rts],
+                'classifier': self.attract_classifier,
+            }
+
+            if not hasattr(self, 'attract_static_dest_prefixes'):
+                return r
+
+            r.update({
+                'to': [repr(rt) for rt in self.readvertise_to_rts],
+                'static_destination_prefixes':
+                    self.attract_static_dest_prefixes
+            })
+
         return r
