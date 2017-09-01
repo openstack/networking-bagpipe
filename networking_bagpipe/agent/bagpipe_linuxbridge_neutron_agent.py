@@ -20,12 +20,24 @@ eventlet.monkey_patch()
 
 from oslo_config import cfg
 
+from oslo_concurrency import lockutils
+
+from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 
 from oslo_service import service
 
+from networking_bagpipe.agent import agent_base_info
+from networking_bagpipe.agent.common import constants as b_const
+
 from networking_bagpipe.agent import bagpipe_bgp_agent
+
 from networking_bagpipe.driver.type_route_target import TYPE_ROUTE_TARGET
+
+from networking_bagpipe.rpc import agent as bagpipe_rpc
+from networking_bagpipe.rpc.client import topics_BAGPIPE
+
+from neutron.common import topics
 
 from neutron.agent.l2 import agent_extension
 
@@ -39,6 +51,8 @@ from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
     import LinuxBridgeManager
 
 LOG = logging.getLogger(__name__)
+
+BAGPIPE_L2_SERVICE = 'bagpipe_l2'
 
 LB_BAGPIPE_AGENT_BINARY = 'neutron-bagpipe-linuxbridge-agent'
 
@@ -61,16 +75,124 @@ class LinuxBridgeManagerBaGPipe(LinuxBridgeManager):
                                            segmentation_id))
 
 
-class BagpipeAgentExtension(agent_extension.AgentCoreResourceExtension):
+class BagpipeAgentExtension(agent_extension.AgentCoreResourceExtension,
+                            agent_base_info.BaseInfoManager,
+                            bagpipe_rpc.BaGPipeAgentRpcCallBackMixin):
 
     def initialize(self, connection, driver_type):
 
-        # Create an HTTP client for BaGPipe BGP component REST service
         self.bagpipe_bgp_agent = (
             bagpipe_bgp_agent.BaGPipeBGPAgent.get_instance(
-                n_const.AGENT_TYPE_LINUXBRIDGE,
-                connection)
+                n_const.AGENT_TYPE_LINUXBRIDGE)
         )
+
+        self._setup_rpc(connection)
+
+        self.bagpipe_bgp_agent.register_build_callback(
+            BAGPIPE_L2_SERVICE,
+            self.build_bagpipe_l2_attach_info)
+
+        self.ports = set()
+        self.bagpipe_bgp_agent.register_port_list(BAGPIPE_L2_SERVICE,
+                                                  self.ports)
+
+    def _setup_rpc(self, connection):
+        connection.create_consumer(topics.get_topic_name(topics.AGENT,
+                                                         topics_BAGPIPE,
+                                                         topics.UPDATE,
+                                                         cfg.CONF.host),
+                                   [self], fanout=False)
+
+    def build_bagpipe_l2_attach_info(self, port_id):
+        if not self.ports_info.get(port_id):
+            LOG.warning("%s service has no PortInfo for port %s",
+                        BAGPIPE_L2_SERVICE, port_id)
+            return {}
+
+        port_info = self.ports_info[port_id]
+
+        service_info = port_info.network.service_infos
+        attach_info = {
+            'network_id': port_info.network.id,
+            'ip_address': port_info.ip_address,
+            'mac_address': port_info.mac_address,
+            'gateway_ip': port_info.network.gateway_info.ip,
+            'local_port': port_info.local_port,
+            b_const.EVPN: {
+                'linuxbr': LinuxBridgeManager.get_bridge_name(
+                    port_info.network.id
+                ),
+                b_const.RT_IMPORT: [
+                    service_info[b_const.EVPN][b_const.RT_IMPORT]],
+                b_const.RT_EXPORT: [
+                    service_info[b_const.EVPN][b_const.RT_EXPORT]]
+            }
+        }
+
+        return attach_info
+
+    @log_helpers.log_method_call
+    @lockutils.synchronized('bagpipe-bgp-agent')
+    def bagpipe_port_attach(self, context, port_bagpipe_info):
+        port_id = port_bagpipe_info.pop('id')
+        net_id = port_bagpipe_info.pop('network_id')
+
+        net_info, port_info = (
+            self._get_network_port_infos(net_id, port_id)
+        )
+
+        # Set IP and MAC adresses in PortInfo
+        ip_address = port_bagpipe_info.pop('ip_address')
+        mac_address = port_bagpipe_info.pop('mac_address')
+        port_info.set_ip_mac_infos(ip_address, mac_address)
+
+        # Set gateway IP address in NetworkInfo
+        gateway_info = b_const.GatewayInfo(None,
+                                           port_bagpipe_info.pop('gateway_ip'))
+        net_info.set_gateway_info(gateway_info)
+
+        port_info.set_local_port(
+            LinuxBridgeManager.get_tap_device_name(port_id)
+        )
+
+        net_info.add_service_info(port_bagpipe_info)
+        self.ports.add(port_id)
+
+        self.bagpipe_bgp_agent.do_port_plug(port_id)
+
+    @log_helpers.log_method_call
+    @lockutils.synchronized('bagpipe-bgp-agent')
+    def bagpipe_port_detach(self, context, port_bagpipe_info):
+        port_id = port_bagpipe_info['id']
+        net_id = port_bagpipe_info['network_id']
+
+        if port_id not in self.ports_info:
+            LOG.warning("%s service inconsistent for port %s",
+                        BAGPIPE_L2_SERVICE, port_id)
+            return
+
+        LOG.debug("%s service detaching port %s from bagpipe-bgp",
+                  BAGPIPE_L2_SERVICE, port_id)
+        try:
+            port_info = self.ports_info[port_id]
+
+            detach_info = {
+                b_const.EVPN: {
+                    'network_id': net_id,
+                    'ip_address': port_info.ip_address,
+                    'mac_address': port_info.mac_address,
+                    'local_port': port_info.local_port,
+                }
+            }
+
+            self._remove_network_port_infos(net_id, port_id)
+            self.ports.remove(port_id)
+
+            self.bagpipe_bgp_agent.do_port_plug_refresh(port_id,
+                                                        detach_info)
+        except bagpipe_bgp_agent.BaGPipeBGPException as e:
+            LOG.error("%s service can't detach port from bagpipe-bgp %s",
+                      BAGPIPE_L2_SERVICE, str(e))
 
     def handle_port(self, context, data):
         pass

@@ -13,16 +13,21 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from collections import namedtuple
+from networking_bagpipe.agent.common import constants as b_const
 
-# bagpipe-bgp VPN types
-EVPN = 'evpn'
-IPVPN = 'ipvpn'
-VPN_TYPES = [EVPN, IPVPN]
+from neutron_lib.api.definitions import bgpvpn
 
-RT_IMPORT = 'import_rt'
-RT_EXPORT = 'export_rt'
-RT_TYPES = [RT_IMPORT, RT_EXPORT]
+BGPVPN_SERVICE = 'bgpvpn'
 
-GatewayInfo = namedtuple('GatewayInfo', ['mac', 'ip'])
-NO_GW_INFO = GatewayInfo(None, None)
+DEFAULT_GATEWAY_MAC = "00:00:5e:00:43:64"
+FALLBACK_SRC_MAC = "00:00:5e:2a:10:00"
+
+# BGPVPN service VPN types
+BGPVPN_L3 = bgpvpn.BGPVPN_L3 + 'vpn'
+BGPVPN_L2 = bgpvpn.BGPVPN_L2 + 'vpn'
+BGPVPN_TYPES = [BGPVPN_L2, BGPVPN_L3]
+
+# Map from BGPVPN service VPN types to bagpipe-bgp VPN types
+BGPVPN_TYPES_MAP = {BGPVPN_L2: b_const.EVPN, BGPVPN_L3: b_const.IPVPN}
+
+LINUXIF_PREFIX = "patch2tun"

@@ -11,6 +11,7 @@
 #  under the License.
 
 from networking_bagpipe.agent import bagpipe_bgp_agent
+from networking_bagpipe.agent.bgpvpn import agent_extension
 from networking_bagpipe.bagpipe_bgp.api import api
 from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.common import run_command
@@ -32,6 +33,7 @@ from networking_bagpipe.driver import type_route_target
 def list_bagpipe_bgp_agent_opts():
     return [
         ('bagpipe', bagpipe_bgp_agent.bagpipe_bgp_opts),
+        ('bagpipe', agent_extension.bagpipe_bgpvpn_opts),
     ]
 
 
