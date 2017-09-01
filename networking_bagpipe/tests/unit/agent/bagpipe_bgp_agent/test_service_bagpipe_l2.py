@@ -15,7 +15,7 @@
 
 import mock
 
-from networking_bagpipe.agent import bagpipe_bgp_agent as agent
+from networking_bagpipe.agent.common import constants as b_const
 
 from networking_bagpipe.tests.unit.agent.bagpipe_bgp_agent import base
 
@@ -29,7 +29,7 @@ class TestServiceBaGPipeL2Mixin(object):
         with mock.patch.object(self.agent,
                                '_send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port10,
                                               self.DUMMY_VIF10)
             ]
@@ -40,8 +40,8 @@ class TestServiceBaGPipeL2Mixin(object):
 
             self._check_network_info(base.NETWORK1['id'],
                                      1,
-                                     agent.BAGPIPE_L2_SERVICE,
-                                     agent.EVPN,
+                                     b_const.BAGPIPE_L2_SERVICE,
+                                     b_const.EVPN,
                                      base.BAGPIPE_L2_RT1)
 
     def test_bagpipe_l2_attach_multiple_ports_same_network(self):
@@ -53,10 +53,10 @@ class TestServiceBaGPipeL2Mixin(object):
         with mock.patch.object(self.agent,
                                '_send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port11,
                                               self.DUMMY_VIF11)
             ]
@@ -68,8 +68,8 @@ class TestServiceBaGPipeL2Mixin(object):
 
             self._check_network_info(base.NETWORK1['id'],
                                      2,
-                                     agent.BAGPIPE_L2_SERVICE,
-                                     agent.EVPN,
+                                     b_const.BAGPIPE_L2_SERVICE,
+                                     b_const.EVPN,
                                      base.BAGPIPE_L2_RT1)
 
     def test_bagpipe_l2_attach_multiple_ports_different_networks(self):
@@ -81,10 +81,10 @@ class TestServiceBaGPipeL2Mixin(object):
         with mock.patch.object(self.agent,
                                '_send_attach_local_port') as send_attach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port20,
                                               self.DUMMY_VIF20)
             ]
@@ -99,8 +99,8 @@ class TestServiceBaGPipeL2Mixin(object):
                     (base.NETWORK2['id'], base.BAGPIPE_L2_RT2)]:
                 self._check_network_info(network_id,
                                          1,
-                                         agent.BAGPIPE_L2_SERVICE,
-                                         agent.EVPN,
+                                         b_const.BAGPIPE_L2_SERVICE,
+                                         b_const.EVPN,
                                          evpn_rt)
 
     def test_bagpipe_l2_detach_single_port(self):
@@ -112,7 +112,7 @@ class TestServiceBaGPipeL2Mixin(object):
         with mock.patch.object(self.agent,
                                '_send_detach_local_port') as send_detach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port10,
                                               self.DUMMY_VIF10)
             ]
@@ -141,10 +141,10 @@ class TestServiceBaGPipeL2Mixin(object):
         with mock.patch.object(self.agent,
                                '_send_detach_local_port') as send_detach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port11,
                                               self.DUMMY_VIF11)
             ]
@@ -159,8 +159,8 @@ class TestServiceBaGPipeL2Mixin(object):
             # Verify attachments list consistency
             self._check_network_info(base.NETWORK1['id'],
                                      1,
-                                     agent.BAGPIPE_L2_SERVICE,
-                                     agent.EVPN,
+                                     b_const.BAGPIPE_L2_SERVICE,
+                                     b_const.EVPN,
                                      base.BAGPIPE_L2_RT1)
 
             # Detach remaining port from network 1
@@ -199,16 +199,16 @@ class TestServiceBaGPipeL2Mixin(object):
         with mock.patch.object(self.agent,
                                '_send_detach_local_port') as send_detach_fn:
             expected_calls = [
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port10,
                                               self.DUMMY_VIF10),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port20,
                                               self.DUMMY_VIF20),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port11,
                                               self.DUMMY_VIF11),
-                self._mock_send_expected_call(agent.EVPN,
+                self._mock_send_expected_call(b_const.EVPN,
                                               dummy_port21,
                                               self.DUMMY_VIF21)
             ]
@@ -231,8 +231,8 @@ class TestServiceBaGPipeL2Mixin(object):
                     (base.NETWORK2['id'], base.BAGPIPE_L2_RT2)]:
                 self._check_network_info(network_id,
                                          1,
-                                         agent.BAGPIPE_L2_SERVICE,
-                                         agent.EVPN,
+                                         b_const.BAGPIPE_L2_SERVICE,
+                                         b_const.EVPN,
                                          evpn_rt)
 
             # Detach remaining port from each network

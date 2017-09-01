@@ -21,7 +21,6 @@ import json
 from copy import deepcopy
 
 from collections import defaultdict
-from collections import namedtuple
 
 import netaddr
 
@@ -38,6 +37,8 @@ from networking_bagpipe._i18n import _
 
 from networking_bagpipe.rpc import agent as bagpipe_agent_rpc
 from networking_bagpipe.rpc.client import topics_BAGPIPE
+
+from networking_bagpipe.agent.common import constants as b_const
 
 from networking_bagpipe.agent.bgpvpn import rpc_agent as bgpvpn_agent_rpc
 from networking_bagpipe.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
@@ -67,31 +68,6 @@ LOG = logging.getLogger(__name__)
 # Having this at line 231 is apparently not enough, so adding here as well:
 # pylint: disable=not-callable
 
-
-DEFAULT_GATEWAY_MAC = "00:00:5e:00:43:64"
-FALLBACK_SRC_MAC = "00:00:5e:2a:10:00"
-
-BAGPIPE_L2_SERVICE = 'bagpipe_l2'
-BGPVPN_SERVICE = 'bgpvpn'
-BAGPIPE_SERVICES = [BAGPIPE_L2_SERVICE, BGPVPN_SERVICE]
-
-# bagpipe-bgp VPN types
-EVPN = 'evpn'
-IPVPN = 'ipvpn'
-VPN_TYPES = [EVPN, IPVPN]
-
-# BGPVPN service VPN types
-BGPVPN_L2 = 'l2vpn'
-BGPVPN_L3 = 'l3vpn'
-BGPVPN_TYPES = [BGPVPN_L2, BGPVPN_L3]
-# Map from BGPVPN service VPN types to bagpipe-bgp VPN types
-BGPVPN_TYPES_MAP = {BGPVPN_L2: EVPN, BGPVPN_L3: IPVPN}
-
-RT_IMPORT = 'import_rt'
-RT_EXPORT = 'export_rt'
-RT_TYPES = [RT_IMPORT, RT_EXPORT]
-
-LINUXIF_PREFIX = "patch2tun"
 
 bagpipe_bgp_opts = [
     cfg.IntOpt('ping_interval', default=10,
@@ -195,8 +171,8 @@ class DummyOVSAgent(ovs_neutron_agent.OVSNeutronAgent):
 
 def has_attachement(bgpvpn_info, vpn_type):
     return (vpn_type in bgpvpn_info and (
-            bgpvpn_info[vpn_type].get(RT_IMPORT) or
-            bgpvpn_info[vpn_type].get(RT_EXPORT))
+            bgpvpn_info[vpn_type].get(b_const.RT_IMPORT) or
+            bgpvpn_info[vpn_type].get(b_const.RT_EXPORT))
             )
 
 
@@ -221,10 +197,6 @@ class keydefaultdict(defaultdict):
             # pylint: disable=not-callable
             ret = self[key] = getattr(self, 'default_factory')(key)
             return ret
-
-
-GatewayInfo = namedtuple('GatewayInfo', ['mac', 'ip'])
-NO_GW_INFO = GatewayInfo(None, None)
 
 
 class CommonInfo(object):
@@ -277,7 +249,7 @@ class NetworkInfo(CommonInfo):
     def __init__(self, network_id):
         super(NetworkInfo, self).__init__(network_id)
 
-        self.gateway_info = NO_GW_INFO
+        self.gateway_info = b_const.NO_GW_INFO
         self.ports = set()
 
     def set_gateway_info(self, gateway_info):
@@ -461,7 +433,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             )
 
         attach_list = defaultdict(list)
-        for vpn_type in VPN_TYPES:
+        for vpn_type in b_const.VPN_TYPES:
             attach_info = {}
 
             for service in services:
@@ -487,7 +459,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
                             attach_list[vpn_type].append(static_info)
 
-                    for rt_type in RT_TYPES:
+                    for rt_type in b_const.RT_TYPES:
                         if rt_type in service_vpn_info:
                             if rt_type not in attach_info:
                                 attach_info[rt_type] = []
@@ -497,9 +469,10 @@ class BaGPipeBGPAgent(HTTPClientBase,
                             )
 
                     # Check if plugging an EVPN into an IPVPN
-                    if vpn_type == IPVPN and EVPN in attach_list:
+                    if (vpn_type == b_const.IPVPN and
+                            b_const.EVPN in attach_list):
                         attach_info['local_port'] = {
-                            EVPN: {
+                            b_const.EVPN: {
                                 'id': '%s_evpn' % net_info.id
                             }
                         }
@@ -608,7 +581,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
             table=a_const.PATCH_LV_TO_TUN,
             priority=1,
             in_port=patch_int_ofport,
-            dl_dst=DEFAULT_GATEWAY_MAC,
+            dl_dst=b_const.DEFAULT_GATEWAY_MAC,
             actions="output:%s" % self.patch_tun_to_mpls_ofport
         )
 
@@ -637,7 +610,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         # (mostly copy-pasted ovs_ofctl....install_arp_responder)
         actions = a_const.ARP_RESPONDER_ACTIONS % {
-            'mac': netaddr.EUI(DEFAULT_GATEWAY_MAC, dialect=netaddr.mac_unix),
+            'mac': netaddr.EUI(b_const.DEFAULT_GATEWAY_MAC,
+                               dialect=netaddr.mac_unix),
             'ip': netaddr.IPAddress(gateway_ip),
         }
         self.tun_br.add_flow(table=a_const.ARP_RESPONDER,
@@ -705,7 +679,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         all_plug_details = self._compile_port_attach_info(port_id)
 
         # First plug E-VPNs because they could be plugged into IP-VPNs
-        for vpn_type in [t for t in VPN_TYPES
+        for vpn_type in [t for t in b_const.VPN_TYPES
                          if t in all_plug_details]:
             for plug_detail in all_plug_details[vpn_type]:
                 self._send_attach_local_port(plug_detail)
@@ -715,7 +689,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
         all_unplug_details = self._compile_port_attach_info(port_id)
 
         # First unplug IP-VPNs because E-VPNs could be plugged into them
-        for vpn_type in [t for t in VPN_TYPES[::-1]
+        for vpn_type in [t for t in b_const.VPN_TYPES[::-1]
                          if t in all_unplug_details]:
             for unplug_detail in all_unplug_details[vpn_type]:
                 self._send_detach_local_port(unplug_detail)
@@ -766,13 +740,15 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
     def _compile_bagpipe_l2_attach_info(self, service_info, port_info):
         attach_info = {
-            EVPN: {
-                RT_IMPORT: [service_info[EVPN][RT_IMPORT]],
-                RT_EXPORT: [service_info[EVPN][RT_EXPORT]]
+            b_const.EVPN: {
+                b_const.RT_IMPORT: [
+                    service_info[b_const.EVPN][b_const.RT_IMPORT]],
+                b_const.RT_EXPORT: [
+                    service_info[b_const.EVPN][b_const.RT_EXPORT]]
             }
         }
 
-        attach_info[EVPN].update(dict(
+        attach_info[b_const.EVPN].update(dict(
             linuxbr=LinuxBridgeManager.get_bridge_name(port_info.network.id)))
 
         return attach_info
@@ -791,15 +767,16 @@ class BaGPipeBGPAgent(HTTPClientBase,
         port_info.set_ip_mac_infos(ip_address, mac_address)
 
         # Set gateway IP address in NetworkInfo
-        gateway_info = GatewayInfo(None,
-                                   port_bagpipe_info.pop('gateway_ip'))
+        gateway_info = b_const.GatewayInfo(None,
+                                           port_bagpipe_info.pop('gateway_ip'))
         net_info.set_gateway_info(gateway_info)
 
         port_info.set_local_port(
             LinuxBridgeManager.get_tap_device_name(port_id)
         )
 
-        net_info.add_service_info(BAGPIPE_L2_SERVICE, port_bagpipe_info)
+        net_info.add_service_info(b_const.BAGPIPE_L2_SERVICE,
+                                  port_bagpipe_info)
 
         self._do_port_plug(port_id)
 
@@ -822,15 +799,15 @@ class BaGPipeBGPAgent(HTTPClientBase,
                         "updated with another detach")
 
     def _is_last_bgpvpn_info(self, net_info, service_info):
-        if BGPVPN_SERVICE not in net_info.service_infos:
+        if b_const.BGPVPN_SERVICE not in net_info.service_infos:
             return
 
-        orig_info = deepcopy(net_info.service_infos[BGPVPN_SERVICE])
+        orig_info = deepcopy(net_info.service_infos[b_const.BGPVPN_SERVICE])
 
-        for vpn_type in BGPVPN_TYPES:
+        for vpn_type in b_const.BGPVPN_TYPES:
             if vpn_type in service_info:
                 if vpn_type in orig_info:
-                    for rt_type in RT_TYPES:
+                    for rt_type in b_const.RT_TYPES:
                         if rt_type in service_info[vpn_type]:
                             orig_info[vpn_type][rt_type] = list(
                                 set(orig_info[vpn_type][rt_type]) -
@@ -848,9 +825,9 @@ class BaGPipeBGPAgent(HTTPClientBase,
         attach_info = {}
 
         for bgpvpn_type, rt_type in list(
-                itertools.product(BGPVPN_TYPES, RT_TYPES)):
+                itertools.product(b_const.BGPVPN_TYPES, b_const.RT_TYPES)):
             if rt_type in service_info.get(bgpvpn_type, {}):
-                bagpipe_bgp_vpn_type = BGPVPN_TYPES_MAP[bgpvpn_type]
+                bagpipe_bgp_vpn_type = b_const.BGPVPN_TYPES_MAP[bgpvpn_type]
                 if bagpipe_bgp_vpn_type not in attach_info:
                     attach_info[bagpipe_bgp_vpn_type] = defaultdict(list)
 
@@ -861,7 +838,8 @@ class BaGPipeBGPAgent(HTTPClientBase,
         if self.agent_type == n_const.AGENT_TYPE_OVS:
             # Add OVS VLAN information
             vlan = self.vlan_manager.get(port_info.network.id).vlan
-            for vpn_type in (vt for vt in VPN_TYPES if vt in attach_info):
+            for vpn_type in (vt for vt in b_const.VPN_TYPES
+                             if vt in attach_info):
                 attach_info[vpn_type].update({
                     'local_port': {
                         'ovs': {
@@ -872,25 +850,25 @@ class BaGPipeBGPAgent(HTTPClientBase,
                     }
                 })
 
-            if has_attachement(attach_info, IPVPN):
+            if has_attachement(attach_info, b_const.IPVPN):
                 # Add fallback information if needed as well
                 if port_info.network.gateway_info.mac:
-                    attach_info[IPVPN].update({
+                    attach_info[b_const.IPVPN].update({
                         'fallback': {
                             'dst_mac': port_info.network.gateway_info.mac,
-                            'src_mac': FALLBACK_SRC_MAC,
+                            'src_mac': b_const.FALLBACK_SRC_MAC,
                             'ovs_port_number': self.patch_mpls_to_int_ofport
                         }
                     })
         else:
-            if has_attachement(attach_info, EVPN):
-                attach_info[EVPN]['linuxbr'] = (
+            if has_attachement(attach_info, b_const.EVPN):
+                attach_info[b_const.EVPN]['linuxbr'] = (
                     LinuxBridgeManager.get_bridge_name(port_info.network.id)
                 )
-            if has_attachement(attach_info, IPVPN):
+            if has_attachement(attach_info, b_const.IPVPN):
                 # the interface we need to pass to bagpipe is the
                 # bridge
-                attach_info[IPVPN]['local_port'] = {
+                attach_info[b_const.IPVPN]['local_port'] = {
                     'linuxif':
                         LinuxBridgeManager.get_bridge_name(
                             port_info.network.id)
@@ -901,9 +879,10 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
     def ovs_restarted_bgpvpn(self):
         for net_info in self.networks_info.values():
-            if net_info.ports and net_info.gateway_info != NO_GW_INFO:
-                bgpvpn_info = net_info.service_infos.get(BGPVPN_SERVICE)
-                if has_attachement(bgpvpn_info, BGPVPN_L3):
+            if net_info.ports and net_info.gateway_info != b_const.NO_GW_INFO:
+                bgpvpn_info = net_info.service_infos.get(
+                    b_const.BGPVPN_SERVICE)
+                if has_attachement(bgpvpn_info, b_const.BGPVPN_L3):
                     self._check_arp_voodoo_plug(net_info,
                                                 net_info.gateway_info)
 
@@ -921,17 +900,17 @@ class BaGPipeBGPAgent(HTTPClientBase,
         if not net_info:
             return
 
-        new_gw_info = GatewayInfo(
+        new_gw_info = b_const.GatewayInfo(
             bgpvpn.pop('gateway_mac', None),
             net_info.gateway_info.ip
         )
 
-        if has_attachement(bgpvpn, BGPVPN_L3):
+        if has_attachement(bgpvpn, b_const.BGPVPN_L3):
             self._check_arp_voodoo_plug(net_info, new_gw_info)
 
         net_info.set_gateway_info(new_gw_info)
 
-        net_info.add_service_info(BGPVPN_SERVICE, bgpvpn)
+        net_info.add_service_info(b_const.BGPVPN_SERVICE, bgpvpn)
 
         for port_info in net_info.ports:
             self._do_port_plug(port_info.id)
@@ -954,7 +933,7 @@ class BaGPipeBGPAgent(HTTPClientBase,
 
         if self.agent_type == n_const.AGENT_TYPE_OVS:
             if (last_bgpvpn or
-                    not has_attachement(updated_info, BGPVPN_L3)):
+                    not has_attachement(updated_info, b_const.BGPVPN_L3)):
                 self._check_arp_voodoo_unplug(net_id)
 
         if last_bgpvpn:
@@ -962,14 +941,14 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 for port_info in net_info.ports:
                     self._do_port_unplug(port_info.id)
 
-                del(net_info.service_infos[BGPVPN_SERVICE])
+                del(net_info.service_infos[b_const.BGPVPN_SERVICE])
             else:
-                del(net_info.service_infos[BGPVPN_SERVICE])
+                del(net_info.service_infos[b_const.BGPVPN_SERVICE])
 
                 for port_info in net_info.ports:
                     self._do_port_plug(port_info.id)
         else:
-            net_info.service_infos[BGPVPN_SERVICE] = updated_info
+            net_info.service_infos[b_const.BGPVPN_SERVICE] = updated_info
 
             for port_info in net_info.ports:
                 self._do_port_plug(port_info.id)
@@ -988,23 +967,24 @@ class BaGPipeBGPAgent(HTTPClientBase,
         port_info.set_ip_mac_infos(ip_address, mac_address)
 
         # Set gateway IP and MAC (if defined) addresses in NetworkInfo
-        gateway_info = GatewayInfo(port_bgpvpn_info.pop('gateway_mac', None),
-                                   port_bgpvpn_info.pop('gateway_ip'))
+        gateway_info = b_const.GatewayInfo(
+            port_bgpvpn_info.pop('gateway_mac', None),
+            port_bgpvpn_info.pop('gateway_ip'))
 
-        if has_attachement(port_bgpvpn_info, BGPVPN_L3):
+        if has_attachement(port_bgpvpn_info, b_const.BGPVPN_L3):
             self._check_arp_voodoo_plug(net_info, gateway_info)
 
         net_info.set_gateway_info(gateway_info)
 
         if self.agent_type == n_const.AGENT_TYPE_OVS:
             vlan = self.vlan_manager.get(net_id).vlan
-            port_info.set_local_port('%s:%s' % (LINUXIF_PREFIX, vlan))
+            port_info.set_local_port('%s:%s' % (b_const.LINUXIF_PREFIX, vlan))
         else:
             port_info.set_local_port(
                 LinuxBridgeManager.get_tap_device_name(port_id)
             )
 
-        net_info.add_service_info(BGPVPN_SERVICE, port_bgpvpn_info)
+        net_info.add_service_info(b_const.BGPVPN_SERVICE, port_bgpvpn_info)
 
         self._do_port_plug(port_id)
 
@@ -1019,9 +999,10 @@ class BaGPipeBGPAgent(HTTPClientBase,
                 self._do_port_unplug(port_id)
                 if self.agent_type == n_const.AGENT_TYPE_OVS:
                     net_info = self.networks_info.get(net_id)
-                    bgpvpn_info = net_info.service_infos.get(BGPVPN_SERVICE)
+                    bgpvpn_info = net_info.service_infos.get(
+                        b_const.BGPVPN_SERVICE)
 
-                    if has_attachement(bgpvpn_info, BGPVPN_L3):
+                    if has_attachement(bgpvpn_info, b_const.BGPVPN_L3):
                         self._check_arp_voodoo_unplug(net_id)
             except BaGPipeBGPException as e:
                 LOG.error("Can't detach BGPVPN port from bagpipe-bgp %s",
