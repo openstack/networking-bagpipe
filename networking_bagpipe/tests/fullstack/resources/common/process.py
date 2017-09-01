@@ -82,6 +82,14 @@ class BagpipeFakeRRFixture(fixtures.Fixture):
 
 class GoBGPProcessFixture(neutron_proc.ProcessFixture):
 
+    # NOTE(tmorin): stopping the process does not work yet for
+    # GOBGPD_LOG = True, because get_root_helper_child_pid is not designed to
+    # find the right child pid when things when an intermediate shell
+    # is used
+    # (using 'sh -c "exec gobgpd ..."' does not work either, gobgpd silently
+    # stops right after startup for a reason I did not identify)
+    GOBGPD_LOG = False
+
     def start(self):
         test_name = base.sanitize_log_path(self.test_name)
 
@@ -98,21 +106,22 @@ class GoBGPProcessFixture(neutron_proc.ProcessFixture):
                             (self.exec_name,
                              os.environ['PATH']))
 
-        cmd = ['sh', '-c', ('%s -t json -f %s '
-                            '--pprof-disable '
-                            '--log-level=debug '
-                            '--api-hosts=0.0.0.0:%s'  # we don't need this API
-                            ' > %s 2>&1') %
-               (gobgpd_exec,
-                self.config_filenames[0],
-                random.randint(20000, 30000),  # NOTE(tmorin): use fixture?!
-                log_file)]
+        cmd = [
+            gobgpd_exec,
+            '-t', 'json',
+            '-f', self.config_filenames[0],
+            '--log-level=debug',
+            # we don't need this management API:
+            '--api-hosts=0.0.0.0:%s' % random.randint(20000, 30000)
+        ]
+
+        if self.GOBGPD_LOG:
+            cmd = ['sh', '-c', ('%s > %s 2>&1') % (' '.join(cmd), log_file)]
+
         self.process = async_process.AsyncProcess(
             cmd, namespace=self.namespace
         )
         self.process.start()
-
-    # NOTE(tmorin): stopping the process does not work yet, not sure why
 
 
 class GoBGPFixture(fixtures.Fixture):
