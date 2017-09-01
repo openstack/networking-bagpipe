@@ -13,10 +13,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import itertools
 
 from neutron_lib import constants
 from oslo_utils import uuidutils
 import testscenarios
+import unittest
 
 from neutron.tests.fullstack.resources import machine
 
@@ -30,7 +32,6 @@ load_tests = testscenarios.load_tests_apply_scenarios
 class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
 
     bagpipe_ml2 = False
-    evpn_driver = None
     network_type = 'vxlan'
     service_plugins = 'router,%s' % bgpvpn_cfg.BGPVPN_SERVICE
 
@@ -63,11 +64,12 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
             'mech_drivers': 'linuxbridge',
             'l2_agent_type': constants.AGENT_TYPE_LINUXBRIDGE,
             'ipvpn_driver': 'linux',
+            'evpn_driver': 'linux',
             'ipvpn_encap': 'bare-mpls',
         })
     ]
 
-    def test_network_connectivity(self):
+    def test_l3_network_connectivity(self):
         tenant_uuid = uuidutils.generate_uuid()
 
         bgpvpn = self.safe_client.create_bgpvpn(tenant_uuid,
@@ -97,7 +99,7 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
         vms.block_until_all_boot()
         vms.ping_all()
 
-    def test_router_connectivity(self):
+    def test_l3_router_connectivity(self):
         tenant_uuid = uuidutils.generate_uuid()
 
         bgpvpn = self.safe_client.create_bgpvpn(tenant_uuid,
@@ -137,6 +139,71 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
                         self.safe_client))
                 for i in
                 range(self.compute_node_count)*self.port_per_compute_per_net])
+
+        vms = machine.FakeFullstackMachinesList(fake_machines)
+
+        vms.block_until_all_boot()
+        vms.ping_all()
+
+    @unittest.skip("Disabled because of bug 1715660 ( https://"
+                   "bugs.launchpad.net/networking-bagpipe/+bug/1715660 )")
+    def test_l2_network_connectivity(self):
+        # create <n> fake machines in 2 different networks, all using
+        # the same IP subnet, and check that each machine can reach all the
+        # others. We create machines so that we confirm that connectivity
+        # still works *inside* a given network, both locally on a compute
+        # node, and across different compute nodes
+
+        if self.evpn_driver is 'dummy':
+            self.skipTest("L2VPN unsupported for this scenario")
+
+        tenant_uuid = uuidutils.generate_uuid()
+
+        bgpvpn = self.safe_client.create_bgpvpn(tenant_uuid,
+                                                type="l2",
+                                                route_targets=['64512:10'])
+
+        fake_machines = list()
+        for network in range(2):
+
+            # we'll use the same subnet range for all networks, but
+            # choose in this range distinct IP addresses for each fake machine
+
+            network_id, subnet_id = self._create_net_subnet_bgpvpn_assoc(
+                tenant_uuid,
+                base.SUBNET_CIDR1,
+                bgpvpn['id']
+            )
+
+            for compute, port_i in itertools.product(
+                    range(self.compute_node_count),
+                    range(self.port_per_compute_per_net)):
+
+                # NOTE(tmorin): choice of fixed IP done this way for sake
+                # of simplicity, of course, this breaks e.g. for
+                # compute_node_count > 10
+                fixed_ip = (base.SUBNET_CIDR1[:base.SUBNET_CIDR1.find('0/24')]
+                            + str(100 * network + 10 * (compute+1) + port_i))
+
+                neutron_port = self.safe_client.create_port(
+                    network_id=network_id,
+                    tenant_id=tenant_uuid,
+                    hostname=self.environment.hosts[compute].hostname,
+                    fixed_ips=[{"subnet_id": subnet_id,
+                                "ip_address": fixed_ip}]
+                )
+
+                fake_machines.append(
+                    self.useFixture(
+                        machine.FakeFullstackMachine(
+                            self.environment.hosts[compute],
+                            network_id,
+                            tenant_uuid,
+                            self.safe_client,
+                            neutron_port=neutron_port
+                        )
+                    )
+                )
 
         vms = machine.FakeFullstackMachinesList(fake_machines)
 

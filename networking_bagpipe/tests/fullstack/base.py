@@ -28,6 +28,9 @@ SUBNET_CIDR3 = '30.0.0.0/24'
 
 class BaGPipeBaseFullStackTestCase(base.BaseFullStackTestCase):
 
+    evpn_driver = 'dummy'
+    ipvpn_driver = 'dummy'
+
     compute_node_count = 3
     port_per_compute_per_net = 2
 

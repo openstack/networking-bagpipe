@@ -57,8 +57,8 @@ class BaGPipeEnvironmentDescription(neutron_env.EnvironmentDescription):
 
         self.bagpipe_ml2 = bagpipe_ml2
         self.bgpvpn = bgpvpn
-        self.evpn_driver = evpn_driver if bagpipe_ml2 else 'dummy'
-        self.ipvpn_driver = ipvpn_driver if bgpvpn else 'dummy'
+        self.evpn_driver = evpn_driver
+        self.ipvpn_driver = ipvpn_driver
         self.ipvpn_encap = ipvpn_encap
 
 
