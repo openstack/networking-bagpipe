@@ -45,16 +45,18 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension):
                 raise Exception("tunneling is not enabled in OVS agent, "
                                 "however bagpipe_bgpvpn extensions needs it")
 
-            self.bagpipe_bgp_agent = bagpipe_bgp_agent.BaGPipeBGPAgent(
-                n_const.AGENT_TYPE_OVS,
-                connection,
-                int_br=self.agent_api.request_int_br(),
-                tun_br=tun_br,
+            self.bagpipe_bgp_agent = (
+                bagpipe_bgp_agent.BaGPipeBGPAgent.get_instance(
+                    n_const.AGENT_TYPE_OVS,
+                    connection,
+                    int_br=self.agent_api.request_int_br(),
+                    tun_br=tun_br)
             )
         elif driver_type == lnxbridge_agt_constants.EXTENSION_DRIVER_TYPE:
-            self.bagpipe_bgp_agent = bagpipe_bgp_agent.BaGPipeBGPAgent(
-                n_const.AGENT_TYPE_LINUXBRIDGE,
-                connection,
+            self.bagpipe_bgp_agent = (
+                bagpipe_bgp_agent.BaGPipeBGPAgent.get_instance(
+                    n_const.AGENT_TYPE_LINUXBRIDGE,
+                    connection)
             )
         else:
             raise Exception("driver type not supported: %s", driver_type)

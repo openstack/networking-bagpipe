@@ -262,9 +262,36 @@ class BaGPipeBGPAgent(HTTPClientBase,
                       ):
     """Implements a BaGPipe-BGP REST client"""
 
+    _instance = None
+
     # bagpipe-bgp status
     BAGPIPEBGP_UP = 'UP'
     BAGPIPEBGP_DOWN = 'DOWN'
+
+    @classmethod
+    @lockutils.synchronized('bagpipe-bgp-agent')
+    def _create_instance(cls, agent_type, connection, **kwargs):
+        if not cls.has_instance():
+            cls._instance = cls(agent_type, connection, **kwargs)
+
+    @classmethod
+    def has_instance(cls):
+        return cls._instance is not None
+
+    @classmethod
+    def clear_instance(cls):
+        cls._instance = None
+
+    @classmethod
+    def get_instance(cls, agent_type, connection, **kwargs):
+        # double checked locking
+        if not cls.has_instance():
+            cls._create_instance(agent_type, connection, **kwargs)
+        else:
+            if cls._instance.agent_type != agent_type:
+                raise Exception("Agent already configured with another type")
+
+        return cls._instance
 
     def __init__(self, agent_type, connection, int_br=None, tun_br=None):
 
