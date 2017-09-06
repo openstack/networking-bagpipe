@@ -73,12 +73,17 @@ bagpipe_bgp_opts = [
     cfg.IntOpt('ping_interval', default=10,
                help=_("The number of seconds the bagpipe-bgp client will "
                       "wait between polling for restart detection.")),
-    cfg.StrOpt('bagpipe_bgp_ip', default='127.0.0.1',
-               help=_("bagpipe-bgp REST service IP address.")),
-    cfg.IntOpt('bagpipe_bgp_port', default=8082,
-               help=_("bagpipe-bgp REST service IP port.")),
+    cfg.PortOpt('bagpipe_bgp_port', default=8082,
+                help=_("bagpipe-bgp REST service IP port.")),
     cfg.StrOpt('mpls_bridge', default='br-mpls',
-               help=_("OVS MPLS bridge to use")),
+               help=_("OVS MPLS bridge to use"))
+]
+
+# these options are for internal use only (fullstack tests), and hence
+# better kept in a separate table not looked at by oslo gen confi hooks
+internal_opts = [
+    cfg.HostAddressOpt('bagpipe_bgp_ip', default='127.0.0.1',
+                       help=_("bagpipe-bgp REST service IP address.")),
     cfg.StrOpt('tun_to_mpls_peer_patch_port', default='patch-to-mpls',
                help=_("OVS Peer patch port in tunnel bridge to MPLS bridge ")),
     cfg.StrOpt('mpls_to_tun_peer_patch_port', default='patch-from-tun',
@@ -90,6 +95,7 @@ bagpipe_bgp_opts = [
 ]
 
 cfg.CONF.register_opts(bagpipe_bgp_opts, "BAGPIPE")
+cfg.CONF.register_opts(internal_opts, "BAGPIPE")
 ovs_conf.register_ovs_agent_opts()
 config.register_agent_state_opts_helper(cfg.CONF)
 
