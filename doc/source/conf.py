@@ -89,6 +89,7 @@ latex_documents = [
 # -- Options for oslo_config.sphinxconfiggen ---------------------------------
 
 _config_generator_config_files = [
+    'neutron-agent.conf',
     'bagpipe-bgp.conf',
     'dataplane-evpn-linux-vxlan.conf',
     'dataplane-ipvpn-mpls-linux.conf',
