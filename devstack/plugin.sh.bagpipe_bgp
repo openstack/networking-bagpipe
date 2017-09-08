@@ -147,9 +147,9 @@ EOF
 # Start the BGP component
 function start_bagpipe_bgp {
 	if is_service_enabled b-bgp ; then
-		screen_it b-bgp "bagpipe-bgp"
+		run_process b-bgp "${NEUTRON_BIN_DIR}/bagpipe-bgp"
 
-		screen_it b-bgp-lg "while true; do date ; sleep 10; bagpipe-looking-glass -r vpns instances ; echo --------------------------------------------------; done"
+		run_process b-bgp-looking-glass "while true; do date ; sleep 10; bagpipe-looking-glass -r vpns instances ; echo --------------------------------------------------; done"
 
 		echo "Waiting for bagpipe-bgp to start..."
 		if ! wait_for_service $SERVICE_TIMEOUT http://$BAGPIPE_SERVICE_HOST:$BAGPIPE_SERVICE_PORT; then
@@ -161,7 +161,7 @@ function start_bagpipe_bgp {
 # Start the FakeRR component
 function start_bagpipe_fakerr {
 	if is_service_enabled b-fakerr ; then
-		screen_it b-fakerr "echo 'from networking_bagpipe.bagpipe_bgp.fakerr import application' | sudo twistd -n -y /dev/stdin"
+		run_process b-fakerr "echo 'from networking_bagpipe.bagpipe_bgp.fakerr import application' | sudo twistd -n -y /dev/stdin"
 	fi
 }
 
@@ -171,14 +171,14 @@ function start_bagpipe {
 }
 
 function stop_bagpipe_bgp {
-	screen_stop b-bgp
+	stop_process b-bgp
 }
 
 function stop_bagpipe_fakerr {
-	screen_stop b-fakerr
+	stop_process b-fakerr
 }
 
-# Stop running processes (non-screen)
+# Stop running processes
 function stop_bagpipe {
 	stop_bagpipe_bgp
 	stop_bagpipe_fakerr
