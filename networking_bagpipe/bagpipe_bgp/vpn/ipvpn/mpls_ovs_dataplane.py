@@ -31,15 +31,29 @@ from networking_bagpipe.bagpipe_bgp import constants as consts
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 
+# man ovs-ofctl /32768
+DEFAULT_OVS_FLOW_PRIORITY = 0x8000
 
-DEFAULT_RULE_PRIORITY = 40000
+# we want to avoid having our flows having a lowest priority than
+# the default
+DEFAULT_RULE_PRIORITY = DEFAULT_OVS_FLOW_PRIORITY + 0x1000
+
+# priorities for IP match flows
+# highest priority MAX_PREFIX_PRIORITY for MAX_PREFIX_LENGTH prefix
+# (MAX_PREFIX_PRIORITY - MAX_PREFIX_LENGTH) for a zero length prefix
+MAX_PREFIX_PRIORITY = DEFAULT_RULE_PRIORITY
+MAX_PREFIX_LENGTH = 0x80  # 128
+
+# fallback flows get a priority even lower
+# (we round it for better readability of flow dumps)
+FALLBACK_PRIORITY = MAX_PREFIX_PRIORITY - MAX_PREFIX_LENGTH - 0x80
 
 DEFAULT_ARPNS_IF_MTU = 9000
 
 OVSBR2ARPNS_INTERFACE_PREFIX = "toarpns"
 
 # name of the veth device in the ARP proxy network namespace,
-#  whose remote end is plugged in the OVS bridge
+# whose remote end is plugged in the OVS bridge
 PROXYARP2OVS_IF = "ovs"
 
 ARPNETNS_PREFIX = "arp-vrf"
@@ -71,6 +85,21 @@ def get_ovsbr2arpns_if(namespace_id):
 
 def join_s(*args):
     return ','.join([_f for _f in args if _f])
+
+
+def _match_from_prefix(prefix):
+    # A zero-length prefix is a default route, no nw_dst is needed/possible
+    # in this case
+    prefix_length = netaddr.IPNetwork(prefix).prefixlen
+    return 'nw_dst=%s' % prefix if prefix_length != 0 else None
+
+
+def _priority_from_prefix(prefix):
+    prefix_length = netaddr.IPNetwork(prefix).prefixlen
+    # to implement a longest-match lookup we give longest prefixes
+    # the higher priority
+    priority = MAX_PREFIX_PRIORITY - (MAX_PREFIX_LENGTH - prefix_length)
+    return priority
 
 
 class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
@@ -403,7 +432,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                             vlan_action,
                             self.fallback.get('ovs_port_number')),
                            self.driver.vrf_table,
-                           priority=DEFAULT_RULE_PRIORITY-1)
+                           priority=FALLBACK_PRIORITY)
 
     def _check_vlan_use(self, push_vlan_action):
         # checks that if a vlan_action is used, it is the same
@@ -617,11 +646,6 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                     self.driver.mpls_if_mac_address, remote_pe_mac_address,
                     self.driver.ovs_mpls_if_port_number)
 
-    def _match_default_route_prefix(self, prefix):
-        return ('nw_dst=%s' % prefix
-                if netaddr.IPNetwork(prefix).prefixlen != 0
-                else None)
-
     def _cookie(self, add=False):
         mask = ""
         if not add:
@@ -636,8 +660,10 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         return self._vrf_match(join_s('reg%d=%d' % (LB_HOP_REGISTER, index),
                                       match))
 
-    def _get_lb_flows_to_add(self, prefix, nw_dst_match):
+    def _get_lb_flows_to_add(self, prefix):
         dec_ttl_action = ""
+
+        # if destination in same subnet as the VRF, don't decrement TTL
         if netaddr.IPNetwork(prefix) not in netaddr.IPNetwork("%s/%s" %
                                                               (self.gateway_ip,
                                                                self.mask)):
@@ -651,32 +677,30 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                                                       endpoint['encaps'])
 
             lb_endpoint_flow = self._ovs_flow_add(
-                self._vrf_lb_match(index, nw_dst_match),
+                self._vrf_lb_match(index, _match_from_prefix(prefix)),
                 join_s(dec_ttl_action,
                        label_action,
                        output_action),
                 self.driver.post_hash_vrf_table,
+                priority=_priority_from_prefix(prefix),
                 return_flow=True)
 
             flows_to_add.append(('add', lb_endpoint_flow))
 
         return flows_to_add
 
-    def _get_lb_flows_to_del(self, prefix, nw_dst_match):
+    def _get_lb_flows_to_del(self, prefix):
         flows_to_del = []
         for index, _ in enumerate(self._lb_endpoints[prefix]):
             lb_endpoint_flow = self._ovs_flow_del(
-                self._vrf_lb_match(index, nw_dst_match),
+                self._vrf_lb_match(index, _match_from_prefix(prefix)),
                 self.driver.post_hash_vrf_table,
                 return_flow=True)
             flows_to_del.append(('del', lb_endpoint_flow))
 
         return flows_to_del
 
-    def _get_lb_multipath_flow_mod(self, prefix, nw_dst_match):
-        self.log.debug('Prefix %s: nw_dst_match "%s", %s', prefix,
-                       nw_dst_match, self._lb_endpoints[prefix])
-
+    def _get_lb_multipath_flow_mod(self, prefix):
         if self._lb_endpoints[prefix]:
             multipath_action = ('multipath(symmetric_l3l4+udp,1024,hrw,%d,0,'
                                 'NXM_NX_REG%d[])' % (
@@ -687,22 +711,27 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                 'resubmit(,%d)' % self.driver.post_hash_vrf_table)
 
             lb_multipath_flow = self._ovs_flow_add(
-                self._vrf_match(nw_dst_match),
+                self._vrf_match(_match_from_prefix(prefix)),
                 join_s(multipath_action, multipath_output),
                 self.driver.vrf_table,
+                priority=_priority_from_prefix(prefix),
                 return_flow=True)
             self.log.debug('Multipath flow: %s', lb_multipath_flow)
             if len(self._lb_endpoints[prefix]) > 1:
+                # TODO(tmorin): should use consts here from some OVS lib
                 return 'modify_strict', lb_multipath_flow
             else:
+                # TODO(tmorin): should use consts here from some OVS lib
                 return 'add', lb_multipath_flow
         else:
             lb_multipath_flow = (
-                self._ovs_flow_del(self._vrf_match(nw_dst_match),
+                self._ovs_flow_del(self._vrf_match(_match_from_prefix(prefix)),
                                    self.driver.vrf_table,
+                                   priority=_priority_from_prefix(prefix),
                                    strict=True,
                                    return_flow=True)
             )
+            # TODO(tmorin): should use consts here from some OVS lib
             return 'delete_strict', lb_multipath_flow
 
     @log_decorator.log_info
@@ -729,12 +758,9 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                 lb_endpoint_info in self._lb_endpoints[prefix]):
             return
 
-        # Check if prefix is a default route
-        nw_dst_match = self._match_default_route_prefix(prefix)
-
         lb_flows = list()
         if prefix in self._lb_endpoints:
-            lb_flows.extend(self._get_lb_flows_to_del(prefix, nw_dst_match))
+            lb_flows.extend(self._get_lb_flows_to_del(prefix))
         else:
             self._lb_endpoints[prefix] = list()
 
@@ -746,9 +772,9 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                 key=operator.itemgetter('lb_consistent_hash_order')
             )
 
-        lb_flows.append(self._get_lb_multipath_flow_mod(prefix, nw_dst_match))
+        lb_flows.append(self._get_lb_multipath_flow_mod(prefix))
 
-        lb_flows.extend(self._get_lb_flows_to_add(prefix, nw_dst_match))
+        lb_flows.extend(self._get_lb_flows_to_add(prefix))
 
         self.driver._ovs_flow_mods(lb_flows)
 
@@ -756,13 +782,10 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
     def remove_dataplane_for_remote_endpoint(self, prefix, remote_pe, label,
                                              nlri, encaps,
                                              lb_consistent_hash_order=0):
-        # Check if prefix is a default route
-        nw_dst_match = self._match_default_route_prefix(prefix)
-
         if prefix in self._lb_endpoints:
             lb_flows = []
 
-            lb_flows.extend(self._get_lb_flows_to_del(prefix, nw_dst_match))
+            lb_flows.extend(self._get_lb_flows_to_del(prefix))
 
             self._lb_endpoints[prefix].remove(
                 {'label': label,
@@ -771,16 +794,18 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                  'lb_consistent_hash_order': lb_consistent_hash_order}
             )
 
-            lb_flows.append(self._get_lb_multipath_flow_mod(prefix,
-                                                            nw_dst_match))
+            lb_flows.append(self._get_lb_multipath_flow_mod(prefix))
 
             if self._lb_endpoints[prefix]:
-                lb_flows.extend(self._get_lb_flows_to_add(prefix,
-                                                          nw_dst_match))
+                lb_flows.extend(self._get_lb_flows_to_add(prefix))
             else:
                 del self._lb_endpoints[prefix]
 
             self.driver._ovs_flow_mods(lb_flows)
+        else:
+            self.log.warning("remove_dataplane_for_remote_endpoint called, "
+                             "for %s, but we don't know about this prefix",
+                             prefix)
 
     def _create_flow_match_from_tc(self, classifier):
         flow_match = ''
