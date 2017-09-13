@@ -15,8 +15,8 @@
 
 import mock
 from neutron_lib import context
+from oslo_config import cfg
 
-from neutron.plugins.ml2 import config
 from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc
 from neutron.tests.common import helpers
@@ -69,12 +69,12 @@ class TestBaGpipeRpcTestCase(test_plugin.Ml2PluginV2TestCase):
     _mechanism_drivers = ['bagpipe']
 
     def setUp(self):
-        config.cfg.CONF.set_override('type_drivers',
-                                     TYPE_ROUTE_TARGET,
-                                     'ml2')
-        config.cfg.CONF.set_override('tenant_network_types',
-                                     TYPE_ROUTE_TARGET,
-                                     'ml2')
+        cfg.CONF.set_override('type_drivers',
+                              TYPE_ROUTE_TARGET,
+                              'ml2')
+        cfg.CONF.set_override('tenant_network_types',
+                              TYPE_ROUTE_TARGET,
+                              'ml2')
 
         super(TestBaGpipeRpcTestCase, self).setUp()
 
