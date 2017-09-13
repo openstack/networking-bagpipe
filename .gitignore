@@ -56,3 +56,12 @@ releasenotes/build
 *~
 .*.swp
 .*sw?
+
+# dont ignore:
+!/.coveragerc
+!/.gitignore
+!/.gitreview
+!/.mailmap
+!/.pylintrc
+!/.stestr.conf
+!/.testr.conf
