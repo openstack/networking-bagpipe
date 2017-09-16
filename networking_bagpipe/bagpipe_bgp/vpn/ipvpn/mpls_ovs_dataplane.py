@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import operator
 import re
 
 from distutils import version  # pylint: disable=no-name-in-module
@@ -742,7 +743,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         if len(self._lb_endpoints[prefix]) > 1:
             self._lb_endpoints[prefix] = sorted(
                 self._lb_endpoints[prefix],
-                key=lambda endpoint: endpoint['lb_consistent_hash_order']
+                key=operator.itemgetter('lb_consistent_hash_order')
             )
 
         lb_flows.append(self._get_lb_multipath_flow_mod(prefix, nw_dst_match))

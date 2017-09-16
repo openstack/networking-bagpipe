@@ -137,7 +137,7 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
 
         if not ordered:
             expected_list_copy = sorted(expected_list_copy,
-                                        key=lambda x: repr(x))
+                                        key=repr)
             call_args_list = sorted(call_args_list,
                                     key=lambda x: repr(x[0]))
 
