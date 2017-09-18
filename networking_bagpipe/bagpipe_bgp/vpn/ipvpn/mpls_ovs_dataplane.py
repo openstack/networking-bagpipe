@@ -505,9 +505,9 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         # Add OVS port number in list for local port plugged in VRF
         # FIXME: check check check, is linuxif the right key??
-        self.log.debug("Adding OVS port %s with numbers (%s,%s) for address "
-                       "%s to ports plugged in VRF list",
-                       localport['linuxif'], ovs_port, ovs_port, ip_address)
+        self.log.debug("Adding OVS port %s with port %s for address "
+                       "%s, to the list of ports plugged in VRF",
+                       localport['linuxif'], ovs_port, ip_address)
         self._ovs_port_info[localport['linuxif']] = {
             "localport_match": localport_match,
             "port_unplug_action": port_unplug_action,

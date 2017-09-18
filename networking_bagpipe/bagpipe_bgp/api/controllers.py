@@ -204,7 +204,7 @@ class AttachController(VPNManagerController):
             pecan.abort(400, 'No local port details received')
 
         try:
-            LOG.debug('Local port attach received: %s', attach_params)
+            LOG.info('Local port attach received: %s', attach_params)
 
             self.manager.plug_vif_to_vpn(**attach_params)
         except exc.APIException as e:
@@ -237,7 +237,7 @@ class DetachController(VPNManagerController):
             pecan.abort(400, 'No local port details received')
 
         try:
-            LOG.debug('Local port detach received: %s', detach_params)
+            LOG.info('Local port detach received: %s', detach_params)
             self.manager.unplug_vif_from_vpn(**detach_params)
         except exc.APIException as e:
             LOG.warning('detach_localport: API error: %s', e)

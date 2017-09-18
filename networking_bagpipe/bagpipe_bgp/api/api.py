@@ -50,7 +50,7 @@ def setup_app(*args, **kwargs):
 
     app = pecan.make_app(
         pecan_config.app.root,
-        # debug=True,
+        debug=False,
         force_canonical=False,
         guess_content_type_from_ext=True
     )
