@@ -149,7 +149,7 @@ function start_bagpipe_bgp {
 	if is_service_enabled b-bgp ; then
 		run_process b-bgp "${NEUTRON_BIN_DIR}/bagpipe-bgp"
 
-		run_process b-bgp-looking-glass "while true; do date ; sleep 10; bagpipe-looking-glass -r vpns instances ; echo --------------------------------------------------; done"
+		run_process b-bgp-looking-glass "/bin/sh -c 'while true; do date ; sleep 10; bagpipe-looking-glass -r vpns instances ; echo --------------------------------------------------; done'"
 
 		echo "Waiting for bagpipe-bgp to start..."
 		if ! wait_for_service $SERVICE_TIMEOUT http://$BAGPIPE_SERVICE_HOST:$BAGPIPE_SERVICE_PORT; then
