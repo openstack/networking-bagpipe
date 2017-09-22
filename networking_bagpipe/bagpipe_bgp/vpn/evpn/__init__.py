@@ -227,10 +227,18 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                                "dataplane does not want it")
                 return
 
+            def ip_label_from_route(route):
+                return (route.nexthop, route.nlri.labels.labels[0])
+
+            if self.equivalent_route_in_best_routes(old_route,
+                                                    ip_label_from_route):
+                self.log.debug("Route for same dataplane is still in best "
+                               "routes, skipping removal")
+                return
+
             prefix = info
 
-            remote_pe = old_route.nexthop
-            label = old_route.nlri.label.labels[0]
+            remote_pe, label = ip_label_from_route(old_route)
 
             self.dataplane.remove_dataplane_for_remote_endpoint(
                 prefix, remote_pe, label, old_route.nlri)
@@ -238,19 +246,32 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         elif entry_class == exa.EVPNMulticast:
             remote_endpoint = info
 
+            def ip_label_from_route(route):
+                pmsi_tunnel = route.attributes.get(exa.PMSI.ID)
+                remote_endpoint = pmsi_tunnel.ip
+                label = pmsi_tunnel.label
+                return (remote_endpoint, label)
+
             # check that the route is actually carrying an PMSITunnel of type
             # ingress replication
             pmsi_tunnel = old_route.attributes.get(exa.PMSI.ID)
             if not isinstance(pmsi_tunnel, exa.PMSIIngressReplication):
                 self.log.warning("PMSITunnel of suppressed route is of"
                                  " unsupported type")
-            else:
-                remote_endpoint = pmsi_tunnel.ip
-                label = pmsi_tunnel.label
-                self.log.info("Cleaning up dataplane for ingress replication "
-                              "destination %s", remote_endpoint)
-                self.dataplane.remove_dataplane_for_bum_endpoint(
-                    remote_endpoint, label, old_route.nlri)
+                return
+
+            if self.equivalent_route_in_best_routes(old_route,
+                                                    ip_label_from_route):
+                self.log.debug("Route for same dataplane is still in best "
+                               "routes, skipping removal")
+                return
+
+            remote_endpoint, label = ip_label_from_route(old_route)
+            self.log.info("Cleaning up dataplane for ingress replication "
+                          "destination %s", remote_endpoint)
+
+            self.dataplane.remove_dataplane_for_bum_endpoint(
+                remote_endpoint, label, old_route.nlri)
         else:
             self.log.warning("unsupported entry_class: %s",
                              entry_class.__name__)

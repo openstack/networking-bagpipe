@@ -374,6 +374,15 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                                "dataplane does not want it")
                 return
 
+            # if we still have a route with same dataplane properties in
+            # best routes, then we don't want to clear the dataplane entry
+            if self.equivalent_route_in_best_routes(
+                    old_route,
+                    lambda r: (r.nexthop, r.nlri.labels.labels[0])):
+                self.log.debug("Route for same dataplane is still in best "
+                               "routes, skipping removal")
+                return
+
             encaps = self._check_encaps(old_route)
             if not encaps:
                 return

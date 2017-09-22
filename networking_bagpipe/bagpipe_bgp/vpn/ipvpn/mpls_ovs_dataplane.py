@@ -756,6 +756,8 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         if (prefix in self._lb_endpoints and
                 lb_endpoint_info in self._lb_endpoints[prefix]):
+            self.log.debug("Dataplane already in place for %s, %s, skipping",
+                           prefix, lb_endpoint_info)
             return
 
         lb_flows = list()
