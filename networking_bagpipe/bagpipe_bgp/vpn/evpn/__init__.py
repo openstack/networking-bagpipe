@@ -162,7 +162,7 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     # TrackerWorker callbacks for BGP route updates ##########################
 
-    def _route_2_tracked_entry(self, route):
+    def route_to_tracked_entry(self, route):
         if isinstance(route.nlri, exa.EVPNMAC):
             return (exa.EVPNMAC, route.nlri.mac)
         elif isinstance(route.nlri, exa.EVPNMulticast):
@@ -177,7 +177,7 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     @utils.synchronized
     @log_decorator.log
-    def _new_best_route(self, entry, new_route):
+    def new_best_route(self, entry, new_route):
         (entry_class, info) = entry
 
         encaps = self._check_encaps(new_route)
@@ -217,7 +217,7 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     @utils.synchronized
     @log_decorator.log
-    def _best_route_removed(self, entry, old_route, last):
+    def best_route_removed(self, entry, old_route, last):
         (entry_class, info) = entry
 
         if entry_class == exa.EVPNMAC:

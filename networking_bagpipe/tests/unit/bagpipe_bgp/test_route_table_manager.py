@@ -95,25 +95,19 @@ class TestRouteTableManager(testtools.TestCase, t.BaseTestBagPipeBGP):
         worker._rtm_route_entries = set()
         return worker
 
-    def _worker_subscriptions(self, worker, rts, wait=True,
+    def _worker_subscriptions(self, worker, rts,
                               afi=exa.AFI(exa.AFI.ipv4),
                               safi=exa.SAFI(exa.SAFI.mpls_vpn)):
         for rt in rts:
             subscribe = engine.Subscription(afi, safi, rt, worker)
-            self.rtm.enqueue(subscribe)
+            self.rtm._on_event(subscribe)
 
-        if wait:
-            self._wait()
-
-    def _worker_unsubscriptions(self, worker, rts, wait=True,
+    def _worker_unsubscriptions(self, worker, rts,
                                 afi=exa.AFI(exa.AFI.ipv4),
                                 safi=exa.SAFI(exa.SAFI.mpls_vpn)):
         for rt in rts:
             unsubscribe = engine.Unsubscription(afi, safi, rt, worker)
-            self.rtm.enqueue(unsubscribe)
-
-        if wait:
-            self._wait()
+            self.rtm._on_event(unsubscribe)
 
     def _check_subscriptions(self, worker, matches):
         for match in matches:
@@ -320,11 +314,11 @@ class TestRouteTableManager(testtools.TestCase, t.BaseTestBagPipeBGP):
         bgp_peer_worker2 = self._new_worker("BGPWorker2", bpw.BGPPeerWorker)
         self._worker_subscriptions(bgp_peer_worker2, [t.RT1])
         # Workers and BGPPeerWorker unsubscriptions
-        self._worker_unsubscriptions(bgp_peer_worker1, [t.RT1], False)
-        self._worker_unsubscriptions(worker1, [t.RT1], False)
-        self._worker_unsubscriptions(worker2, [t.RT2], False)
-        self._worker_unsubscriptions(worker3, [t.RT3], False)
-        self._worker_unsubscriptions(bgp_peer_worker2, [t.RT1], False)
+        self._worker_unsubscriptions(bgp_peer_worker1, [t.RT1])
+        self._worker_unsubscriptions(worker1, [t.RT1])
+        self._worker_unsubscriptions(worker2, [t.RT2])
+        self._worker_unsubscriptions(worker3, [t.RT3])
+        self._worker_unsubscriptions(bgp_peer_worker2, [t.RT1])
         # Waiting for RouteTableManager thread finishes to process the
         # subscription
         self._wait()

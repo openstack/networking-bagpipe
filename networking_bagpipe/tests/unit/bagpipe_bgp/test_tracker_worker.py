@@ -24,7 +24,7 @@
    TearDown: Stop TrackerWorker instance.
    TrackerWorker is in charge to receive RouteEvent from RouteTableManager.
    A RouteEvent contains an event type ADVERTIZE or WITHDRAW, and a RouteEntry.
-   TrackerWorker should call _new_best_route and/or _best_route_removed if the
+   TrackerWorker should call new_best_route and/or best_route_removed if the
    new RouteEntry changes the current list of the known best routes. The
    current list of the known best routes, which can be modified by the new
    RouteEntry, is selected thanks to the tracked_entry associated to the new
@@ -91,15 +91,15 @@ class TrackerWorkerThread(tracker_worker.TrackerWorker, threading.Thread):
         self._queue.put(worker.STOP_EVENT)
         self._stopped()
 
-    def _route_2_tracked_entry(self, route):
+    def route_to_tracked_entry(self, route):
         return route.nlri
 
     # the definitions below are needed because TrackerWorker is an abstract
     # class
-    def _new_best_route(self, entry, route):
+    def new_best_route(self, entry, route):
         pass
 
-    def _best_route_removed(self, entry, route, last):
+    def best_route_removed(self, entry, route, last):
         pass
 
 
@@ -162,8 +162,8 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
     def test_a1_different_nlri_same_source(self):
         # A source A advertises and withdraws routes for different NLRI.
         # Mock objects
-        self.tracker_worker._new_best_route = mock.Mock()
-        self.tracker_worker._best_route_removed = mock.Mock()
+        self.tracker_worker.new_best_route = mock.Mock()
+        self.tracker_worker.best_route_removed = mock.Mock()
 
         # Only 1 source A
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
@@ -184,25 +184,25 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI2, [t.RT1, t.RT2],
             worker_a, t.NH1, 100)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
-        self.assertEqual(2, self.tracker_worker._new_best_route.call_count,
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
+        self.assertEqual(2, self.tracker_worker.new_best_route.call_count,
                          '2 new best routes: 1 for NLRI1 and 1 for NLRI2')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route_nlri1a.route_entry),
                            (t.NLRI2, route_nlri2a.route_entry)])
-        self.assertEqual(2, self.tracker_worker._best_route_removed.call_count,
+        self.assertEqual(2, self.tracker_worker.best_route_removed.call_count,
                          '2 old routes removed: 1 for NLRI1 and 1 for NLRI2')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route_nlri1a.route_entry, True),
              (t.NLRI2, route_nlri2a.route_entry, True)])
 
     def test_a2_different_nlri_different_source(self):
         # 2 sources A and B advertise and withdraw routes for different NLRI.
         # Mock objects
-        self.tracker_worker._new_best_route = mock.Mock()
-        self.tracker_worker._best_route_removed = mock.Mock()
+        self.tracker_worker.new_best_route = mock.Mock()
+        self.tracker_worker.best_route_removed = mock.Mock()
 
         # 2 sources: A and B
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
@@ -224,26 +224,26 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI2, [t.RT1, t.RT2],
             worker_b, t.NH1, 100)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
-        self.assertEqual(2, self.tracker_worker._new_best_route.call_count,
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
+        self.assertEqual(2, self.tracker_worker.new_best_route.call_count,
                          '2 new_best_route calls: 1 for NLRI1 and 1 for NLRI2')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route_nlri1a.route_entry),
                            (t.NLRI2, route_nlri2B.route_entry)])
-        self.assertEqual(2, self.tracker_worker._best_route_removed.call_count,
+        self.assertEqual(2, self.tracker_worker.best_route_removed.call_count,
                          '2 best_route_removed calls: 1 for NLRI1 and 1 for '
                          'NLRI2')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route_nlri1a.route_entry, True),
              (t.NLRI2, route_nlri2B.route_entry, True)])
 
     def test_a3_same_nlri_same_source(self):
         # A source A advertises the same route for the same NLRI
         # Mock objects
-        self.tracker_worker._new_best_route = mock.Mock()
-        self.tracker_worker._best_route_removed = mock.Mock()
+        self.tracker_worker.new_best_route = mock.Mock()
+        self.tracker_worker.best_route_removed = mock.Mock()
 
         # 1 source: A
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
@@ -256,18 +256,18 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.ADVERTISE, t.NLRI1, [t.RT1, t.RT2],
             worker_a, t.NH1, 100)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
-        self.assertEqual(1, self.tracker_worker._new_best_route.call_count,
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
+        self.assertEqual(1, self.tracker_worker.new_best_route.call_count,
                          'expected 1 new_best_route call for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route_nlri1a.route_entry),
                            (t.NLRI1, route_nlri1a.route_entry)])
 
     def test_a4_withdraw_nlri_not_known(self):
         # A source A withdraws a route that does not exist.
-        self.tracker_worker._new_best_route = mock.Mock()
-        self.tracker_worker._best_route_removed = mock.Mock()
+        self.tracker_worker.new_best_route = mock.Mock()
+        self.tracker_worker.best_route_removed = mock.Mock()
 
         # 1 source: A
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
@@ -277,18 +277,18 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI1, [t.RT1, t.RT2],
             worker_a, t.NH1, 100)
 
-        # Check calls to _new_best_route and _best_route_removed
-        self.assertEqual(0, self.tracker_worker._new_best_route.call_count,
+        # Check calls to new_best_route and best_route_removed
+        self.assertEqual(0, self.tracker_worker.new_best_route.call_count,
                          'new_best_route should not have been called')
-        self.assertEqual(0, self.tracker_worker._best_route_removed.call_count,
+        self.assertEqual(0, self.tracker_worker.best_route_removed.call_count,
                          'best_route_removed should not have been called')
 
     def test_b1_is_the_current_best_route(self):
         # The route which is advertised by another source is the current best
         # route
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 2 sources: A and B
@@ -316,19 +316,19 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI1, [t.RT1, t.RT2],
             worker_b, t.NH1, 100)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         self.assertEqual(
-            1, self.tracker_worker._new_best_route.call_count,
+            1, self.tracker_worker.new_best_route.call_count,
             '1 new best route call for NLRI1')
         self._check_calls(
-            self.tracker_worker._new_best_route.call_args_list,
+            self.tracker_worker.new_best_route.call_args_list,
             [(t.NLRI1, route_nlri1a.route_entry)])
         self.assertEqual(
-            1, self.tracker_worker._best_route_removed.call_count,
+            1, self.tracker_worker.best_route_removed.call_count,
             '1 best_route_removed call for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route_nlri1B.route_entry, True)])
 
         expected_calls = ["RE1", t.NBR, "RE2", "RE3", "RE4", t.BRR]
@@ -337,9 +337,9 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
     def test_b2_is_not_the_current_best_route(self):
         # The route which is advertised by an other source is not the current
         # best route but will become the best route
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 3 sources: A, B and C
@@ -368,30 +368,30 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI1, [t.RT1, t.RT2],
             worker_a, t.NH1, 300)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = ["RE1", t.NBR, "RE2", "RE3", "RE4", t.NBR, t.BRR]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
         self.assertEqual(
-            2, self.tracker_worker._new_best_route.call_count,
+            2, self.tracker_worker.new_best_route.call_count,
             '2 new best route call for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route1Nlri1.route_entry),
                            (t.NLRI1, route2Nlri1.route_entry)])
         self.assertEqual(
-            1, self.tracker_worker._best_route_removed.call_count,
+            1, self.tracker_worker.best_route_removed.call_count,
             '1 best_route_removed call for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1Nlri1.route_entry, False)])
 
     def test_c1_route1_best_route(self):
         # Route1 is the best route
         # Mock objects
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 2 sources : A and B
@@ -420,32 +420,32 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI1, [t.RT1, t.RT2],
             worker_b, t.NH1, 200)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = ["RE1", t.NBR, "RE2", "RE3",
                           t.NBR, t.BRR, "RE4", t.BRR]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
         self.assertEqual(
-            2, self.tracker_worker._new_best_route.call_count,
+            2, self.tracker_worker.new_best_route.call_count,
             '2 new new_best_route calls for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route1_nlri1a.route_entry),
                            (t.NLRI1, route2_nlri1b.route_entry)])
         self.assertEqual(
-            2, self.tracker_worker._best_route_removed.call_count,
+            2, self.tracker_worker.best_route_removed.call_count,
             '2 best_route_removed calls for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1_nlri1a.route_entry, False),
              (t.NLRI1, route2_nlri1b.route_entry, True)])
 
     def test_c2_route2_best_route(self):
         # Route2 is the best route
         # Mock objects
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 2 sources: A and B
@@ -468,30 +468,30 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI1, [t.RT1, t.RT2],
             worker_a, t.NH1, 100)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = ["RE1", t.NBR, "RE2", t.NBR, t.BRR, "RE3"]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
         self.assertEqual(
-            2, self.tracker_worker._new_best_route.call_count,
+            2, self.tracker_worker.new_best_route.call_count,
             '2 new new_best_route calls for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route1_nlri1a.route_entry),
                            (t.NLRI1, route2_nlri1b.route_entry)])
         self.assertEqual(
-            1, self.tracker_worker._best_route_removed.call_count,
+            1, self.tracker_worker.best_route_removed.call_count,
             '1 best_route_removed call for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1_nlri1a.route_entry, False)])
 
     def test_c3_select_new_best_route_among_several(self):
         # When current best route is withdrawn, the new best route should be
         # selected among several routes
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 3 sources: A, B and C
@@ -530,25 +530,25 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI1, [t.RT1, t.RT2],
             worker_c, t.NH1, 100)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = ["RE1", t.NBR, "RE2", "RE3",
                           "RE4", t.NBR, t.BRR, "RE5",
                           t.NBR, t.BRR, "RE6", t.BRR]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
         self.assertEqual(
-            3, self.tracker_worker._new_best_route.call_count,
+            3, self.tracker_worker.new_best_route.call_count,
             '3 new new_best_route calls for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route1_nlri1a.route_entry),
                            (t.NLRI1, route2_nlri1b.route_entry),
                            (t.NLRI1, route3_nlri1c.route_entry)])
         self.assertEqual(
-            3, self.tracker_worker._best_route_removed.call_count,
+            3, self.tracker_worker.best_route_removed.call_count,
             '3 best_route_removed calls for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1_nlri1a.route_entry, False),
              (t.NLRI1, route2_nlri1b.route_entry, False),
              (t.NLRI1, route3_nlri1c.route_entry, True)])
@@ -556,9 +556,9 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
     def test_d1_ecmp_routes(self):
         # ECMP routes are routes advertised by the same worker with the same
         # LP and different NH
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 1 source: A
@@ -586,32 +586,32 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI1, [t.RT1, t.RT2],
             worker_a, t.NH2, 100)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = ["RE1", t.NBR, "RE2", t.NBR,
                           "RE3", t.BRR, "RE4", t.BRR]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
         self.assertEqual(
-            2, self.tracker_worker._new_best_route.call_count,
+            2, self.tracker_worker.new_best_route.call_count,
             '2 new new_best_route calls for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route1_nlri1a.route_entry),
                            (t.NLRI1, route2_nlri1a.route_entry)])
         self.assertEqual(
-            2, self.tracker_worker._best_route_removed.call_count,
+            2, self.tracker_worker.best_route_removed.call_count,
             '2 best_route_removed calls for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1_nlri1a.route_entry, False),
              (t.NLRI1, route2_nlri1a.route_entry, True)])
 
     def test_e1_replace_br_is_nbr(self):
         # Advertise a route that replaces the best route and becomes the new
         # best route
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 1 source: A
@@ -629,30 +629,30 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.ADVERTISE, t.NLRI1, [t.RT1, t.RT2],
             worker_a, t.NH1, 100, route1_nlri1a.route_entry)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = ["RE1", t.NBR, "RE2", t.NBR, t.BRR]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
         self.assertEqual(
-            2, self.tracker_worker._new_best_route.call_count,
+            2, self.tracker_worker.new_best_route.call_count,
             '2 new new_best_route calls for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route1_nlri1a.route_entry),
                            (t.NLRI1, route2_nrli1a.route_entry)])
         self.assertEqual(
-            1, self.tracker_worker._best_route_removed.call_count,
+            1, self.tracker_worker.best_route_removed.call_count,
             '1 best_route_removed call for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1_nlri1a.route_entry, False)])
 
     def test_e2_replace_br_is_not_nbr(self):
         # Advertise a route that replaces the best route but does not become
         # the new best route
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 2 sources : A and B
@@ -681,33 +681,33 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI1, [t.RT1, t.RT2],
             worker_b, t.NH1, 200)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = ["RE1", t.NBR, "RE2", "RE3", t.NBR,
                           t.BRR, "RE4", t.NBR, t.BRR]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
         self.assertEqual(
-            3, self.tracker_worker._new_best_route.call_count,
+            3, self.tracker_worker.new_best_route.call_count,
             '3 new new_best_route calls for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route1_nlri1a.route_entry),
                            (t.NLRI1, route2_nrli1b.route_entry),
                            (t.NLRI1, route3_nrli1a.route_entry)])
         self.assertEqual(
-            2, self.tracker_worker._best_route_removed.call_count,
+            2, self.tracker_worker.best_route_removed.call_count,
             '2 best_route_removed calls for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1_nlri1a.route_entry, False),
              (t.NLRI1, route2_nrli1b.route_entry, False)])
 
     def test_e3_replace_br_is_not_nbr(self):
         # Advertise a route that replaces the best route but does not become
         # the new best route
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 3 sources: A, B and C
@@ -736,30 +736,30 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
                               [t.RT1, t.RT2], worker_a, t.NH1, 100,
                               route1_nlri1.route_entry)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = ["RE1", t.NBR, "RE2", "RE3", "RE4", t.NBR, t.BRR]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
         self.assertEqual(
-            2, self.tracker_worker._new_best_route.call_count,
+            2, self.tracker_worker.new_best_route.call_count,
             '2 new best route call for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route1_nlri1.route_entry),
                            (t.NLRI1, route2_nlri1.route_entry)])
         self.assertEqual(
-            1, self.tracker_worker._best_route_removed.call_count,
+            1, self.tracker_worker.best_route_removed.call_count,
             '1 best_route_removed call for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1_nlri1.route_entry)])
 
     def test_e4_not_replace_br(self):
         # Advertise a route that does not replaces the best route and becomes
         # the new best route when the best route is withdrawn
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 2 sources : A and B
@@ -788,31 +788,31 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.WITHDRAW, t.NLRI1, [t.RT1, t.RT2],
             worker_a, t.NH1, 300)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = ["RE1", t.NBR, "RE2", "RE3", "RE4", t.NBR, t.BRR]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
         self.assertEqual(
-            2, self.tracker_worker._new_best_route.call_count,
+            2, self.tracker_worker.new_best_route.call_count,
             '2 new new_best_route calls for NLRI1')
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route1_nlri1a.route_entry),
                            (t.NLRI1, route3_nlri1b.route_entry)])
         self.assertEqual(
-            1, self.tracker_worker._best_route_removed.call_count,
+            1, self.tracker_worker.best_route_removed.call_count,
             '1 best_route_removed call for NLRI1')
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1_nlri1a.route_entry, False)])
 
     def test_e5_replace_br_is_nbr_equal(self):
         # Same as E3, but the route that replaces our current best compares
         # equally to the two initially less preferred routes, and becomes best
         # route with them
-        self.tracker_worker._new_best_route = mock.Mock(
+        self.tracker_worker.new_best_route = mock.Mock(
             side_effect=self._call_list(t.NBR))
-        self.tracker_worker._best_route_removed = mock.Mock(
+        self.tracker_worker.best_route_removed = mock.Mock(
             side_effect=self._call_list(t.BRR))
 
         # 3 sources: A, B and C
@@ -827,7 +827,7 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
 
         # We will only check events after this first one
         # to allow for a order-independent test after RE4
-        del self.tracker_worker._new_best_route.call_args_list[:]
+        del self.tracker_worker.new_best_route.call_args_list[:]
 
         # Source B advertises route2 for NLRI1 : route1 is better than route2
         self._append_call("RE2")
@@ -846,17 +846,17 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
                                        worker_a, t.NH3, 200,
                                        route1.route_entry)
 
-        # Check calls and arguments list to _new_best_route and
-        # _best_route_removed
+        # Check calls and arguments list to new_best_route and
+        # best_route_removed
         expected_calls = [t.NBR, "RE2", "RE3", "RE4",
                           t.NBR, t.NBR, t.NBR, t.BRR]
         self.assertEqual(expected_calls, self._calls, 'Wrong call sequence')
 
-        self._check_calls(self.tracker_worker._new_best_route.call_args_list,
+        self._check_calls(self.tracker_worker.new_best_route.call_args_list,
                           [(t.NLRI1, route2.route_entry),
                            (t.NLRI1, route3.route_entry),
                            (t.NLRI1, route4.route_entry)], False)
 
         self._check_calls(
-            self.tracker_worker._best_route_removed.call_args_list,
+            self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1.route_entry, False)])

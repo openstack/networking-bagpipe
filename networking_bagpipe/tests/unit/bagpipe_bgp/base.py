@@ -117,12 +117,10 @@ class BaseTestBagPipeBGP(object):
                                         source)
         route_event.set_replaced_route(replaced_route_entry)
 
-        self.event_target_worker.enqueue(route_event)
-
         LOG.info("*** Emitting event to %s: %s",
                  self.event_target_worker, route_event)
 
-        self._wait()
+        self.event_target_worker._on_event(route_event)
 
         return route_event
 

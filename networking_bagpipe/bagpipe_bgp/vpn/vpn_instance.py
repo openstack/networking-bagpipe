@@ -948,12 +948,12 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
     @utils.synchronized
     @log_decorator.log
-    def _new_best_route(self, entry, new_route):
+    def new_best_route(self, entry, new_route):
         pass
 
     @utils.synchronized
     @log_decorator.log
-    def _best_route_removed(self, entry, old_route, last):
+    def best_route_removed(self, entry, old_route, last):
         pass
 
     # Looking Glass ####

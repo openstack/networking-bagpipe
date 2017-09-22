@@ -125,7 +125,7 @@ class TestableVPNInstance(vpn_instance.VPNInstance):
     def _new_best_route(self, entry, route, last):
         pass
 
-    def _route_2_tracked_entry(self, route):
+    def route_to_tracked_entry(self, route):
         pass
 
     def generate_vif_bgp_route(self):

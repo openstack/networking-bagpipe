@@ -280,7 +280,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     # Callbacks for BGP route updates (TrackerWorker) ########################
 
-    def _route_2_tracked_entry(self, route):
+    def route_to_tracked_entry(self, route):
         if isinstance(route.nlri, ipvpn_routes.IPVPN):
             return route.nlri.cidr.prefix()
         elif isinstance(route.nlri, flowspec.Flow):
@@ -292,7 +292,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     @utils.synchronized
     @log_decorator.log
-    def _new_best_route(self, entry, new_route):
+    def new_best_route(self, entry, new_route):
 
         if isinstance(new_route.nlri, flowspec.Flow):
             if len(new_route.ecoms(exa.TrafficRedirect)) == 1:
@@ -339,7 +339,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     @utils.synchronized
     @log_decorator.log
-    def _best_route_removed(self, entry, old_route, last):
+    def best_route_removed(self, entry, old_route, last):
 
         if isinstance(old_route.nlri, flowspec.Flow):
             if len(old_route.ecoms(exa.TrafficRedirect)) == 1:

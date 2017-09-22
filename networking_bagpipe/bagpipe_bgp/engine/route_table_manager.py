@@ -192,27 +192,32 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
         while True:
             LOG.debug("RouteTableManager waiting on queue")
             event = self._queue.get()
-            LOG.debug("RouteTableManager received event %s", event)
-            try:
-                if event.__class__ == engine.RouteEvent:
-                    self._receive_route_event(event)
-                elif event.__class__ == engine.Subscription:
-                    self._worker_subscribes(event)
-                elif event.__class__ == engine.Unsubscription:
-                    self._worker_unsubscribes(event)
-                elif event.__class__ == engine.WorkerCleanupEvent:
-                    self._worker_cleanup(event.worker)
-                elif event == STOP_EVENT:
-                    LOG.info("STOP_EVENT => breaking main loop")
-                    break
-            except Exception as e:
-                LOG.error("Exception during processing of event: %s", repr(e))
-                LOG.error("%s", traceback.format_exc())
-                LOG.error("    event was: %s", event)
-
+            if event == STOP_EVENT:
+                LOG.info("STOP_EVENT => breaking main loop")
+                break
+            else:
+                self._on_event(event)
             LOG.debug("RouteTableManager queue size: %d", self._queue.qsize())
 
         LOG.info("Out of main loop")
+
+    @log_decorator.log_info
+    def _on_event(self, event):
+        try:
+            if event.__class__ == engine.RouteEvent:
+                self._receive_route_event(event)
+            elif event.__class__ == engine.Subscription:
+                self._worker_subscribes(event)
+            elif event.__class__ == engine.Unsubscription:
+                self._worker_unsubscribes(event)
+            elif event.__class__ == engine.WorkerCleanupEvent:
+                self._worker_cleanup(event.worker)
+            else:
+                raise Exception("unknown event: %s", event)
+        except Exception as e:
+            LOG.error("Exception during processing of event: %s", repr(e))
+            LOG.error("%s", traceback.format_exc())
+            LOG.error("    event was: %s", event)
 
     def enqueue(self, event):
         self._queue.put(event)
@@ -237,9 +242,9 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
             LOG.debug("last local subscriber callback for %s ...", sub)
             self.last_local_subscriber_callback(sub)
 
+    @log_decorator.log_info
     def _worker_subscribes(self, sub):
         assert isinstance(sub.worker, worker_m.Worker)
-        LOG.info("workerSubscribes: %s", sub)
 
         worker = sub.worker
 
@@ -345,6 +350,7 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
 
         # self._dump_state()
 
+    @log_decorator.log
     def _propagate_route_event(self, route_event, except_workers=None):
         '''Propagate route_event to workers subscribed to the route
 
@@ -353,8 +359,6 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
 
         Returns the list of workers to which the event was propagated.
         '''
-
-        LOG.debug("Propagate event to interested workers: %s", route_event)
 
         re = route_event.route_entry
 
@@ -390,9 +394,8 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
 
         return target_workers
 
+    @log_decorator.log_info
     def _receive_route_event(self, route_event):
-        LOG.info("receive: %s", route_event)
-
         entry = route_event.route_entry
 
         LOG.debug("Try to find an entry from same worker with same nlri")
@@ -480,6 +483,7 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
 
         #  self._dump_state()
 
+    @log_decorator.log_info
     def _worker_cleanup(self, worker):
         '''Cleanup the subscriptions and routes advertised by a worker
 
@@ -488,7 +492,6 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
         subscriptions.
         '''
         assert isinstance(worker, worker_m.Worker)
-        LOG.info("Cleanup for worker %s", worker.name)
         # synthesize withdraw events for all routes from this worker
         LOG.info("  Preparing to withdraw %d routes that were advertised "
                  "by worker", len(worker._rtm_route_entries))
