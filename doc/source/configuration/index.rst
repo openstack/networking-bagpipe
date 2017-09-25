@@ -15,7 +15,9 @@ various services.
    :glob:
    :maxdepth: 1
 
-   *
+   neutron-agent
+   bagpipe-bgp
+   ml2-bagpipe
 
 Sample Configuration Files
 --------------------------
@@ -28,4 +30,6 @@ in the networking-bagpipe repository.
    :glob:
    :maxdepth: 1
 
-   samples/*
+   samples/neutron-agent
+   samples/bagpipe-bgp
+   samples/ml2-bagpipe
