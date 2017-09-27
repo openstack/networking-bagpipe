@@ -425,18 +425,20 @@ class VPNInstance(tracker_worker.TrackerWorker,
         self.log.debug("%s %d - Removed Import RTs: %s",
                        self.instance_type, self.instance_id, removed_import_rt)
 
-        # Register to BGP with these route targets
-        for rt in added_import_rt:
-            self._subscribe(self.afi, self.safi, rt)
-            self._subscribe(self.afi, exa.SAFI.flow_vpn, rt)
-
         # Unregister from BGP with these route targets
         for rt in removed_import_rt:
             self._unsubscribe(self.afi, self.safi, rt)
             self._unsubscribe(self.afi, exa.SAFI.flow_vpn, rt)
 
         # Update import and export route targets
+        # (needs to be done before subscribe or we get a race where
+        # VRF._imported rejects route that it's supposed to use)
         self.import_rts = new_import_rts
+
+        # Register to BGP with these route targets
+        for rt in added_import_rt:
+            self._subscribe(self.afi, self.safi, rt)
+            self._subscribe(self.afi, exa.SAFI.flow_vpn, rt)
 
         # Re-advertise all routes with new export RTs
         self.log.debug("Exports RTs: %s -> %s", self.export_rts,
