@@ -563,6 +563,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         # if import_rt or export_rt are strings, convert them into lists
         for param in ('import_rt', 'export_rt'):
+            if param not in params:
+                continue
+
             if (isinstance(params[param], six.string_types) or
                     isinstance(params[param], six.text_type)):
                 try:
