@@ -301,12 +301,18 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             # succeeded even if the ping failed
 
         # Look in ARP cache to find remote MAC address
-        (output, _) = self._run_command("ip neigh show to %s" % (remote_ip))
+        (output, _) = self._run_command("ip neigh show to %s dev %s" %
+                                        (remote_ip, self.driver.bridge))
 
-        if not output or "FAILED" in output[0]:
+        if (not output or
+                "FAILED" in output[0] or
+                "INCOMPLETE" in output[0]):
             raise exc.RemotePEMACAddressNotFound(remote_ip)
 
-        return self._extract_mac_address(output[0])
+        try:
+            return self._extract_mac_address(output[0])
+        except Exception:
+            raise exc.RemotePEMACAddressNotFound(remote_ip)
 
     def _mtu_fixup(self, localport):
         # This is a hack, proper MTUs should actually be configured in the
