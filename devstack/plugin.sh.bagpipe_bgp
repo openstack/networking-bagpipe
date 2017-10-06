@@ -18,6 +18,7 @@ function pre_install_gobgp {
 # Install gobgp
 function install_gobgp {
 	# we install from binary, because compiling from source requires golang-1.7 which is not in ubuntu xenial
+	mkdir -p $GOPATH/bin
 	cd $GOPATH/bin
 	wget $GOBGP_RELEASE -qO - | tar xz
 }
