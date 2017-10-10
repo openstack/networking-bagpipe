@@ -34,6 +34,7 @@ from networking_bagpipe.agent.bgpvpn import constants as bgpvpn_const
 from networking_bagpipe.agent.bgpvpn import rpc_agent as bgpvpn_rpc
 from networking_bagpipe.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
 from networking_bagpipe.agent.common import constants as b_const
+from networking_bagpipe.driver import type_route_target
 
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
@@ -81,6 +82,9 @@ ovs_conf.register_ovs_agent_opts()
 config.register_agent_state_opts_helper(cfg.CONF)
 
 
+NO_NEED_FOR_VNI = -1
+
+
 class DummyOVSAgent(OVSNeutronAgent):
     # this class is used only to 'borrow' setup_entry_for_arp_reply
     # from OVSNeutronAgent
@@ -101,13 +105,19 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
                                   agent_base_info.BaseInfoManager,
                                   bgpvpn_rpc.BGPVPNAgentRpcCallBackMixin):
 
+    def __init__(self):
+        super(BagpipeBgpvpnAgentExtension, self).__init__()
+        self.ports = set()
+        self.network_segmentation_ids = dict()
+
     @log_helpers.log_method_call
     def consume_api(self, agent_api):
         self.agent_api = agent_api
 
     @log_helpers.log_method_call
     def initialize(self, connection, driver_type):
-        if driver_type == ovs_agt_constants.EXTENSION_DRIVER_TYPE:
+        self.driver_type = driver_type
+        if self._is_ovs_extension():
             self.int_br = self.agent_api.request_int_br()
             self.tun_br = self.agent_api.request_tun_br()
 
@@ -128,7 +138,7 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
                                resources.AGENT,
                                events.OVS_RESTARTED)
 
-        elif driver_type == lnxbridge_agt_constants.EXTENSION_DRIVER_TYPE:
+        elif self._is_linuxbridge_extension():
             self.bagpipe_bgp_agent = (
                 bagpipe_bgp_agent.BaGPipeBGPAgent.get_instance(
                     n_const.AGENT_TYPE_LINUXBRIDGE)
@@ -136,20 +146,21 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
         else:
             raise Exception("driver type not supported: %s", driver_type)
 
-        self.driver_type = driver_type
-
         self._setup_rpc(connection)
 
         self.bagpipe_bgp_agent.register_build_callback(
             bgpvpn_const.BGPVPN_SERVICE,
             self.build_bgpvpn_attach_info)
 
-        self.ports = set()
         self.bagpipe_bgp_agent.register_port_list(bgpvpn_const.BGPVPN_SERVICE,
                                                   self.ports)
 
     def _is_ovs_extension(self):
         return self.driver_type == ovs_agt_constants.EXTENSION_DRIVER_TYPE
+
+    def _is_linuxbridge_extension(self):
+        return (
+            self.driver_type == lnxbridge_agt_constants.EXTENSION_DRIVER_TYPE)
 
     def _setup_rpc(self, connection):
         connection.create_consumer(topics.get_topic_name(topics.AGENT,
@@ -377,6 +388,7 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
 
         return (not orig_info, orig_info)
 
+    @log_helpers.log_method_call
     def build_bgpvpn_attach_info(self, port_id):
         if port_id not in self.ports_info:
             LOG.warning("%s service has no PortInfo for port %s",
@@ -441,7 +453,7 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
                             'ovs_port_number': self.patch_mpls_to_int_ofport
                         }
                     })
-        else:
+        else:  # linuxbridge
             if has_attachement(attach_info, b_const.EVPN):
                 attach_info[b_const.EVPN]['linuxbr'] = (
                     LinuxBridgeManager.get_bridge_name(port_info.network.id)
@@ -455,6 +467,32 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
                             port_info.network.id)
                 }
                 # NOTE(tmorin): fallback support still missing
+
+        if has_attachement(attach_info, b_const.EVPN):
+            # if the network is a VXLAN network, then reuse same VNI
+            # in bagpipe-bgp
+            vni = self.network_segmentation_ids.get(port_info.network.id)
+            if vni is None:
+                LOG.debug("no vni found for %s, returning nothing",
+                          port_info.network.id)
+                # NOTE(tmorin): if no VNI was found, we do nothing for E-VPN
+                # bagpipe_bgpvpn extension handle_port will eventually
+                # be called, then VNI will be known, and handle_port
+                # will call port_plug again
+                # (this will be made much more readable once
+                # we move to a design where a port up event is all handled
+                # by handle_port and an RPC pull)
+                del attach_info[b_const.EVPN]
+            elif vni == NO_NEED_FOR_VNI:
+                LOG.debug("no VNI reuse, because 'route_target' type driver "
+                          "in use")
+            else:
+                LOG.debug("vni %s found for %s", vni, port_info.network.id)
+                attach_info[b_const.EVPN]['vni'] = vni
+
+        if not (has_attachement(attach_info, b_const.EVPN) or
+                has_attachement(attach_info, b_const.IPVPN)):
+            return {}
 
         return attach_info
 
@@ -644,7 +682,24 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
 
     @log_helpers.log_method_call
     def handle_port(self, context, data):
-        pass
+        # NOTE(tmorin): for linuxbridge, the vni is only known by handle_port
+        # (no LocalVLANManager), so we need to store it so that it is available
+        # when a port plug RPC is received.
+        if self._is_linuxbridge_extension():
+            if data['network_type'] == n_const.TYPE_VXLAN:
+                self.network_segmentation_ids[data['network_id']] = (
+                    data['segmentation_id'])
+
+            # for type driver 'ROUTE_TARGET' we need to track the fact
+            # that we don't need a VNI (using -1 special value)
+            if data['network_type'] == type_route_target.TYPE_ROUTE_TARGET:
+                    self.network_segmentation_ids[data['network_id']] = (
+                        NO_NEED_FOR_VNI)
+
+            # if handle_port is called after the port plug RPC, we
+            # need to call do_port_plug again, this time the VNI
+            # will be known
+            self.bagpipe_bgp_agent.do_port_plug(data['port_id'])
 
     @log_helpers.log_method_call
     def delete_port(self, context, data):

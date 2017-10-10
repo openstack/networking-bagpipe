@@ -35,12 +35,15 @@ def update_delete_rpc(d):
 
 class TestBgpvpnAgentExtensionMixin(object):
 
-    def _get_vpn_info(self, vpn_type, vpn_if, rts, fallback=None):
+    def _get_vpn_info(self, vpn_type, vpn_if, rts, fallback=None,
+                      more_vpn_info=None):
         vpn_info = {vpn_type: vpn_if}
         vpn_info[vpn_type].update(rts)
 
         if fallback:
             vpn_info[vpn_type].update(dict(fallback=fallback))
+
+        vpn_info[vpn_type].update(more_vpn_info or {})
 
         return copy.deepcopy(vpn_info)
 
@@ -278,18 +281,11 @@ class TestBgpvpnAgentExtensionMixin(object):
         )
 
         # Verify attachments list consistency
-        self._check_network_info(base.NETWORK1['id'],
-                                 2)
+        self._check_network_info(base.NETWORK1['id'], 2)
 
         # Verify build callback attachments
         self.assertEqual(
-            dict(
-                network_id=base.NETWORK1['id'],
-                ip_address=base.PORT10['ip_address'],
-                mac_address=base.PORT10['mac_address'],
-                gateway_ip=base.NETWORK1['gateway_ip'],
-                local_port=dict(linuxif=local_port10['linuxif'])
-            ),
+            {},
             self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
         )
 
@@ -1083,6 +1079,14 @@ class TestLinuxBridgeAgentExtension(base.BaseTestLinuxBridgeAgentExtension,
 
     agent_extension_class = bagpipe_agt_ext.BagpipeBgpvpnAgentExtension
 
+    def _fake_handle_port0(self):
+        self.agent_ext.handle_port(None, {
+            'port_id': base.PORT10['id'],
+            'network_id': base.NETWORK1['id'],
+            'segmentation_id': 411,
+            'network_type': 'vxlan'
+            })
+
     def test_update_bgpvpn_different_vpn_types(self):
         dummy_port10 = base.DummyPort(base.NETWORK1, base.PORT10,
                                       bgpvpn_port=True,
@@ -1110,17 +1114,36 @@ class TestLinuxBridgeAgentExtension(base.BaseTestLinuxBridgeAgentExtension,
                                      bgpvpn_type,
                                      bgpvpn_rts)
 
-        # Verify build callback attachments
         local_port = self._get_expected_local_port(bgpvpn_const.BGPVPN_L3,
                                                    base.NETWORK1['id'],
                                                    base.PORT10['id'])
 
-        vpns_info = self._get_vpn_info(b_const.EVPN,
-                                       local_port['evpnif'],
-                                       base.BGPVPN_L2_RT10)
-        vpns_info.update(self._get_vpn_info(b_const.IPVPN,
-                                            local_port['ipvpnif'],
-                                            base.BGPVPN_L3_RT100))
+        # no handle_port yet => no EVPN yet
+
+        vpns_info = self._get_vpn_info(b_const.IPVPN,
+                                       local_port['ipvpnif'],
+                                       base.BGPVPN_L3_RT100)
+
+        self.assertEqual(
+            dict(
+                network_id=base.NETWORK1['id'],
+                ip_address=base.PORT10['ip_address'],
+                mac_address=base.PORT10['mac_address'],
+                gateway_ip=base.NETWORK1['gateway_ip'],
+                local_port=dict(linuxif=local_port['linuxif']),
+                **vpns_info
+            ),
+            self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+        )
+
+        self._fake_handle_port0()
+
+        # Verify build callback attachments
+
+        vpns_info.update(self._get_vpn_info(b_const.EVPN,
+                                            local_port['evpnif'],
+                                            base.BGPVPN_L2_RT10,
+                                            more_vpn_info={'vni': 411}))
 
         self.assertEqual(
             dict(
@@ -1150,6 +1173,17 @@ class TestLinuxBridgeAgentExtension(base.BaseTestLinuxBridgeAgentExtension,
                                  bgpvpn_const.BGPVPN_L2,
                                  base.BGPVPN_L2_RT10)
 
+        # before handle_port is called, the info returned is empty
+        self.assertEqual(
+            {},
+            self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+        )
+
+        # fake handle_port call
+        self._fake_handle_port0()
+
+        # now we can check what the build info is...
+
         # Verify build callback attachments
         local_port = self._get_expected_local_port(bgpvpn_const.BGPVPN_L2,
                                                    base.NETWORK1['id'],
@@ -1164,7 +1198,8 @@ class TestLinuxBridgeAgentExtension(base.BaseTestLinuxBridgeAgentExtension,
                 local_port=dict(linuxif=local_port['linuxif']),
                 **self._get_vpn_info(b_const.EVPN,
                                      local_port['evpnif'],
-                                     base.BGPVPN_L2_RT10)
+                                     base.BGPVPN_L2_RT10,
+                                     more_vpn_info={'vni': 411})
             ),
             self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
         )
@@ -1205,18 +1240,37 @@ class TestLinuxBridgeAgentExtension(base.BaseTestLinuxBridgeAgentExtension,
                                      bgpvpn_type,
                                      bgpvpn_rts)
 
-        # Verify build callback attachments
         local_port = self._get_expected_local_port(bgpvpn_const.BGPVPN_L3,
                                                    base.NETWORK1['id'],
                                                    base.PORT10['id'])
 
-        vpns_info = self._get_vpn_info(b_const.EVPN,
-                                       local_port['evpnif'],
-                                       base.BGPVPN_L2_RT10)
-        vpns_info.update(self._get_vpn_info(b_const.IPVPN,
-                                            local_port['ipvpnif'],
-                                            base.BGPVPN_L3_RT100))
+        # no handle_port received => no EVPN yet
 
+        vpns_info = self._get_vpn_info(b_const.IPVPN,
+                                       local_port['ipvpnif'],
+                                       base.BGPVPN_L3_RT100)
+
+        self.assertEqual(
+            dict(
+                network_id=base.NETWORK1['id'],
+                ip_address=base.PORT10['ip_address'],
+                mac_address=base.PORT10['mac_address'],
+                gateway_ip=base.NETWORK1['gateway_ip'],
+                local_port=dict(linuxif=local_port['linuxif']),
+                **vpns_info
+            ),
+            self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+        )
+
+        # fake handle_port call
+        self._fake_handle_port0()
+
+        # Verify build callback attachments
+
+        vpns_info.update(self._get_vpn_info(b_const.EVPN,
+                                            local_port['evpnif'],
+                                            base.BGPVPN_L2_RT10,
+                                            more_vpn_info={'vni': 411}))
         self.assertEqual(
             dict(
                 network_id=base.NETWORK1['id'],

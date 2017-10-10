@@ -16,6 +16,7 @@
 # limitations under the License.
 
 from oslo_config import cfg
+import pyroute2
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp import constants as consts
@@ -39,9 +40,6 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
             self.bridge_name = (
                 BRIDGE_NAME_PREFIX +
                 self.external_instance_id)[:consts.LINUX_DEV_LEN]
-
-        self.vxlan_if_name = (VXLAN_INTERFACE_PREFIX +
-                              self.external_instance_id)[:consts.LINUX_DEV_LEN]
 
         self.log.info("EVI %d: Initializing bridge %s",
                       self.instance_id, self.bridge_name)
@@ -74,6 +72,9 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
         self._cleaning_up = True
 
+        # FIXME(tmorin): removing the vxlan interface removes our routes,
+        # but if we don't remove the vxlan if (if it was reused) then
+        # cleanup will not happen
         self._cleanup_vxlan_if()
 
         # Delete only EVPN Bridge (Created by dataplane driver)
@@ -86,6 +87,21 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                               raise_on_error=False)
 
     def _create_and_plug_vxlan_if(self):
+        # if a VXLAN interface, with the VNI we want to use, is already plugged
+        # in the bridge, we want to reuse it
+        with pyroute2.IPDB(plugins=('interfaces',)) as ipdb:
+            for port_id in ipdb.interfaces[self.bridge_name].ports:
+                port = ipdb.interfaces[port_id]
+                if (port.kind == "vxlan" and
+                        port.vxlan_id == self.instance_label):
+                    self.log.info("reuse vxlan interface %s for VXLAN VNI %s",
+                                  port.ifname, self.instance_label)
+                    self.vxlan_if_name = port.ifname
+                    return
+
+        self.vxlan_if_name = (VXLAN_INTERFACE_PREFIX +
+                              self.external_instance_id)[:consts.LINUX_DEV_LEN]
+
         self.log.debug("Creating and plugging VXLAN interface %s",
                        self.vxlan_if_name)
 
@@ -114,6 +130,10 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                           run_as_root=True)
 
     def _cleanup_vxlan_if(self):
+        if VXLAN_INTERFACE_PREFIX not in self.vxlan_if_name:
+            self.log.debug("we reused the VXLAN interface, don't cleanup")
+            return
+
         if self._is_vxlan_if_on_bridge():
             # Unplug VXLAN interface from Linux bridge
             self._unplug_from_bridge(self.vxlan_if_name)
@@ -121,6 +141,10 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self._remove_vxlan_if()
 
     def _remove_vxlan_if(self):
+        if not VXLAN_INTERFACE_PREFIX not in self.vxlan_if_name:
+            self.log.debug("we reused the VXLAN interface, don't remove")
+            return
+
         # Remove VXLAN interface
         self._run_command("ip link set %s down" % self.vxlan_if_name,
                           run_as_root=True)
