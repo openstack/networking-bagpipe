@@ -508,11 +508,16 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
     @log_helpers.log_method_call
     @lockutils.synchronized('bagpipe-bgp-agent')
     def update_bgpvpn(self, context, bgpvpn):
+        # we don't use 'id' anymore, remove it
+        bgpvpn.pop('id', None)
+
         net_id = bgpvpn.pop('network_id')
 
         net_info = self.networks_info.get(net_id)
 
         if not net_info:
+            LOG.debug("update_bgpvpn(%s), but no BGPVPN info for this "
+                      "network, not doing anything", bgpvpn)
             return
 
         new_gw_info = b_const.GatewayInfo(
@@ -533,11 +538,16 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
     @log_helpers.log_method_call
     @lockutils.synchronized('bagpipe-bgp-agent')
     def delete_bgpvpn(self, context, bgpvpn):
+        # we don't use 'id' anymore, remove it
+        bgpvpn.pop('id', None)
+
         net_id = bgpvpn.pop('network_id')
 
         net_info = self.networks_info.get(net_id)
 
         if not net_info:
+            LOG.debug("delete_bgpvpn(%s), but no BGPVPN info for this "
+                      "network, not doing anything", bgpvpn)
             return
 
         # Check if remaining BGPVPN informations, otherwise unplug
@@ -561,7 +571,6 @@ class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
                 )
                 self.bagpipe_bgp_agent.do_port_plug_refresh(port_info.id,
                                                             detach_info)
-
         else:
             net_info.service_infos = updated_info
 
