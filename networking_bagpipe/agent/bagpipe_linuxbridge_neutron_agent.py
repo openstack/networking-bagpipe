@@ -39,7 +39,7 @@ from networking_bagpipe.rpc.client import topics_BAGPIPE
 
 from neutron.common import topics
 
-from neutron.agent.l2 import agent_extension
+from neutron_lib.agent import l2_extension
 
 from neutron.common import config as common_config
 
@@ -75,7 +75,7 @@ class LinuxBridgeManagerBaGPipe(LinuxBridgeManager):
                                            segmentation_id))
 
 
-class BagpipeAgentExtension(agent_extension.AgentCoreResourceExtension,
+class BagpipeAgentExtension(l2_extension.L2AgentExtension,
                             agent_base_info.BaseInfoManager,
                             bagpipe_rpc.BaGPipeAgentRpcCallBackMixin):
 

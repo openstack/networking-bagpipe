@@ -36,16 +36,16 @@ from networking_bagpipe.agent.bgpvpn.rpc_client import topics_BAGPIPE_BGPVPN
 from networking_bagpipe.agent.common import constants as b_const
 from networking_bagpipe.driver import type_route_target
 
+from neutron.agent.common import ovs_lib
+from neutron.common import topics
+from neutron.conf.agent import common as config
+from neutron.conf.plugins.ml2.drivers import ovs_conf
+from neutron_lib.agent import l2_extension
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
 from neutron_lib.callbacks import resources
 from neutron_lib import constants as n_const
 
-from neutron.agent.common import ovs_lib
-from neutron.agent.l2 import agent_extension
-from neutron.common import topics
-from neutron.conf.agent import common as config
-from neutron.conf.plugins.ml2.drivers import ovs_conf
 from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
     import constants as lnxbridge_agt_constants
 from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
@@ -101,7 +101,7 @@ def has_attachement(bgpvpn_info, vpn_type):
             )
 
 
-class BagpipeBgpvpnAgentExtension(agent_extension.AgentCoreResourceExtension,
+class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                                   agent_base_info.BaseInfoManager,
                                   bgpvpn_rpc.BGPVPNAgentRpcCallBackMixin):
 
