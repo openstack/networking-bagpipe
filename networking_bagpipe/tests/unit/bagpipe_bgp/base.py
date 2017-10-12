@@ -92,10 +92,24 @@ class TestCase(testtools.TestCase):
                            )
 
 
+class FakeNLRI(object):
+
+    def __init__(self, nlri_desc, afi=1, safi=1):
+        self.nlri = nlri_desc
+        self.afi = afi
+        self.safi = safi
+
+    def __repr__(self):
+        return "FakeNLRI %s (%d:%d)" % (self.nlri, self.afi, self.safi)
+
+
 class BaseTestBagPipeBGP(object):
 
     def set_event_target_worker(self, worker):
         self.event_target_worker = worker
+
+    def _fake_nlri(self, fake_nlri_desc):
+        return FakeNLRI(fake_nlri_desc)
 
     def _new_route_event(self, event_type, nlri, rts, source, nh, lp=0,
                          replaced_route_entry=None,

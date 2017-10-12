@@ -224,6 +224,16 @@ class DataplaneDriver(lg.LookingGlassLocalLogger):
     def supported_encaps(self):
         return self.__class__.encaps
 
+    def needs_cleanup_assist(self):
+        '''Control per-route cleanup events
+
+        A dataplane driver not able to cleanup all the states for a given
+        VPN instance can return True here to receive artifical dataplane
+        removal calls, such as remove_dataplane_for_remote_endpoint, for
+        each state previously setup
+        '''
+        return False
+
     def _run_command(self, command, run_as_root=False, *args, **kwargs):
         return run_command.run_command(self.log, command, run_as_root,
                                        *args, **kwargs)
@@ -285,6 +295,16 @@ class VPNInstanceDataplane(lg.LookingGlassLocalLogger):
                                              nlri, encaps,
                                              lb_consistent_hash_order=0):
         pass
+
+    def needs_cleanup_assist(self):
+        '''Control per-route cleanup events
+
+        A dataplane driver not able to cleanup all the states for a given
+        VPN instance can return True here to receive artifical dataplane
+        removal calls, such as remove_dataplane_for_remote_endpoint, for
+        each state previously setup
+        '''
+        return self.driver.needs_cleanup_assist()
 
     def _run_command(self, command, run_as_root=False, *args, **kwargs):
         return self.driver._run_command(command, run_as_root, *args, **kwargs)

@@ -72,9 +72,10 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
         self._cleaning_up = True
 
-        # FIXME(tmorin): removing the vxlan interface removes our routes,
+        # removing the vxlan interface removes our routes,
         # but if we don't remove the vxlan if (if it was reused) then
-        # cleanup will not happen
+        # cleanup will not happen, which is why we use cleanup assist
+        # (see needs cleanup assist below)
         self._cleanup_vxlan_if()
 
         # Delete only EVPN Bridge (Created by dataplane driver)
@@ -85,6 +86,12 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
             self._run_command("brctl delbr %s" % self.bridge_name,
                               run_as_root=True,
                               raise_on_error=False)
+
+    def needs_cleanup_assist(self):
+        # If we reused a vxlan interface we won't cleanup fdb entries
+        # in cleanup(), so we need to have remove_dataplane_for_x
+        # be called for reach state via cleanup assist
+        return VXLAN_INTERFACE_PREFIX not in self.vxlan_if_name
 
     def _create_and_plug_vxlan_if(self):
         # if a VXLAN interface, with the VNI we want to use, is already plugged

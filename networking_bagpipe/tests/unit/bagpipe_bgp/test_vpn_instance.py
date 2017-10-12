@@ -38,8 +38,8 @@
 
 """
 
-from mock import Mock
-from testtools import TestCase
+import mock
+import testtools
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp import engine
@@ -119,14 +119,14 @@ class TestableVPNInstance(vpn_instance.VPNInstance):
     afi = exa.AFI(exa.AFI.ipv4)
     safi = exa.SAFI(exa.SAFI.mpls_vpn)
 
-    def _best_route_removed(self, entry, route):
+    def best_route_removed(self, entry, route):
         pass
 
-    def _new_best_route(self, entry, route, last):
+    def new_best_route(self, entry, route, last):
         pass
 
     def route_to_tracked_entry(self, route):
-        pass
+        return route
 
     def generate_vif_bgp_route(self):
         pass
@@ -149,7 +149,7 @@ def api_params():
     return dict(API_PARAMS)
 
 
-class TestVPNInstanceAPIChecks(TestCase):
+class TestVPNInstanceAPIChecks(testtools.TestCase):
 
     def _test_validate_convert_missing(self, method, missing_param,
                                        params=None):
@@ -193,14 +193,14 @@ class TestVPNInstanceAPIChecks(TestCase):
             params)
 
 
-class TestInitVPNInstance(TestCase):
+class TestInitVPNInstance(testtools.TestCase):
 
     def setUp(self):
         super(TestInitVPNInstance, self).setUp()
-        self.mock_manager = Mock()
-        self.mock_manager.label_allocator.release = Mock()
-        self.mock_dp_driver = Mock()
-        self.mock_dp_driver.initialize_dataplane_instance = Mock()
+        self.mock_manager = mock.mock.Mock()
+        self.mock_manager.label_allocator.release = mock.mock.Mock()
+        self.mock_dp_driver = mock.mock.Mock()
+        self.mock_dp_driver.initialize_dataplane_instance = mock.mock.Mock()
 
     def test_init_stop_VPNInstance_with_forced_vni(self):
         # Initialize a VPNInstance with a forced VNID > 0
@@ -240,30 +240,32 @@ class TestInitVPNInstance(TestCase):
             vpn.instance_label)
 
 
-class TestVPNInstance(TestCase):
+class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
 
     def setUp(self):
         super(TestVPNInstance, self).setUp()
 
-        mock_dataplane = Mock()
-        mock_dataplane.vif_plugged = Mock()
-        mock_dataplane.vif_unplugged = Mock()
+        self.mock_dataplane = mock.mock.Mock()
+        self.mock_dataplane.vif_plugged = mock.mock.Mock()
+        self.mock_dataplane.vif_unplugged = mock.mock.Mock()
 
-        mock_dp_driver = Mock()
+        mock_dp_driver = mock.Mock()
         mock_dp_driver.initialize_dataplane_instance.return_value = (
-            mock_dataplane
+            self.mock_dataplane
         )
 
-        self.vpn = TestableVPNInstance(Mock(name='VPNManager'),
+        self.vpn = TestableVPNInstance(mock.Mock(name='VPNManager'),
                                        mock_dp_driver, 1, 1,
                                        [t.RT1], [t.RT1], '10.0.0.1', 24,
                                        None, None)
 
-        self.vpn.synthesize_vif_bgp_route = Mock(
+        self.vpn.synthesize_vif_bgp_route = mock.Mock(
             return_value=engine.RouteEntry(t.NLRI1, [t.RT1]))
-        self.vpn._advertise_route = Mock()
-        self.vpn._withdraw_route = Mock()
+        self.vpn._advertise_route = mock.Mock()
+        self.vpn._withdraw_route = mock.Mock()
         self.vpn.start()
+
+        self.set_event_target_worker(self.vpn)
 
     def tearDown(self):
         super(TestVPNInstance, self).tearDown()
@@ -767,6 +769,21 @@ class TestVPNInstance(TestCase):
         self.assertIn(t.RT1, _extract_rt_from_call(self.vpn,
                                                    '_advertise_route'))
 
+    def test_cleanup_assist(self):
+        # simulate a route injected in our VPNInstance
+
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
+
+        self._new_route_event(engine.RouteEvent.ADVERTISE,
+                              self._fake_nlri("fake NLRI"),
+                              [t.RT1, t.RT2], worker_a, t.NH1, 200)
+
+        self.mock_dataplane.needs_cleanup_assist.return_value = True
+
+        with mock.patch.object(self.vpn, 'best_route_removed') as mock_brr:
+            self.vpn.stop()
+            mock_brr.assert_called_once()
+
 
 LOCAL_ADDRESS = '4.5.6.7'
 NEXT_HOP = '45.45.45.45'
@@ -824,17 +841,17 @@ TC_STATIC2 = vpn_instance.TrafficClassifier(
 )
 
 
-class TestVRF(t.BaseTestBagPipeBGP, TestCase):
+class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
 
     def setUp(self):
         super(TestVRF, self).setUp()
 
-        self.mock_dp = Mock()
-        self.mock_dp.vif_plugged = Mock()
-        self.mock_dp.vif_unplugged = Mock()
-        self.mock_dp.setup_dataplane_for_remote_endpoint = Mock()
+        self.mock_dp = mock.Mock()
+        self.mock_dp.vif_plugged = mock.Mock()
+        self.mock_dp.vif_unplugged = mock.Mock()
+        self.mock_dp.setup_dataplane_for_remote_endpoint = mock.Mock()
 
-        mock_dp_driver = Mock()
+        mock_dp_driver = mock.Mock()
         mock_dp_driver.initialize_dataplane_instance.return_value = \
             self.mock_dp
         mock_dp_driver.get_local_address.return_value = LOCAL_ADDRESS
@@ -842,12 +859,12 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
             [exa.Encapsulation(exa.Encapsulation.Type.DEFAULT)]
 
         label_alloc = label_allocator.LabelAllocator()
-        bgp_manager = Mock()
+        bgp_manager = mock.Mock()
         bgp_manager.get_local_address.return_value = LOCAL_ADDRESS
         rd_alloc = rd_allocator.RDAllocator(bgp_manager.get_local_address())
-        self.manager = Mock(bgp_manager=bgp_manager,
-                            label_allocator=label_alloc,
-                            rd_allocator=rd_alloc)
+        self.manager = mock.Mock(bgp_manager=bgp_manager,
+                                 label_allocator=label_alloc,
+                                 rd_allocator=rd_alloc)
 
         self.vpn = ipvpn.VRF(self.manager, mock_dp_driver, 1, 1,
                              [t.RT1], [t.RT1], '10.0.0.1', 24,
@@ -855,11 +872,11 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
                               'to_rt': [t.RT4]},
                              None)
 
-        self.vpn._advertise_route = Mock()
-        self.vpn._withdraw_route = Mock()
+        self.vpn._advertise_route = mock.Mock()
+        self.vpn._withdraw_route = mock.Mock()
         self.vpn.start()
 
-        self.event_target_worker = self.vpn
+        self.set_event_target_worker(self.vpn)
 
     def _reset_mocks(self):
         self.vpn._advertise_route.reset_mock()
@@ -895,8 +912,8 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
             )
 
     def _mock_vpnmanager_for_attract_traffic(self):
-        self.manager.redirect_traffic_to_vpn = Mock()
-        self.manager.stop_redirect_to_vpn = Mock()
+        self.manager.redirect_traffic_to_vpn = mock.Mock()
+        self.manager.stop_redirect_to_vpn = mock.Mock()
 
     def _reset_mocks_vpnmanager(self):
         self.manager.redirect_traffic_to_vpn.reset_mock()
@@ -934,7 +951,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri_1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri_1,
@@ -1104,7 +1121,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1126,7 +1143,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1155,7 +1172,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1182,7 +1199,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1222,7 +1239,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1244,7 +1261,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1268,7 +1285,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1288,7 +1305,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         # FlowSpec route
         flow_nlri1 = self._generate_flow_spec_nlri(TC1)
@@ -1310,7 +1327,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         # FlowSpec route
         flow_nlri1 = self._generate_flow_spec_nlri(TC1)
@@ -1337,7 +1354,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         # FlowSpec route
         flow_nlri1 = self._generate_flow_spec_nlri(TC1)
@@ -1377,7 +1394,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1400,7 +1417,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1430,7 +1447,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1458,7 +1475,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1495,7 +1512,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
@@ -1525,7 +1542,7 @@ class TestVRF(t.BaseTestBagPipeBGP, TestCase):
 
         self._reset_mocks()
 
-        worker_a = worker.Worker(Mock(), 'worker.Worker-A')
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],

@@ -383,6 +383,14 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
             )
         )
 
+    def synthesize_withdraw_all(self):
+        for tracked_entry, routes in list(self.tracked_entry_2_routes.items()):
+            self.log.trace("Synthethizing withdraws for all routes of %s",
+                           tracked_entry)
+            for route in routes:
+                self._on_event(engine.RouteEvent(engine.RouteEvent.WITHDRAW,
+                                                 route))
+
     @log_decorator.log
     def _call_new_best_route_for_routes(self, entry, routes):
         routes_no_dups = set([FilteredRoute(r) for r in routes])

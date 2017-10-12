@@ -65,10 +65,13 @@ class Worker(engine.EventSource, lg.LookingGlassMixin):
         Then call _stopped() to let a subclass implement any further work.
         """
         LOG.info("Stop worker %s", self)
-        self._please_stop.set()
-        self.enqueue(STOP_EVENT)
+        self.stop_event_loop()
         self._cleanup()
         self._stopped()
+
+    def stop_event_loop(self):
+        self._please_stop.set()
+        self.enqueue(STOP_EVENT)
 
     def _cleanup(self):
         self.rtm.enqueue(engine.WorkerCleanupEvent(self))

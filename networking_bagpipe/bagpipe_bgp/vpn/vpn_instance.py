@@ -262,7 +262,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         lg.LookingGlassLocalLogger.__init__(self,
                                             "%s-%d" % (self.instance_type,
                                                        self.instance_id))
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
 
         self.import_rts = import_rts
         self.export_rts = export_rts
@@ -382,11 +382,14 @@ class VPNInstance(tracker_worker.TrackerWorker,
         self.dataplane.update_fallback(fallback)
 
     @utils.synchronized
-    def stop(self):
-        self._stop()
-
     @log_decorator.log
-    def _stop(self):
+    def stop(self):
+        self.stop_event_loop()
+
+        if self.dataplane.needs_cleanup_assist():
+            self.log.debug("Dataplane driver needs cleanup assistance")
+            self.synthesize_withdraw_all()
+
         self.dataplane.cleanup()
         if not self.forced_vni:
             self.manager.label_allocator.release(self.instance_label)
@@ -400,7 +403,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
     def stop_if_empty(self):
         self.log.debug("localport_2_endpoints: %s", self.localport_2_endpoints)
         if self.is_empty():
-            self._stop()
+            self.stop()
             return True
 
         return False
@@ -853,7 +856,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
     def stop_if_no_redirected_instance(self):
         self.log.debug("redirected_instances: %s", self.redirected_instances)
         if not self.redirected_instances:
-            self._stop()
+            self.stop()
             return True
 
         return False
