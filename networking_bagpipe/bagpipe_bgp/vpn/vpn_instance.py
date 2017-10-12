@@ -561,11 +561,11 @@ class VPNInstance(tracker_worker.TrackerWorker,
                 isinstance(params['local_port'], six.text_type)):
             params['local_port'] = {'linuxif': params['local_port']}
 
-        # if import_rt or export_rt are strings, convert them into lists
         for param in ('import_rt', 'export_rt'):
             if param not in params:
                 continue
 
+            # if import_rt or export_rt are strings, convert them into lists
             if (isinstance(params[param], six.string_types) or
                     isinstance(params[param], six.text_type)):
                 try:
@@ -573,6 +573,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
                 except Exception:
                     raise exc.APIException("Unable to parse RT string into "
                                            " a list: '%s'" % params[param])
+            # remove duplicates
+            params[param] = list(set(params[param]))
 
         if not ('linuxif' in params['local_port'] or
                 'evpn' in params['local_port']):
@@ -587,6 +589,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
             params['ip_address_prefix'] = params['ip_address'] + "/32"
         else:
             raise exc.MalformedIPAddress(params['ip_address'])
+
+        # NOTE(tmorin): improve the IP check above and validate MAC address
+        # format
 
         if not isinstance(params.get('advertise_subnet', False), bool):
             raise exc.APIException("'advertise_subnet' must be a boolean")

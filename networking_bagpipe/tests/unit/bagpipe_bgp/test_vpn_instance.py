@@ -309,6 +309,18 @@ class TestVPNInstance(TestCase):
                 endpoint_info,
                 self.vpn.localport_2_endpoints[localport['linuxif']])
 
+    def validate_convert_params_duplicate_rts(self):
+        test_params = {'vpn_instance_id': 'foo',
+                       'mac_address': 'foo',
+                       'ip_address': '1.2.3.4',
+                       'local_port': 'foo',
+                       'import_rt': ['64512:1', '64512:1'],
+                       'export_rt': '64512:4, 64512:4'}
+
+        vpn_instance.VPNInstance.validate_convert_params(test_params)
+        self.assertEqual(['64512:1'], test_params['import_rt'])
+        self.assertEqual(['64512:4'], test_params['export_rt'])
+
     def test_a1_plug_endpoint_twice_same_port(self):
         # Plug one endpoint with same MAC and IP addresses twice on a port
 
