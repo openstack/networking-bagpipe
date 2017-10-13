@@ -123,7 +123,6 @@ class DataplaneDriver(lg.LookingGlassLocalLogger):
     dataplane_instance_class = object  # has to be overridden by subclasses
     encaps = [exa.Encapsulation(exa.Encapsulation.Type.DEFAULT),
               exa.Encapsulation(exa.Encapsulation.Type.MPLS)]
-    makebefore4break_support = False
     ecmp_support = False
     required_kernel = None
 

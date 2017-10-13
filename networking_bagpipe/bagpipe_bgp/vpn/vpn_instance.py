@@ -951,8 +951,13 @@ class VPNInstance(tracker_worker.TrackerWorker,
         whether or not the route removed is the last one and depending on
         the desired behavior for the dataplane driver
         '''
-        return not last and not (self.dp_driver.makebefore4break_support or
-                                 self.dp_driver.ecmp_support)
+        if last:
+            # never skip the last route
+            return False
+
+        # if the driver supports ECMP, then it needs to see all the route
+        # withdraws
+        return not self.dp_driver.ecmp_support
 
     # Callbacks for BGP route updates (TrackerWorker) ########################
 

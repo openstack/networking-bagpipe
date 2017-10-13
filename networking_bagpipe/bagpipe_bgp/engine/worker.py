@@ -83,7 +83,6 @@ class Worker(engine.EventSource, lg.LookingGlassMixin):
         """Main loop where the worker consumes events."""
 
         while not self._please_stop.isSet():
-            # LOG.debug("%s worker waiting on queue",self.name )
             event = self._dequeue()
 
             if event == STOP_EVENT:
@@ -91,7 +90,6 @@ class Worker(engine.EventSource, lg.LookingGlassMixin):
                 self._please_stop.set()
                 break
 
-            # LOG.debug("%s worker calling _on_event for %s", self.name, event)
             try:
                 self._on_event(event)
             except Exception as e:

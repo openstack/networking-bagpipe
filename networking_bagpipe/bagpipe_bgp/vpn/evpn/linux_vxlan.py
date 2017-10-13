@@ -168,6 +168,8 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
             run_as_root=True
         )
 
+        self._fdb_dump()
+
     def gateway_port_down(self, linuxif):
         self._run_command("brctl delif %s %s" %
                           (self.bridge_name, linuxif),
@@ -193,14 +195,22 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                           (mac_address, localport['linuxif']),
                           run_as_root=True)
 
+        self._fdb_dump()
+
     @log_decorator.log_info
     def vif_unplugged(self, mac_address, ip_address, localport, label,
                       last_endpoint=True):
+        self._run_command("bridge fdb delete %s dev %s" %
+                          (mac_address, localport['linuxif']),
+                          run_as_root=True)
+
         # unplug localport only if bridge was created by us
         if BRIDGE_NAME_PREFIX in self.bridge_name:
             self.log.debug("Unplugging localport %s from EVPN bridge %s",
                            localport['linuxif'], self.bridge_name)
             self._unplug_from_bridge(localport['linuxif'])
+
+        self._fdb_dump()
 
     @log_decorator.log
     def setup_dataplane_for_remote_endpoint(self, prefix, remote_pe, label,
@@ -290,7 +300,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
     def _fdb_dump(self):
         if self.log.debug:
             self.log.debug("bridge fdb dump: %s", self._run_command(
-                "bridge fdb show dev %s" % self.vxlan_if_name,
+                "bridge fdb show br %s" % self.bridge_name,
                 run_as_root=True)[0])
 
     # Looking glass ####
