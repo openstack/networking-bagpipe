@@ -364,10 +364,22 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                     self.log.debug("Need to stop re-advertising %s", prefix)
                     self._readvertise_stop(old_route)
 
-            if not self._imported(old_route):
-                self.log.debug("No need to update dataplane for:%s",
-                               prefix)
-                return
+            # NOTE(tmorin): On new best routes, we only trigger dataplane
+            # update events after checking with self._imported(...) that the
+            # route was imported (and not a route that we receive because the
+            # VRF should readvertise ir). On best_route_removed, we can't do
+            # that because we could end up in a situation where:
+            # - initially import_rts contains RT X
+            # - we receive a route for RT X and install dataplane state
+            # - the import_rts list is later updated and RT X is not anymore
+            # part of the imported RTs, and the VRF unsubscribes from RT X
+            # - we receive the best_route_removed callbacks corresponding to
+            # the unsubscribe, but since the route is for no RT that is in
+            # import_rts, we don't update the dataplane
+            # The result would be to fail to remove dataplane state for this
+            # route, so we're better not optimizing this case and remove
+            # dataplane state, including possibly for routes that we did
+            # not install in it.
 
             if self._skip_route_removal(last):
                 self.log.debug("Skipping removal of non-last route because "
