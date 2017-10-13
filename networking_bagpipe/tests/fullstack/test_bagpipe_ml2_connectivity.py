@@ -27,7 +27,6 @@ load_tests = testscenarios.load_tests_apply_scenarios
 class TestBaGPipeML2ConnectivitySameNetwork(base.BaGPipeBaseFullStackTestCase):
 
     bgpvpn = False
-    ipvpn_driver = None
     ipvpn_encap = None
     mech_drivers = 'bagpipe'
     service_plugins = 'router'

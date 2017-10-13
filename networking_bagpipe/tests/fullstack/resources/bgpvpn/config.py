@@ -39,6 +39,12 @@ class NeutronConfigFixture(neutron_cfg.NeutronConfigFixture):
                              '..', 'etc', 'neutron', 'policy.d')
             )
 
+            # for L2 BGPVPN tests, we need multiple subnet resources using
+            # a common IP subnet
+            self.config['DEFAULT'].update({
+                'allow_overlapping_ips': True
+            })
+
 
 class BGPVPNProviderConfigFixture(neutron_cfg.ConfigFixture):
     def __init__(self, env_desc, host_desc, temp_dir):
