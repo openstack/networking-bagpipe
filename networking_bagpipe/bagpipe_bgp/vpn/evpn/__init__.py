@@ -228,7 +228,7 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                 return
 
             def ip_label_from_route(route):
-                return (route.nexthop, route.nlri.labels.labels[0])
+                return (route.nexthop, route.nlri.label.labels[0])
 
             if self.equivalent_route_in_best_routes(old_route,
                                                     ip_label_from_route):
