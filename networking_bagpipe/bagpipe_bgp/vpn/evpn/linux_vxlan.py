@@ -158,14 +158,16 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self._run_command("ip link del %s" % self.vxlan_if_name,
                           run_as_root=True)
 
-    def _is_vxlan_if_on_bridge(self):
-        (output, _) = self._run_command(
-            "brctl show %s | grep '%s' | sed -e 's/\s\+//g'" %
-            (self.bridge_name, VXLAN_INTERFACE_PREFIX),
-            run_as_root=True,
-            shell=True)
+    def _is_if_on_bridge(self, ifname):
+        with pyroute2.IPDB(plugins=('interfaces',)) as ipdb:
+            for port_id in ipdb.interfaces[self.bridge_name].ports:
+                port = ipdb.interfaces[port_id]
+                if port.ifname == ifname:
+                    return True
+        return False
 
-        return True if (output == self.vxlan_if_name) else False
+    def _is_vxlan_if_on_bridge(self):
+        return self._is_if_on_bridge(self.vxlan_if_name)
 
     def _interface_exists(self, interface):
         """Check if interface exists."""
@@ -231,9 +233,12 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
     @log_decorator.log_info
     def vif_unplugged(self, mac_address, ip_address, localport, label,
                       last_endpoint=True):
-        self._run_command("bridge fdb delete %s dev %s" %
-                          (mac_address, localport['linuxif']),
-                          run_as_root=True)
+
+        # remove local fdb entry, but only if tap interface is still here
+        if self._is_if_on_bridge(localport['linuxif']):
+            self._run_command("bridge fdb delete %s dev %s" %
+                              (mac_address, localport['linuxif']),
+                              run_as_root=True)
 
         # unplug localport only if bridge was created by us
         if BRIDGE_NAME_PREFIX in self.bridge_name:
