@@ -184,22 +184,10 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                               acceptable_return_codes=[0, 1])
 
     def set_gateway_port(self, linuxif, gw_ip):
-        gw_mac = "01:00:00:00:00:00"  # FIXME
-
         self._run_command("brctl addif %s %s" %
                           (self.bridge_name, linuxif),
                           run_as_root=True,
                           raise_on_error=False)
-
-        self._run_command("bridge fdb replace %s dev %s" %
-                          (gw_mac, linuxif),
-                          run_as_root=True)
-
-        self._run_command(
-            "ip neighbor replace %s lladdr %s dev %s nud permanent" %
-            (gw_ip, gw_mac, linuxif),
-            run_as_root=True
-        )
 
         self._fdb_dump()
 
