@@ -48,16 +48,6 @@ MAX_PREFIX_LENGTH = 0x80  # 128
 # (we round it for better readability of flow dumps)
 FALLBACK_PRIORITY = MAX_PREFIX_PRIORITY - MAX_PREFIX_LENGTH - 0x80
 
-DEFAULT_ARPNS_IF_MTU = 9000
-
-OVSBR2ARPNS_INTERFACE_PREFIX = "toarpns"
-
-# name of the veth device in the ARP proxy network namespace,
-# whose remote end is plugged in the OVS bridge
-PROXYARP2OVS_IF = "ovs"
-
-ARPNETNS_PREFIX = "arp-vrf"
-
 NO_MPLS_PHY_INTERFACE = -1
 
 VXLAN_TUNNEL = "vxlan"
@@ -74,13 +64,18 @@ OVS_DUMP_FLOW_FILTER = "| grep -v NXST_FLOW | perl -pe '"               \
 
 GATEWAY_MAC = "00:00:5e:00:43:64"
 
+ARP_RESPONDER_ACTIONS = ('move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],'
+                         'mod_dl_src:%(mac)s,'
+                         'load:0x2->NXM_OF_ARP_OP[],'
+                         'move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],'
+                         'push:NXM_OF_ARP_TPA[],'
+                         'move:NXM_OF_ARP_SPA[]->NXM_OF_ARP_TPA[],'
+                         'load:%(mac)#x->NXM_NX_ARP_SHA[],'
+                         'pop:NXM_OF_ARP_SPA[],'
+                         '%(vlan_action)soutput:%(in_port)d')
+
 VRF_REGISTER = 0
 LB_HOP_REGISTER = 1
-
-
-def get_ovsbr2arpns_if(namespace_id):
-    i = namespace_id.replace(ARPNETNS_PREFIX, "")
-    return (OVSBR2ARPNS_INTERFACE_PREFIX + i)[:consts.LINUX_DEV_LEN]
 
 
 def join_s(*args):
@@ -107,9 +102,6 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
     def __init__(self, *args, **kwargs):
         super(MPLSOVSVRFDataplane, self).__init__(*args, **kwargs)
 
-        self.arp_netns = ("%s%d" % (ARPNETNS_PREFIX,
-                                    self.instance_id))[:consts.LINUX_DEV_LEN]
-
         # Initialize dict where we store info on OVS ports (port numbers and
         # bound IP address)
         self._ovs_port_info = dict()
@@ -124,83 +116,6 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         self.fallback = None
         self.push_vlan_action = None
 
-        if self.driver.proxy_arp:
-            self._init_arp_netns()
-
-    def _init_arp_netns(self):
-        self.log.info("VRF %d: Initializing network namespace %s for ARP "
-                      "proxing", self.instance_id, self.arp_netns)
-        # Get names of veth pair devices between OVS and network namespace
-
-        ovsbr_to_proxyarp_ns = get_ovsbr2arpns_if(self.arp_netns)
-
-        if not self._arp_net_ns_exists():
-            self.log.debug("VRF network namespace doesn't exist, creating...")
-            # Create network namespace
-            self._run_command("ip netns add %s" % self.arp_netns,
-                              run_as_root=True)
-
-            # Set up veth pair devices between OVS and ARP network namespace
-            self._create_arp_netns_veth_pair(ovsbr_to_proxyarp_ns,
-                                             PROXYARP2OVS_IF)
-
-            # Force MAC address of netns-to-OVS port
-            net_utils.set_device_mac(self._run_command,
-                                     PROXYARP2OVS_IF,
-                                     GATEWAY_MAC,
-                                     self.arp_netns)
-
-            # Retrieve broadcast IP address
-            ip = netaddr.IPNetwork("%s/%s" % (self.gateway_ip, self.mask))
-            broadcast_ip = str(ip.broadcast)
-
-            # Set up network namespace interface as gateway
-            self._run_command("ip netns exec %s ip addr add %s/%s broadcast %s"
-                              " dev %s" %
-                              (self.arp_netns, self.gateway_ip,
-                               self.mask, broadcast_ip, PROXYARP2OVS_IF),
-                              run_as_root=True,
-                              raise_on_error=True)
-
-            # Setup IP forwarding
-            self._run_command("ip netns exec %s sh -c \"echo 1 > /proc/sys"
-                              "/net/ipv4/ip_forward\"" % self.arp_netns,
-                              run_as_root=True,
-                              shell=True)
-            self._run_command("ip netns exec %s sh -c \"echo 1 > /proc/sys/net"
-                              "/ipv4/conf/all/forwarding\"" % self.arp_netns,
-                              run_as_root=True,
-                              shell=True)
-
-            # Setup ARP proxying
-            self._run_command("ip netns exec %s sh -c \"echo 1 > /proc/sys/net"
-                              "/ipv4/conf/%s/proxy_arp\"" %
-                              (self.arp_netns, PROXYARP2OVS_IF),
-                              run_as_root=True,
-                              shell=True)
-            self._run_command("ip netns exec %s sh -c \"echo 1 > /proc/sys/net"
-                              "/ipv4/conf/%s/proxy_arp_pvlan\"" %
-                              (self.arp_netns, PROXYARP2OVS_IF),
-                              run_as_root=True,
-                              shell=True)
-        else:
-            self.log.debug("VRF network namespace already exists...")
-
-        # OVS port number for the port toward the proxy ARP netns
-        self.arp_net_nsport = self.driver.find_ovs_port(ovsbr_to_proxyarp_ns)
-
-        # Map IP traffic from plugged ports to ARP/GW netns
-        self._ovs_flow_add(self._vrf_match('nw_dst=%s' % self.gateway_ip),
-                           'output:%s' % self.arp_net_nsport,
-                           self.driver.vrf_table)
-
-        # Map ARP traffic from plugged port to ARP/GW netns
-        # (rule to flow ARP response from GW to plugged port is added in
-        # vif_plugged)
-        self._ovs_flow_add(self._vrf_match(None, proto="arp"),
-                           'output:%s' % self.arp_net_nsport,
-                           self.driver.vrf_table)
-
     @log_decorator.log_info
     def cleanup(self):
         if self._ovs_port_info:
@@ -211,72 +126,6 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         # Remove all flows for this instance
         for table in self.driver.all_tables.values():
             self._ovs_flow_del(None, table)
-
-        if self.driver.proxy_arp:
-            self.log.info("Cleaning VRF network namespace %s", self.arp_netns)
-            # Detach network namespace veth pair device from OVS bridge
-            self._run_command(
-                "ovs-vsctl del-port %s %s" %
-                (self.bridge, get_ovsbr2arpns_if(self.arp_netns)),
-                run_as_root=True)
-            # Delete network namespace (deletes the veth pair as well)
-            self._run_command("ip netns delete %s" % self.arp_netns,
-                              run_as_root=True)
-
-    def _arp_net_ns_exists(self):
-        """Check if network namespace exist. """
-        (_, code) = self._run_command("ip netns pids %s" % self.arp_netns,
-                                      acceptable_return_codes=[0, 1],
-                                      run_as_root=True)
-        return code == 0
-
-    def _create_arp_netns_veth_pair(self, ovsbr_to_proxyarp_ns,
-                                    proxyarp_ns_to_ovsbr):
-        """Create a veth device pair, wtih one end in the ARP netns"""
-
-        try:
-            self._run_command("ip netns exec %s ip link del %s" %
-                              (self.arp_netns, proxyarp_ns_to_ovsbr),
-                              run_as_root=True,
-                              raise_on_error=False,
-                              acceptable_return_codes=[0, 1])
-            self._run_command("ip link del %s" % ovsbr_to_proxyarp_ns,
-                              run_as_root=True,
-                              raise_on_error=False,
-                              acceptable_return_codes=[0, 1])
-            self._run_command("ip link add %s mtu 65535 type veth peer name "
-                              "%s netns %s" % (ovsbr_to_proxyarp_ns,
-                                               proxyarp_ns_to_ovsbr,
-                                               self.arp_netns),
-                              run_as_root=True,
-                              acceptable_return_codes=[0, 2])
-            self._run_command("ip link set dev %s up" % ovsbr_to_proxyarp_ns,
-                              run_as_root=True)
-            self._run_command("ip netns exec %s ip link set dev %s up" %
-                              (self.arp_netns, proxyarp_ns_to_ovsbr),
-                              run_as_root=True)
-            self._run_command("ovs-vsctl del-port %s %s" %
-                              (self.bridge, ovsbr_to_proxyarp_ns),
-                              run_as_root=True,
-                              raise_on_error=False,
-                              acceptable_return_codes=[0, 1, 2])
-            self._run_command("ovs-vsctl add-port %s %s" %
-                              (self.bridge, ovsbr_to_proxyarp_ns),
-                              run_as_root=True)
-        except Exception:
-            self._run_command("ovs-vsctl del-port %s %s" %
-                              (self.bridge, ovsbr_to_proxyarp_ns),
-                              run_as_root=True,
-                              raise_on_error=False,
-                              acceptable_return_codes=[0, 1, 2])
-            self._run_command("ip netns exec %s ip link del %s" %
-                              (self.arp_netns, proxyarp_ns_to_ovsbr),
-                              run_as_root=True,
-                              raise_on_error=False)
-            self._run_command("ip link del %s" % ovsbr_to_proxyarp_ns,
-                              run_as_root=True,
-                              raise_on_error=False)
-            raise
 
     @log_decorator.log
     def _extract_mac_address(self, output):
@@ -412,6 +261,9 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         return (port, localport_match, push_vlan_action, port_unplug_action)
 
+    def get_vlan_action(self):
+        return self.push_vlan_action if self.push_vlan_action else ""
+
     @log_decorator.log_info
     def update_fallback(self, fallback=None):
         if fallback:
@@ -419,10 +271,6 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         if not self.fallback:
             return
-
-        vlan_action = ""
-        if self.push_vlan_action:
-            vlan_action = self.push_vlan_action
 
         for param in ('src_mac', 'dst_mac', 'ovs_port_number'):
             if not self.fallback.get(param):
@@ -435,10 +283,30 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                            'mod_dl_src=%s,mod_dl_dst=%s,%soutput:%d' %
                            (self.fallback.get('src_mac'),
                             self.fallback.get('dst_mac'),
-                            vlan_action,
+                            self.get_vlan_action(),
                             self.fallback.get('ovs_port_number')),
                            self.driver.vrf_table,
                            priority=FALLBACK_PRIORITY)
+
+    @log_decorator.log_info
+    def setup_arp_responder(self, ovs_port):
+        actions = ARP_RESPONDER_ACTIONS % {
+            'mac': netaddr.EUI(GATEWAY_MAC, dialect=netaddr.mac_unix),
+            'vlan_action': self.get_vlan_action(),
+            'in_port': ovs_port
+        }
+
+        self._ovs_flow_add(
+            self._vrf_match('dl_dst=ff:ff:ff:ff:ff:ff,NXM_OF_ARP_OP[]=0x1',
+                            proto='arp'),
+            actions,
+            self.driver.vrf_table)
+
+    @log_decorator.log_info
+    def remove_arp_responder(self):
+        self._ovs_flow_del(
+            self._vrf_match(None, proto='arp'),
+            self.driver.vrf_table)
 
     def _check_vlan_use(self, push_vlan_action):
         # checks that if a vlan_action is used, it is the same
@@ -505,23 +373,9 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                                self.driver.input_table)
 
         if self.driver.proxy_arp:
-            # Map ARP and IP traffic from ARP/GW netns to plugged port
-
-            # Map IP traffic from gateway to plugged port
-            self._ovs_flow_add(
-                join_s('in_port=%s' % self.arp_net_nsport,
-                       'ip',
-                       'nw_dst=%s' % ip_address),
-                '%soutput:%s' % (push_vlan_action_str, ovs_port),
-                self.driver.input_table)
-
-            # ARP
-            self._ovs_flow_add(
-                join_s('in_port=%s' % self.arp_net_nsport,
-                       'arp',
-                       'dl_dst=%s' % mac_address),
-                '%soutput:%s' % (push_vlan_action_str, ovs_port),
-                self.driver.input_table)
+            # Map ARP responder if necessary
+            if not self._ovs_port_info:
+                self.setup_arp_responder(ovs_port)
 
         # Map incoming MPLS traffic going to the VM port
         incoming_actions = ("%smod_dl_src:%s,mod_dl_dst:%s,output:%s" %
@@ -573,28 +427,16 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             self._ovs_flow_del(self._match_vxlan_in(label),
                                self.driver.encap_in_table)
 
-        # Unmap all traffic from plugged port
         if last_endpoint:
+            # Unmap all traffic from plugged port
             self._ovs_flow_del(localport_match, self.driver.input_table)
 
-        if self.driver.proxy_arp:
-            # Unmap IP traffic from ARP/GW netns to plugged port
-            self._ovs_flow_del(
-                join_s('in_port=%s' % self.arp_net_nsport,
-                       'ip',
-                       'nw_dst=%s' % ip_address),
-                self.driver.input_table)
+            # Unmap ARP responder
+            if self.driver.proxy_arp:
+                self.remove_arp_responder()
 
-            # Unmap ARP traffic from ARP/GW netns to plugged port
-            self._ovs_flow_del(
-                join_s('in_port=%s' % self.arp_net_nsport,
-                       'arp',
-                       'dl_dst=%s' % mac_address),
-                self.driver.input_table)
-
-        if last_endpoint:
+            # Run port unplug action if necessary (OVS port delete)
             if port_unplug_action:
-                # Run port unplug action if necessary (OVS port delete)
                 self._run_command(port_unplug_action,
                                   run_as_root=True,
                                   acceptable_return_codes=[0, 1])
@@ -942,9 +784,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                    help=("Force the use of MPLS/GRE even with "
                          "mpls_interface specified")),
         cfg.BoolOpt("proxy_arp", default=True,
-                    help=("A netns will be connected to each VRF, will "
-                          "be setup with the gateway IP address, and will "
-                          "reply to all ARP requests")),
+                    help=("Setup ARP responder per VRF")),
         cfg.BoolOpt("vxlan_encap", default=False,
                     help=("Be ready to receive VPN traffic as VXLAN, and to "
                           "preferrably send traffic as VXLAN when advertised "
@@ -1141,37 +981,6 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         else:
             self.log.info("No OVS bridge (%s), no need to cleanup OVS rules",
                           self.bridge)
-
-        # Flush network namespaces for ARP responders and
-        # corresponding veth pair devices
-        cmd = r"ip netns list | cut '-d ' -f 1 | grep -v '\<q' | grep '%s'"
-        (output, _) = self._run_command(cmd % ARPNETNS_PREFIX,
-                                        raise_on_error=False,
-                                        acceptable_return_codes=[0, 1])
-        if not output:
-            self.log.debug("No network namespaces configured")
-        else:
-            for namespace_id in output:
-                self.log.info("Cleaning up netns %s", namespace_id)
-                self._run_command("ip netns delete %s" % namespace_id,
-                                  run_as_root=True,
-                                  raise_on_error=False)
-                self._run_command(
-                    "ovs-vsctl del-port %s %s" % (
-                        self.bridge,
-                        get_ovsbr2arpns_if(namespace_id)),
-                    run_as_root=True,
-                    acceptable_return_codes=[0, 1, 2],
-                    raise_on_error=False)
-            if self.log.debug:
-                self.log.debug("All network namespaces have been flushed")
-                self._run_command("ip netns")
-
-                self.log.debug("All network namespace veth pairs flushed")
-                self._run_command("ifconfig")
-                self._run_command("ovs-vsctl list-ports %s" % self.bridge,
-                                  run_as_root=True,
-                                  acceptable_return_codes=[0, 1])
 
     @log_decorator.log_info
     def initialize(self):
