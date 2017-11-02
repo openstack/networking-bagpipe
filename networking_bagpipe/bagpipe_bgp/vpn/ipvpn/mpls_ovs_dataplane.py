@@ -296,11 +296,15 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             'in_port': ovs_port
         }
 
-        self._ovs_flow_add(
-            self._vrf_match('dl_dst=ff:ff:ff:ff:ff:ff,NXM_OF_ARP_OP[]=0x1',
-                            proto='arp'),
-            actions,
-            self.driver.vrf_table)
+        vrf_match = self._vrf_match(
+            'dl_dst=ff:ff:ff:ff:ff:ff,NXM_OF_ARP_OP[]=0x1', proto='arp'
+        )
+        # Respond to all IP addresses if proxy ARP is enabled, otherwise only
+        # for gateway
+        if not self.driver.proxy_arp:
+            vrf_match += ',arp_tpa=%s' % self.gateway_ip
+
+        self._ovs_flow_add(vrf_match, actions, self.driver.vrf_table)
 
     @log_decorator.log_info
     def remove_arp_responder(self):
@@ -372,10 +376,9 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                                actions,
                                self.driver.input_table)
 
-        if self.driver.proxy_arp:
-            # Map ARP responder if necessary
-            if not self._ovs_port_info:
-                self.setup_arp_responder(ovs_port)
+        # Map ARP responder if necessary
+        if not self._ovs_port_info:
+            self.setup_arp_responder(ovs_port)
 
         # Map incoming MPLS traffic going to the VM port
         incoming_actions = ("%smod_dl_src:%s,mod_dl_dst:%s,output:%s" %
@@ -432,8 +435,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             self._ovs_flow_del(localport_match, self.driver.input_table)
 
             # Unmap ARP responder
-            if self.driver.proxy_arp:
-                self.remove_arp_responder()
+            self.remove_arp_responder()
 
             # Run port unplug action if necessary (OVS port delete)
             if port_unplug_action:
@@ -783,8 +785,9 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                    default="auto",
                    help=("Force the use of MPLS/GRE even with "
                          "mpls_interface specified")),
-        cfg.BoolOpt("proxy_arp", default=True,
-                    help=("Setup ARP responder per VRF")),
+        cfg.BoolOpt("proxy_arp", default=False,
+                    help=("Activate ARP responder per VRF for all IP "
+                          "addresses (Only for gateway IP by default)")),
         cfg.BoolOpt("vxlan_encap", default=False,
                     help=("Be ready to receive VPN traffic as VXLAN, and to "
                           "preferrably send traffic as VXLAN when advertised "
