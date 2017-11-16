@@ -33,11 +33,11 @@ from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
 class VPNInstanceDataplane(dp_drivers.VPNInstanceDataplane):
 
     @abc.abstractmethod
-    def add_dataplane_for_bum_endpoint(self, remote_pe, label, nlri, encaps):
+    def add_dataplane_for_bum_endpoint(self, remote_pe, dpid, nlri, encaps):
         pass
 
     @abc.abstractmethod
-    def remove_dataplane_for_bum_endpoint(self, remote_pe, label, nlri):
+    def remove_dataplane_for_bum_endpoint(self, remote_pe, dpid, nlri):
         pass
 
     @abc.abstractmethod
@@ -65,11 +65,11 @@ class DummyVPNInstanceDataplane(dp_drivers.DummyVPNInstanceDataplane,
     '''Dummy, do-nothing dataplane driver'''
 
     @log_decorator.log_info
-    def add_dataplane_for_bum_endpoint(self, remote_pe, label, nlri, encaps):
+    def add_dataplane_for_bum_endpoint(self, remote_pe, dpid, nlri, encaps):
         pass
 
     @log_decorator.log_info
-    def remove_dataplane_for_bum_endpoint(self, remote_pe, label, nlri):
+    def remove_dataplane_for_bum_endpoint(self, remote_pe, dpid, nlri):
         pass
 
     @log_decorator.log_info
@@ -109,6 +109,16 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         self.gw_port = None
 
+        encaps = self.dp_driver.supported_encaps()
+        if (exa.Encapsulation(exa.Encapsulation.Type.VXLAN) in encaps
+                and any([
+                exa.Encapsulation(exa.Encapsulation.Type.MPLS) in encaps,
+                exa.Encapsulation(exa.Encapsulation.Type.GRE) in encaps,
+                exa.Encapsulation(exa.Encapsulation.Type.MPLS_UDP) in encaps
+                ])):
+            raise Exception("The dataplane can't support both an MPLS encap "
+                            "and a VXLAN encapsulation")
+
         # Advertise route to receive multi-destination traffic
         self.log.info("Generating BGP route for broadcast/multicast traffic")
 
@@ -126,22 +136,31 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         # add PMSI Tunnel Attribute route
         attributes.add(
             exa.PMSIIngressReplication(self.dp_driver.get_local_address(),
-                                       self.instance_label))
+                                       raw_label=self.instance_label))
 
         self.multicast_route_entry = engine.RouteEntry(nlri, self.export_rts,
                                                        attributes)
 
         self._advertise_route(self.multicast_route_entry)
 
+    def _vxlan_dp_driver(self):
+        return (exa.Encapsulation(exa.Encapsulation.Type.VXLAN) in
+                self.dp_driver.supported_encaps())
+
     def generate_vif_bgp_route(self, mac_address, ip_prefix, plen, label, rd):
         # Generate BGP route and advertise it...
 
         assert(plen == 32)
 
+        if self._vxlan_dp_driver():
+            mpls_label_field = exa.Labels([], raw_labels=[self.instance_label])
+        else:
+            mpls_label_field = exa.Labels([self.instance_label])
+
         # label parameter ignored, we need to use instance label
         nlri = exa.EVPNMAC(
             rd, exa.ESI(), exa.EthernetTag(), exa.MAC(mac_address), 6*8,
-            exa.Labels([self.instance_label]),
+            mpls_label_field,
             exa.IP.create(ip_prefix), None,
             exa.IP.create(self.dp_driver.get_local_address()))
 
@@ -159,6 +178,22 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     def has_gateway_port(self):
         return (self.gw_port is not None)
+
+    def _interpret_nlri_mpls_field(self, label_field):
+        # interpret the MPLS field of an EVPN MAroute, based on
+        # whether we assume this is a VXLAN VNI or not
+        if self._vxlan_dp_driver():
+            return label_field.raw_labels[0]
+        else:
+            return label_field.labels[0]
+
+    def _interpret_pta_label_field(self, pmsi_tunnel):
+        # interpret the MPLS field of a PMSI tunnel attribute, based on
+        # whether we assume this is a VXLAN VNI or not
+        if self._vxlan_dp_driver():
+            return pmsi_tunnel.raw_label
+        else:
+            return pmsi_tunnel.label
 
     # TrackerWorker callbacks for BGP route updates ##########################
 
@@ -189,10 +224,11 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
             remote_pe = new_route.nexthop
 
-            label = new_route.nlri.label.labels[0]
+            dataplane_id = self._interpret_nlri_mpls_field(
+                new_route.nlri.label)
 
             self.dataplane.setup_dataplane_for_remote_endpoint(
-                prefix, remote_pe, label, new_route.nlri, encaps)
+                prefix, remote_pe, dataplane_id, new_route.nlri, encaps)
 
         elif entry_class == exa.EVPNMulticast:
             remote_endpoint = info
@@ -205,12 +241,12 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                                  type(pmsi_tunnel))
             else:
                 remote_endpoint = pmsi_tunnel.ip
-                label = pmsi_tunnel.label
+                dataplane_id = self._interpret_pta_label_field(pmsi_tunnel)
 
                 self.log.info("Setting up dataplane for new ingress "
                               "replication destination %s", remote_endpoint)
                 self.dataplane.add_dataplane_for_bum_endpoint(
-                    remote_endpoint, label, new_route.nlri, encaps)
+                    remote_endpoint, dataplane_id, new_route.nlri, encaps)
         else:
             self.log.warning("unsupported entry_class: %s",
                              entry_class.__name__)
@@ -227,30 +263,31 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                                "dataplane does not want it")
                 return
 
-            def ip_label_from_route(route):
-                return (route.nexthop, route.nlri.label.labels[0])
+            def ip_dpid_from_route(route):
+                return (route.nexthop,
+                        self._interpret_nlri_mpls_field(route.nlri.label))
 
             if self.equivalent_route_in_best_routes(old_route,
-                                                    ip_label_from_route):
+                                                    ip_dpid_from_route):
                 self.log.debug("Route for same dataplane is still in best "
                                "routes, skipping removal")
                 return
 
             prefix = info
 
-            remote_pe, label = ip_label_from_route(old_route)
+            remote_pe, dataplane_id = ip_dpid_from_route(old_route)
 
             self.dataplane.remove_dataplane_for_remote_endpoint(
-                prefix, remote_pe, label, old_route.nlri)
+                prefix, remote_pe, dataplane_id, old_route.nlri)
 
         elif entry_class == exa.EVPNMulticast:
             remote_endpoint = info
 
-            def ip_label_from_route(route):
+            def ip_dpid_from_route(route):
                 pmsi_tunnel = route.attributes.get(exa.PMSI.ID)
                 remote_endpoint = pmsi_tunnel.ip
-                label = pmsi_tunnel.label
-                return (remote_endpoint, label)
+                dataplane_id = self._interpret_pta_label_field(pmsi_tunnel)
+                return (remote_endpoint, dataplane_id)
 
             # check that the route is actually carrying an PMSITunnel of type
             # ingress replication
@@ -261,17 +298,17 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                 return
 
             if self.equivalent_route_in_best_routes(old_route,
-                                                    ip_label_from_route):
+                                                    ip_dpid_from_route):
                 self.log.debug("Route for same dataplane is still in best "
                                "routes, skipping removal")
                 return
 
-            remote_endpoint, label = ip_label_from_route(old_route)
+            remote_endpoint, dataplane_id = ip_dpid_from_route(old_route)
             self.log.info("Cleaning up dataplane for ingress replication "
                           "destination %s", remote_endpoint)
 
             self.dataplane.remove_dataplane_for_bum_endpoint(
-                remote_endpoint, label, old_route.nlri)
+                remote_endpoint, dataplane_id, old_route.nlri)
         else:
             self.log.warning("unsupported entry_class: %s",
                              entry_class.__name__)
