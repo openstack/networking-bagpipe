@@ -297,7 +297,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         }
 
         vrf_match = self._vrf_match(
-            'dl_dst=ff:ff:ff:ff:ff:ff,NXM_OF_ARP_OP[]=0x1', proto='arp'
+            'dl_dst=ff:ff:ff:ff:ff:ff,arp_op=0x1', proto='arp'
         )
         # Respond to all IP addresses if proxy ARP is enabled, otherwise only
         # for gateway
