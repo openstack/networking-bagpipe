@@ -380,10 +380,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                                 set(orig_info[vpn_type][rt_type]) -
                                 set(service_info[vpn_type][rt_type]))
 
-                            if not orig_info[vpn_type][rt_type]:
-                                del(orig_info[vpn_type][rt_type])
-
-                    if not orig_info[vpn_type]:
+                    if (not orig_info[vpn_type][b_const.RT_IMPORT] and
+                            not orig_info[vpn_type][b_const.RT_EXPORT]):
                         del(orig_info[vpn_type])
 
         return (not orig_info, orig_info)
@@ -408,21 +406,21 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         service_infos = [port_info.service_infos,
                          port_info.network.service_infos]
 
-        for bgpvpn_type, rt_type, service_info in list(
+        for bgpvpn_type, service_info in list(
                 itertools.product(bgpvpn_const.BGPVPN_TYPES,
-                                  b_const.RT_TYPES,
                                   service_infos)):
-            if rt_type in service_info.get(bgpvpn_type, {}):
+            if bgpvpn_type in service_info:
                 bagpipe_vpn_type = bgpvpn_const.BGPVPN_TYPES_MAP[bgpvpn_type]
                 if bagpipe_vpn_type not in attach_info:
                     attach_info[bagpipe_vpn_type] = dict()
 
-                if rt_type not in attach_info[bagpipe_vpn_type]:
-                    attach_info[bagpipe_vpn_type][rt_type] = list()
+                for rt_type in b_const.RT_TYPES:
+                    if rt_type not in attach_info[bagpipe_vpn_type]:
+                        attach_info[bagpipe_vpn_type][rt_type] = list()
 
-                attach_info[bagpipe_vpn_type][rt_type] += (
-                    service_info[bgpvpn_type][rt_type]
-                )
+                    attach_info[bagpipe_vpn_type][rt_type] += (
+                        service_info[bgpvpn_type][rt_type]
+                    )
 
         if self._is_ovs_extension():
             # Add OVS VLAN information
