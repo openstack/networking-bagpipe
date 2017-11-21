@@ -259,8 +259,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                               "permanent" % (ip, mac, self.vxlan_if_name),
                               run_as_root=True)
         else:
-            self.log.warning("No IP in E-VPN route, ARP will not work for this"
-                             "IP/MAC")
+            self.log.trace("No IP in E-VPN route, no ARP proxy for %s" % mac)
 
         self._fdb_dump()
 
@@ -278,9 +277,12 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
         self._fdb_dump()
 
-        self._run_command("ip neighbor del %s lladdr %s dev %s nud permanent" %
-                          (ip, mac, self.vxlan_if_name),
-                          run_as_root=True)
+        # clear ARP proxy
+        if ip is not None:
+            self._run_command("ip neighbor del %s lladdr %s dev %s nud "
+                              "permanent" % (ip, mac, self.vxlan_if_name),
+                              run_as_root=True)
+
         self._run_command("bridge fdb del %s dev %s dst %s vni %s" %
                           (mac, self.vxlan_if_name, remote_pe, vni),
                           run_as_root=True)
