@@ -783,19 +783,22 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         cfg.StrOpt("mpls_over_gre",
                    choices=['auto', 'True', 'False'],
                    default="auto",
+                   advanced=True,
                    help=("Force the use of MPLS/GRE even with "
                          "mpls_interface specified")),
         cfg.BoolOpt("proxy_arp", default=False,
+                    advanced=True,
                     help=("Activate ARP responder per VRF for all IP "
-                          "addresses (Only for gateway IP by default)")),
+                          "addresses (only for gateway IP by default)")),
         cfg.BoolOpt("vxlan_encap", default=False,
+                    advanced=True,
                     help=("Be ready to receive VPN traffic as VXLAN, and to "
                           "preferrably send traffic as VXLAN when advertised "
                           "by the remote end")),
-        cfg.StrOpt("ovs_bridge", default="br-mpls"),
-        cfg.IntOpt("input_table", default=0),
-        cfg.IntOpt("ovs_table_id_start", default=1),
-        cfg.StrOpt("gre_tunnel", default="mpls_gre",
+        cfg.StrOpt("ovs_bridge", default="br-mpls", advanced=True),
+        cfg.IntOpt("input_table", default=0, advanced=True),
+        cfg.IntOpt("ovs_table_id_start", default=1, advanced=True),
+        cfg.StrOpt("gre_tunnel", default="mpls_gre", advanced=True,
                    help="OVS interface name for MPLS/GRE encap"),
         cfg.ListOpt("gre_tunnel_options", default=[],
                     item_type=types.String(),
@@ -804,7 +807,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                           ", ...') that will be added as OVS tunnel "
                           "interface options (e.g. 'options:packet_type="
                           "legacy_l3 options:...')")),
-        cfg.IntOpt("ovsbr_interfaces_mtu")
+        cfg.IntOpt("ovsbr_interfaces_mtu", advanced=True)
     ]
 
     def __init__(self):
