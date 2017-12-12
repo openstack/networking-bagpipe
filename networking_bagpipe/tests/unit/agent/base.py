@@ -72,6 +72,13 @@ PORT21 = {'id': uuidutils.generate_uuid(),
 NETWORK2 = {'id': uuidutils.generate_uuid(),
             'gateway_ip': '20.0.0.1'}
 
+port_2_net = {
+    PORT10['id']: NETWORK1,
+    PORT11['id']: NETWORK1,
+    PORT20['id']: NETWORK2,
+    PORT21['id']: NETWORK2,
+}
+
 LOCAL_VLAN_MAP = {
     NETWORK1['id']: 31,
     NETWORK2['id']: 52
@@ -94,6 +101,8 @@ BGPVPN_L3_RT100 = {'import_rt': ['BGPVPN_L3:100'],
 
 BGPVPN_L3_RT200 = {'import_rt': ['BGPVPN_L3:200'],
                    'export_rt': ['BGPVPN_L3:200']}
+
+TEST_VNI = 411
 
 
 class DummyPort(object):
@@ -154,6 +163,26 @@ class BaseTestAgentExtension(object):
     DUMMY_VIF11 = None
     DUMMY_VIF20 = None
     DUMMY_VIF21 = None
+
+    def _port_data(self, port, delete=False):
+        data = {
+            'port_id': port['id']
+        }
+        if not delete:
+            data.update({
+                'port_id': port['id'],
+                'network_id': port_2_net[port['id']]['id'],
+                'segmentation_id': TEST_VNI,
+                'network_type': 'vxlan',
+                'device_owner': 'compute:None',
+                'mac_address': port['mac_address'],
+                'fixed_ips': [
+                    {
+                        'ip_address': port['ip_address'],
+                    }
+                ]
+            })
+        return data
 
     def _get_expected_local_port(self, vpn_type, network_id, port_id):
         raise NotImplementedError
