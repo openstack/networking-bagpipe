@@ -28,7 +28,7 @@ from oslo_log import log as logging
 from oslo_service import service
 
 from networking_bagpipe.agent import agent_base_info
-from networking_bagpipe.agent.common import constants as b_const
+from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 
 from networking_bagpipe.agent import bagpipe_bgp_agent
 
@@ -118,14 +118,14 @@ class BagpipeAgentExtension(l2_extension.L2AgentExtension,
             'mac_address': port_info.mac_address,
             'gateway_ip': port_info.network.gateway_info.ip,
             'local_port': port_info.local_port,
-            b_const.EVPN: {
+            bbgp_const.EVPN: {
                 'linuxbr': LinuxBridgeManager.get_bridge_name(
                     port_info.network.id
                 ),
-                b_const.RT_IMPORT: [
-                    service_info[b_const.EVPN][b_const.RT_IMPORT]],
-                b_const.RT_EXPORT: [
-                    service_info[b_const.EVPN][b_const.RT_EXPORT]]
+                bbgp_const.RT_IMPORT: [
+                    service_info[bbgp_const.EVPN][bbgp_const.RT_IMPORT]],
+                bbgp_const.RT_EXPORT: [
+                    service_info[bbgp_const.EVPN][bbgp_const.RT_EXPORT]]
             }
         }
 
@@ -147,8 +147,9 @@ class BagpipeAgentExtension(l2_extension.L2AgentExtension,
         port_info.set_ip_mac_infos(ip_address, mac_address)
 
         # Set gateway IP address in NetworkInfo
-        gateway_info = b_const.GatewayInfo(None,
-                                           port_bagpipe_info.pop('gateway_ip'))
+        gateway_info = agent_base_info.GatewayInfo(
+            None,
+            port_bagpipe_info.pop('gateway_ip'))
         net_info.set_gateway_info(gateway_info)
 
         port_info.set_local_port(
@@ -177,7 +178,7 @@ class BagpipeAgentExtension(l2_extension.L2AgentExtension,
             port_info = self.ports_info[port_id]
 
             detach_info = {
-                b_const.EVPN: {
+                bbgp_const.EVPN: {
                     'network_id': net_id,
                     'ip_address': port_info.ip_address,
                     'mac_address': port_info.mac_address,

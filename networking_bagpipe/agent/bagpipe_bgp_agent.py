@@ -31,7 +31,7 @@ from oslo_service import loopingcall
 
 from networking_bagpipe._i18n import _
 
-from networking_bagpipe.agent.common import constants as b_const
+from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 
 from neutron.conf.agent import common as config
 
@@ -61,6 +61,11 @@ internal_opts = [
 cfg.CONF.register_opts(bagpipe_bgp_opts, "BAGPIPE")
 cfg.CONF.register_opts(internal_opts, "BAGPIPE")
 config.register_agent_state_opts_helper(cfg.CONF)
+
+# don't use bbgp_const.VPN_TYPES here, because here in this module
+# we sometimes need to iterate the vpn types in a controlled order:
+# EVPN first on attach, EVPN last on detach
+VPN_TYPES = [bbgp_const.EVPN, bbgp_const.IPVPN]
 
 
 class BaGPipeBGPException(n_exc.NeutronException):
@@ -234,9 +239,9 @@ class BaGPipeBGPAgent(HTTPClientBase):
     def _check_evpn2ipvpn_info(self, vpn_type, network_id, attach_list,
                                attach_info):
         # Check if plugging an EVPN into an IPVPN
-        if (vpn_type == b_const.IPVPN and b_const.EVPN in attach_list):
+        if (vpn_type == bbgp_const.IPVPN and bbgp_const.EVPN in attach_list):
             attach_info['local_port'] = {
-                b_const.EVPN: {
+                bbgp_const.EVPN: {
                     'id': '%s_evpn' % network_id
                 }
             }
@@ -245,15 +250,18 @@ class BaGPipeBGPAgent(HTTPClientBase):
         service_attach_info = {}
         for service, build_callback in self.build_callbacks.items():
             service_attach_info[service] = build_callback(port_id)
+            LOG.debug("port %s, attach info for %s: %s",
+                      port_id, service, service_attach_info[service])
 
         attach_list = defaultdict(list)
-        for vpn_type in b_const.VPN_TYPES:
+        for vpn_type in VPN_TYPES:
             attach_info = {}
 
             for service in self.build_callbacks.keys():
                 if vpn_type in service_attach_info[service]:
                     network_id = service_attach_info[service]['network_id']
                     service_info = service_attach_info[service]
+
                     if not attach_info:
                         attach_info = dict(
                             vpn_instance_id='%s_%s' % (network_id, vpn_type),
@@ -286,7 +294,7 @@ class BaGPipeBGPAgent(HTTPClientBase):
 
                             attach_list[vpn_type].append(static_info)
 
-                    for rt_type in b_const.RT_TYPES:
+                    for rt_type in bbgp_const.RT_TYPES:
                         if rt_type in service_vpn_info:
                             if rt_type not in attach_info:
                                 attach_info[rt_type] = []
@@ -344,8 +352,7 @@ class BaGPipeBGPAgent(HTTPClientBase):
         all_plug_details = self._compile_port_attach_info(port_id)
 
         # First plug E-VPNs because they could be plugged into IP-VPNs
-        for vpn_type in [t for t in b_const.VPN_TYPES
-                         if t in all_plug_details]:
+        for vpn_type in [t for t in VPN_TYPES if t in all_plug_details]:
             for plug_detail in all_plug_details[vpn_type]:
                 self._send_attach_local_port(plug_detail)
 
@@ -369,12 +376,10 @@ class BaGPipeBGPAgent(HTTPClientBase):
                 del detach_infos[detach_vpn_type]
 
         if detach_infos:
-            for vpn_type in [t for t in b_const.VPN_TYPES[::-1]
-                             if t in detach_infos]:
+            for vpn_type in [t for t in VPN_TYPES[::-1] if t in detach_infos]:
                 self._send_detach_local_port(detach_infos[vpn_type])
 
-        for vpn_type in [t for t in b_const.VPN_TYPES
-                         if t in plug_details]:
+        for vpn_type in [t for t in VPN_TYPES if t in plug_details]:
             for plug_detail in plug_details[vpn_type]:
                 self._send_attach_local_port(plug_detail)
 

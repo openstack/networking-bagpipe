@@ -20,7 +20,6 @@ import mock
 from oslo_utils import uuidutils
 
 from networking_bagpipe.agent import bagpipe_bgp_agent
-
 from networking_bagpipe.agent.bgpvpn import constants as bgpvpn_const
 
 from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
@@ -34,10 +33,11 @@ from neutron.plugins.ml2.drivers.openvswitch.agent \
 from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 from neutron.tests import base
-from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent import (
-    ovs_test_base)
+from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent \
+    import ovs_test_base
 
-from neutron_lib import constants as n_const
+from neutron_lib.api.definitions import bgpvpn
+
 
 PATCH_TUN_TO_MPLS_OFPORT = 1
 PATCH_TUN_OFPORTS = [PATCH_TUN_TO_MPLS_OFPORT]
@@ -72,6 +72,8 @@ PORT21 = {'id': uuidutils.generate_uuid(),
 NETWORK2 = {'id': uuidutils.generate_uuid(),
             'gateway_ip': '20.0.0.1'}
 
+ROUTER1 = {'id': uuidutils.generate_uuid()}
+
 port_2_net = {
     PORT10['id']: NETWORK1,
     PORT11['id']: NETWORK1,
@@ -90,17 +92,25 @@ BAGPIPE_L2_RT1 = {'import_rt': 'BAGPIPE_L2:1',
 BAGPIPE_L2_RT2 = {'import_rt': 'BAGPIPE_L2:2',
                   'export_rt': 'BAGPIPE_L2:2'}
 
-BGPVPN_L2_RT10 = {'import_rt': ['BGPVPN_L2:10'],
-                  'export_rt': ['BGPVPN_L2:10']}
+BGPVPN_L2_RT10 = {'route_targets': ['BGPVPN_L2:10'],
+                  'import_targets': [],
+                  'export_targets': []
+                  }
 
-BGPVPN_L2_RT20 = {'import_rt': ['BGPVPN_L2:20'],
-                  'export_rt': ['BGPVPN_L2:20']}
+BGPVPN_L2_RT20 = {'route_targets': ['BGPVPN_L2:20'],
+                  'import_targets': [],
+                  'export_targets': []
+                  }
 
-BGPVPN_L3_RT100 = {'import_rt': ['BGPVPN_L3:100'],
-                   'export_rt': ['BGPVPN_L3:100']}
+BGPVPN_L3_RT100 = {'route_targets': ['BGPVPN_L3:100'],
+                   'import_targets': [],
+                   'export_targets': []
+                   }
 
-BGPVPN_L3_RT200 = {'import_rt': ['BGPVPN_L3:200'],
-                   'export_rt': ['BGPVPN_L3:200']}
+BGPVPN_L3_RT200 = {'route_targets': ['BGPVPN_L3:200'],
+                   'import_targets': [],
+                   'export_targets': []
+                   }
 
 TEST_VNI = 411
 
@@ -164,6 +174,22 @@ class BaseTestAgentExtension(object):
     DUMMY_VIF20 = None
     DUMMY_VIF21 = None
 
+    def setUp(self):
+        self.mocked_bagpipe_agent = mock.Mock(
+            spec=bagpipe_bgp_agent.BaGPipeBGPAgent
+        )
+        self.mocked_bagpipe_agent.do_port_plug = mock.Mock()
+        self.mocked_bagpipe_agent.do_port_plug_refresh = mock.Mock()
+
+        patcher = mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent.'
+                             'BaGPipeBGPAgent.get_instance',
+                             return_value=self.mocked_bagpipe_agent)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        self.agent_ext = self.agent_extension_class()
+        self.connection = mock.Mock()
+
     def _port_data(self, port, delete=False):
         data = {
             'port_id': port['id']
@@ -213,45 +239,35 @@ class BaseTestAgentExtension(object):
 class BaseTestLinuxBridgeAgentExtension(base.BaseTestCase,
                                         BaseTestAgentExtension):
 
+    driver_type = lnx_agt_constants.EXTENSION_DRIVER_TYPE
+
     def setUp(self):
-        super(BaseTestLinuxBridgeAgentExtension, self).setUp()
-
-        self.mocked_bagpipe_agent = mock.Mock(
-            spec=bagpipe_bgp_agent.BaGPipeBGPAgent
-        )
-        self.mocked_bagpipe_agent.agent_type = n_const.AGENT_TYPE_LINUXBRIDGE
-        self.mocked_bagpipe_agent.do_port_plug = mock.Mock()
-        self.mocked_bagpipe_agent.do_port_plug_refresh = mock.Mock()
-
-        self.agent_ext = self.agent_extension_class()
-        self.connection = mock.Mock()
+        base.BaseTestCase.setUp(self)
+        BaseTestAgentExtension.setUp(self)
 
         agent_extension_api = mock.Mock()
-
         self.agent_ext.consume_api(agent_extension_api)
-        with mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent.'
-                        'BaGPipeBGPAgent.get_instance',
-                        return_value=self.mocked_bagpipe_agent):
-            self.agent_ext.initialize(self.connection,
-                                      lnx_agt_constants.EXTENSION_DRIVER_TYPE,
-                                      )
+        self.agent_ext.initialize(self.connection,
+                                  lnx_agt_constants.EXTENSION_DRIVER_TYPE)
 
     def _get_expected_local_port(self, vpn_type, network_id, port_id):
         linuxbr = lnx_agt.LinuxBridgeManager.get_bridge_name(network_id)
 
-        local_port = dict(
-            linuxif=lnx_agt.LinuxBridgeManager.get_tap_device_name(port_id),
-            evpnif=dict(linuxbr=linuxbr)
-        )
+        local_port = {
+            'linuxif': lnx_agt.LinuxBridgeManager.get_tap_device_name(port_id),
+            'evpnif': {
+                'linuxbr': linuxbr
+            }
+        }
 
-        local_port.update(dict(
-            ipvpnif=dict(
-                local_port=dict(
-                    linuxif=(linuxbr if vpn_type == bgpvpn_const.BGPVPN_L3
-                             else None)
-                )
-            )
-        ))
+        local_port.update({
+            'ipvpnif': {
+                'local_port': {
+                    'linuxif': (linuxbr if vpn_type == bgpvpn.BGPVPN_L3
+                                else None)
+                }
+            }
+        })
 
         return local_port
 
@@ -259,23 +275,16 @@ class BaseTestLinuxBridgeAgentExtension(base.BaseTestCase,
 class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
                                 BaseTestAgentExtension):
 
+    driver_type = ovs_agt_constants.EXTENSION_DRIVER_TYPE
+
     DUMMY_VIF10 = DummyVif(10, 'VIF10')
     DUMMY_VIF11 = DummyVif(11, 'VIF11')
     DUMMY_VIF20 = DummyVif(20, 'VIF20')
     DUMMY_VIF21 = DummyVif(21, 'VIF21')
 
     def setUp(self):
-        super(BaseTestOVSAgentExtension, self).setUp()
-
-        self.mocked_bagpipe_agent = mock.Mock(
-            spec=bagpipe_bgp_agent.BaGPipeBGPAgent
-        )
-        self.mocked_bagpipe_agent.agent_type = n_const.AGENT_TYPE_OVS
-        self.mocked_bagpipe_agent.do_port_plug = mock.Mock()
-        self.mocked_bagpipe_agent.do_port_plug_refresh = mock.Mock()
-
-        self.agent_ext = self.agent_extension_class()
-        self.connection = mock.Mock()
+        ovs_test_base.OVSOFCtlTestBase.setUp(self)
+        BaseTestAgentExtension.setUp(self)
 
         int_br = self.br_int_cls("br-int")
         int_br.add_patch_port = mock.Mock(side_effect=PATCH_INT_OFPORTS)
@@ -291,19 +300,22 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
 
         agent_extension_api = ovs_ext_agt.OVSAgentExtensionAPI(int_br,
                                                                tun_br)
-
         self.agent_ext.consume_api(agent_extension_api)
 
-        with mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
-                        'bridge_exists', return_value=True), \
-                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
-                           'add_patch_port', side_effect=PATCH_MPLS_OFPORTS), \
-                mock.patch('networking_bagpipe.agent.bagpipe_bgp_agent.'
-                           'BaGPipeBGPAgent.get_instance',
-                           return_value=self.mocked_bagpipe_agent):
-            self.agent_ext.initialize(self.connection,
-                                      ovs_agt_constants.EXTENSION_DRIVER_TYPE,
-                                      )
+        br_exists_patcher = mock.patch(
+            'neutron.agent.common.ovs_lib.OVSBridge.bridge_exists',
+            return_value=True)
+        br_exists_patcher.start()
+        self.addCleanup(br_exists_patcher.stop)
+
+        add_patch_patcher = mock.patch('neutron.agent.common.ovs_lib.OVSBridge'
+                                       '.add_patch_port',
+                                       side_effect=PATCH_MPLS_OFPORTS*4)
+        add_patch_patcher.start()
+        self.addCleanup(add_patch_patcher.stop)
+
+        self.agent_ext.initialize(self.connection,
+                                  ovs_agt_constants.EXTENSION_DRIVER_TYPE)
 
         self.vlan_manager = vlanmanager.LocalVlanManager()
         for net_id, vlan in LOCAL_VLAN_MAP.items():

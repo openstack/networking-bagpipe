@@ -18,7 +18,11 @@
 IPVPN = "ipvpn"
 EVPN = "evpn"
 
-VPN_TYPES = [IPVPN, EVPN]
+VPN_TYPES = [EVPN, IPVPN]
+
+RT_IMPORT = 'import_rt'
+RT_EXPORT = 'export_rt'
+RT_TYPES = [RT_IMPORT, RT_EXPORT]
 
 
 def config_group(vpn_type):

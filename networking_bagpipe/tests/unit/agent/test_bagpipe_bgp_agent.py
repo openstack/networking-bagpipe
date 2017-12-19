@@ -18,7 +18,7 @@ import copy
 import mock
 
 from networking_bagpipe.agent import bagpipe_bgp_agent as agent
-from networking_bagpipe.agent.common import constants as b_const
+from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 
 from networking_bagpipe.tests.unit.agent.common \
     import constants as const
@@ -64,10 +64,10 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
         ])
 
     def test_evpn_port_plug(self):
-        self._test_port_plug(b_const.EVPN, const.EVPN_RT1)
+        self._test_port_plug(bbgp_const.EVPN, const.EVPN_RT1)
 
     def test_ipvpn_port_plug(self):
-        self._test_port_plug(b_const.IPVPN, const.IPVPN_RT100)
+        self._test_port_plug(bbgp_const.IPVPN, const.IPVPN_RT100)
 
     def test_evpn2ipvpn_port_plug(self):
         port_info1 = copy.copy(const.PORT_INFO1)
@@ -84,8 +84,8 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -94,15 +94,15 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
             )),
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.IPVPN),
-                vpn_type=b_const.IPVPN,
+                                           bbgp_const.IPVPN),
+                vpn_type=bbgp_const.IPVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
                 local_port={
-                    b_const.EVPN: {
+                    bbgp_const.EVPN: {
                         'id': '%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                         b_const.EVPN)
+                                         bbgp_const.EVPN)
                     }
                 },
                 **const.IPVPN_RT100
@@ -124,8 +124,8 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -149,8 +149,8 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -175,8 +175,8 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.STATIC_ROUTE1,
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -186,8 +186,8 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
             )),
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -228,11 +228,11 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
         self.agent._send_detach_local_port.assert_not_called()
 
     def test_evpn_port_plug_refresh_without_detach(self):
-        self._test_port_plug_refresh_without_detach(b_const.EVPN,
+        self._test_port_plug_refresh_without_detach(bbgp_const.EVPN,
                                                     const.EVPN_RT1)
 
     def test_ipvpn_port_plug_refresh_without_detach(self):
-        self._test_port_plug_refresh_without_detach(b_const.IPVPN,
+        self._test_port_plug_refresh_without_detach(bbgp_const.IPVPN,
                                                     const.IPVPN_RT100)
 
     def _test_port_plug_refresh_with_detach(self, vpn_type, rts):
@@ -265,11 +265,11 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
         ])
 
     def test_evpn_port_plug_refresh_with_detach(self):
-        self._test_port_plug_refresh_without_detach(b_const.EVPN,
+        self._test_port_plug_refresh_without_detach(bbgp_const.EVPN,
                                                     const.EVPN_RT1)
 
     def test_ipvpn_port_plug_refresh_with_detach(self):
-        self._test_port_plug_refresh_without_detach(b_const.IPVPN,
+        self._test_port_plug_refresh_without_detach(bbgp_const.IPVPN,
                                                     const.IPVPN_RT100)
 
     def test_evpn2ipvpn_port_plug_refresh_with_detach(self):
@@ -278,8 +278,9 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
                                **const.NETWORK_INFO1))
 
         detach_info1 = {
-            b_const.IPVPN: dict(network_id=const.NETWORK_INFO1['network_id'],
-                                **const.PORT_INFO1)
+            bbgp_const.IPVPN: dict(
+                network_id=const.NETWORK_INFO1['network_id'],
+                **const.PORT_INFO1)
         }
 
         self.service1._build_port_info.return_value = (
@@ -291,8 +292,8 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -304,14 +305,14 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
         self.agent._send_detach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.IPVPN),
-                vpn_type=b_const.IPVPN,
+                                           bbgp_const.IPVPN),
+                vpn_type=bbgp_const.IPVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 local_port={
-                    b_const.EVPN: {
+                    bbgp_const.EVPN: {
                         'id': '%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                         b_const.EVPN)
+                                         bbgp_const.EVPN)
                     }
                 }
             ))
@@ -366,8 +367,8 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -398,8 +399,8 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.IPVPN),
-                vpn_type=b_const.IPVPN,
+                                           bbgp_const.IPVPN),
+                vpn_type=bbgp_const.IPVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -430,8 +431,8 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -440,15 +441,15 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
             )),
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.IPVPN),
-                vpn_type=b_const.IPVPN,
+                                           bbgp_const.IPVPN),
+                vpn_type=bbgp_const.IPVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
                 local_port={
-                    b_const.EVPN: {
+                    bbgp_const.EVPN: {
                         'id': '%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                         b_const.EVPN)
+                                         bbgp_const.EVPN)
                     }
                 },
                 **const.IPVPN_RT100
@@ -467,8 +468,8 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
         self.service2._build_port_info.return_value = {}
 
         detach_info1 = {
-            b_const.EVPN: dict(network_id=const.NETWORK_INFO1['network_id'],
-                               **const.PORT_INFO1)
+            bbgp_const.EVPN: dict(network_id=const.NETWORK_INFO1['network_id'],
+                                  **const.PORT_INFO1)
         }
 
         self.agent.do_port_plug_refresh(None, detach_info1)
@@ -476,8 +477,8 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -498,8 +499,9 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
         self.service2._build_port_info.return_value = {}
 
         detach_info1 = {
-            b_const.IPVPN: dict(network_id=const.NETWORK_INFO1['network_id'],
-                                **const.PORT_INFO1)
+            bbgp_const.IPVPN: dict(
+                network_id=const.NETWORK_INFO1['network_id'],
+                **const.PORT_INFO1)
         }
 
         self.agent.do_port_plug_refresh(None, detach_info1)
@@ -507,8 +509,8 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.IPVPN),
-                vpn_type=b_const.IPVPN,
+                                           bbgp_const.IPVPN),
+                vpn_type=bbgp_const.IPVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -523,8 +525,9 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
                                **const.NETWORK_INFO1))
 
         detach_info1 = {
-            b_const.IPVPN: dict(network_id=const.NETWORK_INFO1['network_id'],
-                                **const.PORT_INFO1)
+            bbgp_const.IPVPN: dict(
+                network_id=const.NETWORK_INFO1['network_id'],
+                **const.PORT_INFO1)
         }
 
         self.service1._build_port_info.return_value = (
@@ -538,8 +541,8 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
         self.agent._send_attach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.EVPN),
-                vpn_type=b_const.EVPN,
+                                           bbgp_const.EVPN),
+                vpn_type=bbgp_const.EVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
@@ -551,14 +554,14 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
         self.agent._send_detach_local_port.assert_has_calls([
             mock.call(dict(
                 vpn_instance_id='%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                           b_const.IPVPN),
-                vpn_type=b_const.IPVPN,
+                                           bbgp_const.IPVPN),
+                vpn_type=bbgp_const.IPVPN,
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 local_port={
-                    b_const.EVPN: {
+                    bbgp_const.EVPN: {
                         'id': '%s_%s' % (const.NETWORK_INFO1['network_id'],
-                                         b_const.EVPN)
+                                         bbgp_const.EVPN)
                     }
                 }
             ))

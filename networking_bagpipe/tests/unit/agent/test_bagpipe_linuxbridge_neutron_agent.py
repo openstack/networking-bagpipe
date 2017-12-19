@@ -16,7 +16,7 @@
 import copy
 import mock
 
-from networking_bagpipe.agent.common import constants as b_const
+from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 
 from networking_bagpipe.agent import bagpipe_linuxbridge_neutron_agent as\
     linuxbridge_agent
@@ -47,11 +47,11 @@ class TestBaGPipeAgentExtensionMixin(object):
 
         self._check_network_info(base.NETWORK1['id'],
                                  1,
-                                 b_const.EVPN,
+                                 bbgp_const.EVPN,
                                  base.BAGPIPE_L2_RT1)
 
         # Verify build callback attachments
-        local_port = self._get_expected_local_port(b_const.EVPN,
+        local_port = self._get_expected_local_port(bbgp_const.EVPN,
                                                    base.NETWORK1['id'],
                                                    base.PORT10['id'])
 
@@ -62,7 +62,7 @@ class TestBaGPipeAgentExtensionMixin(object):
                 mac_address=base.PORT10['mac_address'],
                 gateway_ip=base.NETWORK1['gateway_ip'],
                 local_port=dict(linuxif=local_port['linuxif']),
-                **self._get_vpn_info(b_const.EVPN,
+                **self._get_vpn_info(bbgp_const.EVPN,
                                      local_port['evpnif'],
                                      base.BAGPIPE_L2_RT1)
             ),
@@ -84,12 +84,12 @@ class TestBaGPipeAgentExtensionMixin(object):
 
         self._check_network_info(base.NETWORK1['id'],
                                  2,
-                                 b_const.EVPN,
+                                 bbgp_const.EVPN,
                                  base.BAGPIPE_L2_RT1)
 
         # Verify build callback attachments
         for port in [base.PORT10, base.PORT11]:
-            local_port = self._get_expected_local_port(b_const.EVPN,
+            local_port = self._get_expected_local_port(bbgp_const.EVPN,
                                                        base.NETWORK1['id'],
                                                        port['id'])
 
@@ -100,7 +100,7 @@ class TestBaGPipeAgentExtensionMixin(object):
                     mac_address=port['mac_address'],
                     gateway_ip=base.NETWORK1['gateway_ip'],
                     local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_vpn_info(b_const.EVPN,
+                    **self._get_vpn_info(bbgp_const.EVPN,
                                          local_port['evpnif'],
                                          base.BAGPIPE_L2_RT1)
                 ),
@@ -125,7 +125,7 @@ class TestBaGPipeAgentExtensionMixin(object):
                 (base.NETWORK2['id'], base.BAGPIPE_L2_RT2)]:
             self._check_network_info(network_id,
                                      1,
-                                     b_const.EVPN,
+                                     bbgp_const.EVPN,
                                      evpn_rt)
 
         # Verify build callback attachments
@@ -133,7 +133,7 @@ class TestBaGPipeAgentExtensionMixin(object):
                                     base.BAGPIPE_L2_RT1),
                                    (base.NETWORK2, base.PORT20,
                                     base.BAGPIPE_L2_RT2)]:
-            local_port = self._get_expected_local_port(b_const.EVPN,
+            local_port = self._get_expected_local_port(bbgp_const.EVPN,
                                                        network['id'],
                                                        port['id'])
 
@@ -144,7 +144,7 @@ class TestBaGPipeAgentExtensionMixin(object):
                     mac_address=port['mac_address'],
                     gateway_ip=network['gateway_ip'],
                     local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_vpn_info(b_const.EVPN,
+                    **self._get_vpn_info(bbgp_const.EVPN,
                                          local_port['evpnif'],
                                          rts)
                 ),
@@ -163,11 +163,11 @@ class TestBaGPipeAgentExtensionMixin(object):
 
         self.agent_ext.bagpipe_port_detach(None, dummy_detach10)
 
-        local_port = self._get_expected_local_port(b_const.EVPN,
+        local_port = self._get_expected_local_port(bbgp_const.EVPN,
                                                    base.NETWORK1['id'],
                                                    base.PORT10['id'])
         detach_info = {
-            b_const.EVPN: {
+            bbgp_const.EVPN: {
                 'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
@@ -207,17 +207,17 @@ class TestBaGPipeAgentExtensionMixin(object):
         # Verify attachments list consistency
         self._check_network_info(base.NETWORK1['id'],
                                  1,
-                                 b_const.EVPN,
+                                 bbgp_const.EVPN,
                                  base.BAGPIPE_L2_RT1)
 
         # Detach remaining port from network 1
         self.agent_ext.bagpipe_port_detach(None, dummy_detach11)
 
-        local_port10 = self._get_expected_local_port(b_const.EVPN,
+        local_port10 = self._get_expected_local_port(bbgp_const.EVPN,
                                                      base.NETWORK1['id'],
                                                      base.PORT10['id'])
         detach_info10 = {
-            b_const.EVPN: {
+            bbgp_const.EVPN: {
                 'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
@@ -225,11 +225,11 @@ class TestBaGPipeAgentExtensionMixin(object):
             }
         }
 
-        local_port11 = self._get_expected_local_port(b_const.EVPN,
+        local_port11 = self._get_expected_local_port(bbgp_const.EVPN,
                                                      base.NETWORK1['id'],
                                                      base.PORT11['id'])
         detach_info11 = {
-            b_const.EVPN: {
+            bbgp_const.EVPN: {
                 'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT11['ip_address'],
                 'mac_address': base.PORT11['mac_address'],
@@ -283,11 +283,11 @@ class TestBaGPipeAgentExtensionMixin(object):
         self.agent_ext.bagpipe_port_detach(None, dummy_detach10)
         self.agent_ext.bagpipe_port_detach(None, dummy_detach20)
 
-        local_port10 = self._get_expected_local_port(b_const.EVPN,
+        local_port10 = self._get_expected_local_port(bbgp_const.EVPN,
                                                      base.NETWORK1['id'],
                                                      base.PORT10['id'])
         detach_info10 = {
-            b_const.EVPN: {
+            bbgp_const.EVPN: {
                 'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
@@ -295,11 +295,11 @@ class TestBaGPipeAgentExtensionMixin(object):
             }
         }
 
-        local_port20 = self._get_expected_local_port(b_const.EVPN,
+        local_port20 = self._get_expected_local_port(bbgp_const.EVPN,
                                                      base.NETWORK2['id'],
                                                      base.PORT20['id'])
         detach_info20 = {
-            b_const.EVPN: {
+            bbgp_const.EVPN: {
                 'network_id': base.NETWORK2['id'],
                 'ip_address': base.PORT20['ip_address'],
                 'mac_address': base.PORT20['mac_address'],
@@ -318,7 +318,7 @@ class TestBaGPipeAgentExtensionMixin(object):
                 (base.NETWORK2['id'], base.BAGPIPE_L2_RT2)]:
             self._check_network_info(network_id,
                                      1,
-                                     b_const.EVPN,
+                                     bbgp_const.EVPN,
                                      evpn_rt)
 
         self.mocked_bagpipe_agent.reset_mock()
@@ -327,11 +327,11 @@ class TestBaGPipeAgentExtensionMixin(object):
         self.agent_ext.bagpipe_port_detach(None, dummy_detach11)
         self.agent_ext.bagpipe_port_detach(None, dummy_detach21)
 
-        local_port11 = self._get_expected_local_port(b_const.EVPN,
+        local_port11 = self._get_expected_local_port(bbgp_const.EVPN,
                                                      base.NETWORK1['id'],
                                                      base.PORT11['id'])
         detach_info11 = {
-            b_const.EVPN: {
+            bbgp_const.EVPN: {
                 'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT11['ip_address'],
                 'mac_address': base.PORT11['mac_address'],
@@ -339,11 +339,11 @@ class TestBaGPipeAgentExtensionMixin(object):
             }
         }
 
-        local_port21 = self._get_expected_local_port(b_const.EVPN,
+        local_port21 = self._get_expected_local_port(bbgp_const.EVPN,
                                                      base.NETWORK2['id'],
                                                      base.PORT21['id'])
         detach_info21 = {
-            b_const.EVPN: {
+            bbgp_const.EVPN: {
                 'network_id': base.NETWORK2['id'],
                 'ip_address': base.PORT21['ip_address'],
                 'mac_address': base.PORT21['mac_address'],

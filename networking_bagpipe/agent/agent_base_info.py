@@ -13,11 +13,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log as logging
-
 from collections import defaultdict
+from collections import namedtuple
 
-from networking_bagpipe.agent.common import constants as b_const
+from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 
@@ -49,6 +48,7 @@ class CommonInfo(object):
 
     def __init__(self, id):
         self.id = id
+        self._associations = dict()
         self.service_infos = dict()
 
     def add_service_info(self, service_info):
@@ -58,6 +58,16 @@ class CommonInfo(object):
         if not all(item in self.service_infos.items()
                    for item in service_info.items()):
             self.service_infos.update(service_info)
+
+    @property
+    def associations(self):
+        return self._associations.values()
+
+    def add_association(self, association):
+        self._associations[association.id] = association
+
+    def remove_association(self, association):
+        del self._associations[association.id]
 
 
 class PortInfo(CommonInfo):
@@ -85,10 +95,18 @@ class PortInfo(CommonInfo):
         self.mac_address = mac_address
 
     def set_network(self, network):
-        if not self.network:
-            self.network = network
-        else:
-            LOG.warning('Network reference has already been set for port')
+        self.network = network
+
+    @property
+    def associations(self):
+        return self.network.associations if self.network else []
+
+    def __repr__(self):
+        return "PortInfo: %s" % self.id
+
+
+GatewayInfo = namedtuple('GatewayInfo', ['mac', 'ip'])
+NO_GW_INFO = GatewayInfo(None, None)
 
 
 class NetworkInfo(CommonInfo):
@@ -96,11 +114,15 @@ class NetworkInfo(CommonInfo):
     def __init__(self, network_id):
         super(NetworkInfo, self).__init__(network_id)
 
-        self.gateway_info = b_const.NO_GW_INFO
+        self.gateway_info = NO_GW_INFO
         self.ports = set()
+        self.segmentation_id = None
 
     def set_gateway_info(self, gateway_info):
         self.gateway_info = gateway_info
+
+    def __repr__(self):
+        return "NetInfo: %s" % self.id
 
 
 class BaseInfoManager(object):
