@@ -255,27 +255,31 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
             **kwargs)
 
     def _load_connected_networks(self, db_obj=None):
+        # NOTE(tmorin): can be improved by directly looking up
+        # Ports with device_id=self.router_id
         router_ports = RouterPort.get_objects(
             self.obj_context,
             router_id=self.router_id)  # pylint: disable=no-member
         connected_networks = []
         for router_port in router_ports:
-            connected_network = {}
             port = Port.get_object(self.obj_context,
                                    id=router_port.port_id)
             if port:
                 # router gateway networks are not considered as requiring
                 # to be bound to BGPVPNs
                 if port.device_owner == constants.DEVICE_OWNER_ROUTER_GW:
-                    break
-                connected_network['network_id'] = port.network_id
-                subnets_info = _get_subnets_info(self.obj_context,
+                    LOG.debug("skipping port %s, because router gateway",
+                              port.id)
+                    continue
+                connected_networks.append({
+                    'network_id': port.network_id,
+                    'subnets': _get_subnets_info(self.obj_context,
                                                  port.network_id)
-                connected_network['subnets'] = subnets_info
-                connected_networks.append(connected_network)
+                })
             else:
-                LOG.error("Could not find Port info for RouterPort (%s,%s)",
-                          router_port.router_id, router_port.port_id)
+                LOG.warning("Couldn't find Port for RouterPort (router:%s,"
+                            "port:%s)", router_port.router_id,
+                            router_port.port_id)
         setattr(self, 'connected_networks', connected_networks)
         self.obj_reset_changes(['connected_networks'])
 

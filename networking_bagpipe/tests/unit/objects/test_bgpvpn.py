@@ -29,6 +29,7 @@ from neutron.tests.unit.objects import test_base
 from neutron.tests.unit import testlib_api
 
 from neutron_lib.api.definitions import bgpvpn as bgpvpn_api
+from neutron_lib import constants
 from neutron_lib import context
 
 
@@ -72,7 +73,8 @@ class _BPGVPNObjectsTestCommon(object):
         _subnet.create()
         return _subnet
 
-    def _connect_router_network(self, router_id, network_id, subnet_id=None):
+    def _connect_router_network(self, router_id, network_id,
+                                subnet_id=None, gw_network=False):
         port = ports.Port(self.context,
                           network_id=network_id,
                           mac_address=netaddr.EUI(
@@ -82,6 +84,9 @@ class _BPGVPNObjectsTestCommon(object):
                           device_owner='router:dummy',
                           status="DUMMY_STATUS",
                           admin_state_up=True)
+        if gw_network:
+            port.device_owner = constants.DEVICE_OWNER_ROUTER_GW
+
         port.create()
 
         if subnet_id:
@@ -194,7 +199,14 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
                                      network_id,
                                      subnet_.id)
 
+        # connect a gateway network
+        gw_network_id = self._create_test_network_id()
+        self._connect_router_network(self.router_id,
+                                     gw_network_id,
+                                     gw_network=True)
+
         # check .subnets in associations, after refreshing
+        # (except gateway network that should not be present)
         for obj in self.objs:
             refreshed_obj = bgpvpn_obj.BGPVPNRouterAssociation.get_object(
                 self.context,
