@@ -44,7 +44,7 @@ class TestBgpvpnAgentExtensionMixin(object):
 
     def setUp(self):
         self.mocked_rpc_pull = mock.patch.object(
-            self.agent_ext.rpc_pull_api, 'pull').start()
+            self.agent_ext.rpc_pull_api, 'bulk_pull').start()
 
     @mock.patch.object(registry, 'register')
     @mock.patch.object(resources_rpc, 'ResourcesPushRpcCallback')
@@ -154,12 +154,6 @@ class TestBgpvpnAgentExtensionMixin(object):
             for net in networks]
 
         return router_assoc
-
-    def _fake_associations(self, net_assocs=None, router_assocs=None):
-        assocs = mock.Mock()
-        assocs.network_associations = net_assocs or []
-        assocs.router_associations = router_assocs or []
-        return assocs
 
     def _net_assoc_notif(self, net_assoc, event_type):
         self.agent_ext.handle_notification_net_assocs(
@@ -995,8 +989,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                                          bgpvpn.BGPVPN_L3,
                                          **base.BGPVPN_L3_RT100)
 
-        self.mocked_rpc_pull.return_value = self._fake_associations(
-            net_assocs=[net_assoc])
+        self.mocked_rpc_pull.return_value = [net_assoc]
 
         def check_build_cb(*args):
             # Verify build callback attachments
@@ -1033,8 +1026,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                                                [base.NETWORK1],
                                                **base.BGPVPN_L3_RT100)
 
-        self.mocked_rpc_pull.return_value = self._fake_associations(
-            router_assocs=[router_assoc])
+        self.mocked_rpc_pull.return_value = [router_assoc]
 
         def check_build_cb(*args):
             # Verify build callback attachments
@@ -1248,8 +1240,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                                              bgpvpn.BGPVPN_L3,
                                              **base.BGPVPN_L3_RT100)
 
-            self.mocked_rpc_pull.return_value = self._fake_associations(
-                net_assocs=[net_assoc])
+            self.mocked_rpc_pull.return_value = [net_assoc]
 
             self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 

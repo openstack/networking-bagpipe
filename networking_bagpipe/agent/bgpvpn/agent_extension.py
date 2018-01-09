@@ -194,11 +194,17 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         port_info.set_ip_mac_infos(data['fixed_ips'][0]['ip_address'],
                                    data['mac_address'])
 
-        assocs = self.rpc_pull_api.pull(context,
-                                        objects.BGPVPNAssociations.obj_name(),
-                                        network_id)
-        for assoc in itertools.chain(assocs.network_associations,
-                                     assocs.router_associations):
+        net_assocs = self.rpc_pull_api.bulk_pull(
+            context,
+            objects.BGPVPNNetAssociation.obj_name(),
+            filter_kwargs=dict(network_id=network_id))
+        # find all the Router Association that are relevant for our network
+        router_assocs = self.rpc_pull_api.bulk_pull(
+            context,
+            objects.BGPVPNRouterAssociation.obj_name(),
+            filter_kwargs=dict(network_id=network_id))
+
+        for assoc in itertools.chain(net_assocs, router_assocs):
             # replug_ports=False because we will call do_port_plug
             # once for all associations, and only for this port, out of
             # the loop
