@@ -63,42 +63,6 @@ def _get_subnets_info(obj_context, net_id):
     ]
 
 
-@base.NeutronObjectRegistry.register
-class BGPVPNAssociations(base.NeutronObject):
-    # Version 1.0: Initial version
-    VERSION = '1.0'
-
-    fields = {
-        'router_associations': obj_fields.ListOfObjectsField(
-            'BGPVPNRouterAssociation',
-            nullable=True),
-        'network_associations': obj_fields.ListOfObjectsField(
-            'BGPVPNNetAssociation',
-            nullable=True)
-    }
-
-    synthetic_fields = {'router_associations',
-                        'network_associations'}
-
-    def __init__(self, context=None, **kwargs):
-        super(BGPVPNAssociations, self).__init__(context, **kwargs)
-
-    @classmethod
-    def get_objects(cls, context, _pager=None, validate_filters=True,
-                    **kwargs):
-        router_assocs = BGPVPNRouterAssociation.get_objects(
-            context, _pager=_pager,
-            validate_filters=validate_filters,
-            **kwargs)
-        network_assocs = BGPVPNNetAssociation.get_objects(
-            context, _pager=_pager,
-            validate_filters=validate_filters,
-            **kwargs)
-        assocs = BGPVPNAssociations(router_associations=router_assocs,
-                                    network_associations=network_assocs)
-        return assocs
-
-
 class BGPVPNTypeField(obj_fields.AutoTypedField):
     AUTO_TYPE = obj_fields.Enum(valid_values=bgpvpn_api.BGPVPN_TYPES)
 
@@ -400,7 +364,6 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
 
 
 resources.register_resource_class(BGPVPN)
-resources.register_resource_class(BGPVPNAssociations)
 resources.register_resource_class(BGPVPNNetAssociation)
 resources.register_resource_class(BGPVPNRouterAssociation)
 resources.register_resource_class(BGPVPNPortAssociation)

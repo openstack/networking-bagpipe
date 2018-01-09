@@ -20,7 +20,6 @@ from oslo_utils import uuidutils
 from networking_bagpipe.objects import bgpvpn as bgpvpn_obj
 
 from neutron.common import utils
-from neutron.objects import network
 from neutron.objects import ports
 from neutron.objects import router
 from neutron.objects import subnet
@@ -31,7 +30,6 @@ from neutron.tests.unit import testlib_api
 from neutron_lib.api.definitions import bgpvpn as bgpvpn_api
 from neutron_lib.api.definitions import bgpvpn_routes_control as bgpvpn_rc_api
 from neutron_lib import constants
-from neutron_lib import context
 
 
 test_base.FIELD_TYPE_VALUE_GENERATOR_MAP[bgpvpn_obj.BGPVPNTypeField] = (
@@ -222,82 +220,6 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
                                   [_subnet_dict(GW_MAC)])
             self.assertItemsEqual(refreshed_obj.all_subnets("dummy-uuid"),
                                   [])
-
-
-class BGPVPNAssociationsTest(testlib_api.SqlTestCase,
-                             _BPGVPNObjectsTestCommon):
-
-    def setUp(self):
-        super(BGPVPNAssociationsTest, self).setUp()
-        self.context = context.get_admin_context()
-
-        self.bgpvpn_a = self._create_test_bgpvpn()
-        self.bgpvpn_b = self._create_test_bgpvpn()
-
-        self.network_1 = network.Network(self.context)
-        self.network_1.create()
-
-        self.network_2 = network.Network(self.context)
-        self.network_2.create()
-
-        self.router_3 = router.Router(self.context)
-        self.router_3.create()
-
-        self.project = uuidutils.generate_uuid()
-
-        # put a network behind router 3
-        self.network_4 = network.Network(self.context)
-        self.network_4.create()
-
-        self._connect_router_network(self.router_3.id,
-                                     self.network_4.id)
-
-        self.net_assoc_a_1 = bgpvpn_obj.BGPVPNNetAssociation(
-            self.context,
-            project_id=self.project,
-            network_id=self.network_1.id,
-            bgpvpn_id=self.bgpvpn_a.id)
-        self.net_assoc_a_1.create()
-
-        self.net_assoc_b_2 = bgpvpn_obj.BGPVPNNetAssociation(
-            self.context,
-            project_id=self.project,
-            network_id=self.network_2.id,
-            bgpvpn_id=self.bgpvpn_b.id)
-        self.net_assoc_b_2.create()
-
-        self.router_assoc_a_3 = bgpvpn_obj.BGPVPNRouterAssociation(
-            self.context,
-            project_id=self.project,
-            router_id=self.router_3.id,
-            bgpvpn_id=self.bgpvpn_a.id)
-        self.router_assoc_a_3.create()
-
-    def test_init(self):
-        bgpvpn_obj.BGPVPNAssociations(
-            network_associations=[self.net_assoc_a_1, self.net_assoc_b_2],
-            router_associations=[self.router_assoc_a_3]
-        )
-
-    def test_get_objects_net_assoc(self):
-        assocs = bgpvpn_obj.BGPVPNAssociations.get_objects(
-            self.context,
-            network_id=self.network_1.id
-            )
-        self.assertEqual(0, len(assocs.router_associations))
-        self.assertEqual(1, len(assocs.network_associations))
-        self.assertEqual(self.network_1.id,
-                         assocs.network_associations[0].network_id)
-
-    def test_get_objects_net_behind_router(self):
-        assocs = bgpvpn_obj.BGPVPNAssociations.get_objects(
-            self.context,
-            network_id=self.network_4.id
-            )
-        self.assertEqual(1, len(assocs.router_associations))
-        self.assertEqual(0, len(assocs.network_associations))
-        self.assertEqual(self.bgpvpn_a.id,
-                         assocs.router_associations[0].bgpvpn_id)
 
 
 class BGPVPNPortAssociationTest(test_base.BaseDbObjectTestCase,
