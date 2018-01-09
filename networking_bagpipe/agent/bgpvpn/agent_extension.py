@@ -51,6 +51,7 @@ from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 from neutron_lib.agent import l2_extension
 from neutron_lib.api.definitions import bgpvpn
+from neutron_lib.api.definitions import bgpvpn_routes_control as bgpvpn_rc
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
 from neutron_lib.callbacks import resources
@@ -90,6 +91,16 @@ def has_attachement(bgpvpn_info, vpn_type):
             bgpvpn_info[vpn_type].get(bbgp_const.RT_IMPORT) or
             bgpvpn_info[vpn_type].get(bbgp_const.RT_EXPORT))
             )
+
+
+def port_association_prefixes(port_assoc):
+    for route in port_assoc.routes:
+        if route['type'] == bgpvpn_rc.PREFIX_TYPE:
+            yield str(route['prefix'])
+
+
+def bagpipe_vpn_type(bgpvpn_type):
+    return bgpvpn_const.BGPVPN_2_BAGPIPE[bgpvpn_type]
 
 
 class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
@@ -161,13 +172,18 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                               objects.BGPVPNNetAssociation.obj_name())
         rpc_registry.register(self.handle_notification_router_assocs,
                               objects.BGPVPNRouterAssociation.obj_name())
+        rpc_registry.register(self.handle_notification_port_assocs,
+                              objects.BGPVPNPortAssociation.obj_name())
         endpoints = [resources_rpc.ResourcesPushRpcCallback()]
         topic_net_assoc = resources_rpc.resource_type_versioned_topic(
             objects.BGPVPNNetAssociation.obj_name())
         topic_router_assoc = resources_rpc.resource_type_versioned_topic(
             objects.BGPVPNRouterAssociation.obj_name())
+        topic_port_assoc = resources_rpc.resource_type_versioned_topic(
+            objects.BGPVPNPortAssociation.obj_name())
         connection.create_consumer(topic_net_assoc, endpoints, fanout=True)
         connection.create_consumer(topic_router_assoc, endpoints, fanout=True)
+        connection.create_consumer(topic_port_assoc, endpoints, fanout=True)
 
     @log_helpers.log_method_call
     @lockutils.synchronized('bagpipe-bgpvpn')
@@ -211,7 +227,15 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             self._add_association_for_net(network_id, assoc,
                                           replug_ports=False)
 
-        if port_info.associations:
+        port_assocs = self.rpc_pull_api.bulk_pull(
+            context,
+            objects.BGPVPNPortAssociation.obj_name(),
+            filter_kwargs=dict(port_id=port_id))
+        for port_assoc in port_assocs:
+            self._add_association_for_port(port_info, port_assoc,
+                                           replug_port=False)
+
+        if port_info.has_any_association():
             self.bagpipe_bgp_agent.do_port_plug(port_id)
 
     @log_helpers.log_method_call
@@ -220,23 +244,24 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         port_id = data['port_id']
         port_info = self.ports_info.get(port_id)
 
-        if port_info and port_info.associations:
+        if port_info and port_info.has_any_association():
             if len(port_info.network.ports) == 1:
                 # last port on network...
                 self._check_arp_voodoo_unplug(port_info.network,
                                               last_port=True)
 
-            detach_info = (
-                self._build_bgpvpn_detach_info(port_info)
+            detach_infos = (
+                self._build_bgpvpn_detach_infos(port_info)
             )
 
-            # here if this was the last port for its network
-            # we clean our cache for this port
+            # here we clean our cache for this port,
+            # and for its network if this was the last port on the network
             self._remove_network_port_infos(port_info.network.id, port_id)
             self.ports.remove(port_id)
 
-            self.bagpipe_bgp_agent.do_port_plug_refresh(port_id,
-                                                        detach_info)
+            for detach_info in detach_infos:
+                self.bagpipe_bgp_agent.do_port_plug_refresh(port_id,
+                                                            detach_info)
 
     @log_helpers.log_method_call
     @lockutils.synchronized('bagpipe-bgpvpn')
@@ -326,11 +351,11 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         # we need to build port detach_information before we update
         # net_info.associations:
         if remaining <= 1:
-            detach_info = {}
+            detach_infos = {}
             for port_info in net_info.ports:
-                detach_info[port_info.id] = (
-                    self._build_bgpvpn_detach_info(port_info,
-                                                   assoc.bgpvpn.type)
+                detach_infos[port_info.id] = (
+                    self._build_bgpvpn_detach_infos(port_info,
+                                                    assoc.bgpvpn.type)
                 )
 
         net_info.remove_association(assoc)
@@ -344,19 +369,70 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             LOG.debug("no association of type %s remains, detaching it for "
                       "all ports", assoc.bgpvpn.type)
             for port_info in net_info.ports:
-                self.bagpipe_bgp_agent.do_port_plug_refresh(
-                    port_info.id,
-                    detach_info[port_info.id]
-                )
+                for detach_info in detach_infos[port_info.id]:
+                    self.bagpipe_bgp_agent.do_port_plug_refresh(port_info.id,
+                                                                detach_info)
 
             if assoc.bgpvpn.type == bgpvpn.BGPVPN_L3:
                 self._check_arp_voodoo_unplug(net_info, last_assoc=True)
+
+    @log_helpers.log_method_call
+    @lockutils.synchronized('bagpipe-bgpvpn')
+    def handle_notification_port_assocs(self, context, resource_type,
+                                        port_assocs, event_type):
+        for port_assoc in port_assocs:
+            try:
+                port_info = self.ports_info[port_assoc.port_id]
+            except KeyError:
+                LOG.debug("port %s is not present, skipping")
+                continue
+            if event_type == rpc_events.CREATED:
+                self._add_association_for_port(port_info, port_assoc)
+            elif event_type == rpc_events.UPDATED:
+                self._port_association_update_do_unplugs(port_info, port_assoc)
+                self._add_association_for_port(port_info, port_assoc)
+            elif event_type == rpc_events.DELETED:
+                self._remove_association_for_port(port_info, port_assoc)
+            else:
+                LOG.warning("unsupported event: %s", event_type)
+
+    @log_helpers.log_method_call
+    def _port_association_update_do_unplugs(self, port_info, new_port_assoc):
+        # if we already had this association, do unplugs for prefixes
+        # that were in the association but are not port present anymore
+        # in new_port_assoc
+        assoc_id = new_port_assoc.id
+        if port_info.has_association(assoc_id):
+            old_prefixes = port_association_prefixes(
+                port_info.get_association(assoc_id))
+            new_prefixes = port_association_prefixes(new_port_assoc)
+            for prefix in [p for p in old_prefixes if p not in new_prefixes]:
+                for detach_info in self._build_bgpvpn_detach_infos(
+                        port_info,
+                        bgpvpn.BGPVPN_L3,
+                        ip_address=prefix):
+                    self.bagpipe_bgp_agent.do_port_plug_refresh(port_info.id,
+                                                                detach_info)
+
+    @log_helpers.log_method_call
+    def _add_association_for_port(self, port_info, assoc, replug_port=True):
+        port_info.add_association(assoc)
+        self._add_association_for_net(port_info.network.id, assoc,
+                                      replug_ports=False)
+        if replug_port:
+            self.bagpipe_bgp_agent.do_port_plug(port_info.id)
+
+    @log_helpers.log_method_call
+    def _remove_association_for_port(self, port_info, assoc):
+        port_info.remove_association(assoc)
+        self._remove_association_for_net(port_info.network.id, assoc)
+        self.bagpipe_bgp_agent.do_port_plug(port_info.id)
 
     def _format_associations_route_targets(self, assocs):
         bgpvpn_rts = {}
         for assoc in assocs:
             bgpvpn = assoc.bgpvpn
-            vpn_type = bgpvpn_const.BGPVPN_2_BAGPIPE[bgpvpn.type]
+            vpn_type = bagpipe_vpn_type(bgpvpn.type)
 
             # Add necessary keys to BGP VPN route targets dictionary
             if vpn_type not in bgpvpn_rts:
@@ -597,10 +673,10 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         if net_info.gateway_info.mac is not None:
             self._unhide_real_gw_arp(vlan, net_info.gateway_info.mac)
 
-    def _base_attach_info(self, port_info):
+    def _base_attach_info(self, port_info, ip_address):
         i = {
             'network_id': port_info.network.id,
-            'ip_address': port_info.ip_address,
+            'ip_address': ip_address,
             'mac_address': port_info.mac_address,
             'local_port': {}
         }
@@ -615,6 +691,14 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
         return i
 
+    def _port_prefixes(self, port_info):
+        l3_port_associations = [assoc for assoc in port_info.associations
+                                if assoc.bgpvpn.type == bgpvpn.BGPVPN_L3]
+        prefixes = []
+        for port_assoc in l3_port_associations:
+            prefixes.extend(port_association_prefixes(port_assoc))
+        return prefixes
+
     @log_helpers.log_method_call
     def build_bgpvpn_attach_info(self, port_id):
         if port_id not in self.ports_info:
@@ -625,12 +709,18 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         port_info = self.ports_info[port_id]
         net_info = port_info.network
 
-        attach_info = self._base_attach_info(port_info)
+        attach_info = self._base_attach_info(port_info, port_info.ip_address)
         attach_info['gateway_ip'] = net_info.gateway_info.ip
 
         attach_info.update(
-            self._format_associations_route_targets(port_info.associations)
+            self._format_associations_route_targets(port_info.all_associations)
         )
+
+        if bbgp_const.IPVPN in attach_info:
+            port_prefixes = self._port_prefixes(port_info)
+            attach_info[bbgp_const.IPVPN].update(
+                {'static_routes': port_prefixes} if port_prefixes else {}
+            )
 
         if self._is_ovs_extension():
             # Add OVS VLAN information
@@ -694,17 +784,26 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         return attach_info
 
     @log_helpers.log_method_call
-    def _build_bgpvpn_detach_info(self, port_info, detach_bgpvpn_type=None):
-        detach_infos = {}
-        for assoc in port_info.associations:
-            if detach_bgpvpn_type and assoc.bgpvpn.type != detach_bgpvpn_type:
-                LOG.debug("Skip assoc %s, because only detaching %s",
-                          assoc.id, detach_bgpvpn_type)
-                continue
-
-            service_type = bgpvpn_const.BGPVPN_2_BAGPIPE[assoc.bgpvpn.type]
-            detach_infos.update({
-                service_type: self._base_attach_info(port_info)
-            })
+    def _build_bgpvpn_detach_infos(self, port_info, detach_bgpvpn_type=None,
+                                   ip_address=None):
+        detach_infos = []
+        # if ip_address is provided, we build detach info only for this
+        # address, else we build detach_info for all prefixes of the port
+        ip_addresses = ([ip_address] if ip_address
+                        else ([port_info.ip_address] +
+                              self._port_prefixes(port_info)))
+        # if an association type is not provided, then detach for all VPN types
+        # of all the associations relevant for the port
+        bgpvpn_types = ([detach_bgpvpn_type] if detach_bgpvpn_type
+                        else [assoc.bgpvpn.type for assoc in
+                              port_info.all_associations])
+        for ip_addr in ip_addresses:
+            detach_info = {}
+            for assoc_type in bgpvpn_types:
+                detach_info.update({
+                    bagpipe_vpn_type(assoc_type):
+                        self._base_attach_info(port_info, ip_addr)
+                })
+            detach_infos.append(detach_info)
 
         return detach_infos

@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import itertools
+
 from collections import defaultdict
 from collections import namedtuple
 
@@ -69,6 +71,12 @@ class CommonInfo(object):
     def remove_association(self, association):
         del self._associations[association.id]
 
+    def has_association(self, association_id):
+        return association_id in self._associations
+
+    def get_association(self, association_id):
+        return self._associations.get(association_id)
+
 
 class PortInfo(CommonInfo):
 
@@ -98,8 +106,13 @@ class PortInfo(CommonInfo):
         self.network = network
 
     @property
-    def associations(self):
-        return self.network.associations if self.network else []
+    def all_associations(self):
+        return itertools.chain(
+            self.associations,
+            self.network.associations if self.network else [])
+
+    def has_any_association(self):
+        return any(True for _ in self.all_associations)
 
     def __repr__(self):
         return "PortInfo: %s" % self.id
