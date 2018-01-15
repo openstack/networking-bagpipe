@@ -92,32 +92,9 @@ ML2/linuxbridge configuration* as a starting point:
 
 * in ML2 configuration (``/etc/neutron/plugins/ml2.ini``):
 
-  * enabling the ``route_target`` type driver (typically keeping ``flat`` and
-    ``vlan`` type drivers)
-
   * adding the ``bagpipe`` mechanism driver (additionally to the
     ``linuxbridge`` driver which will still handle ``flat`` and ``vlan``
     networks)
-
-  * configuring the use of the ``route_target`` type for tenant networks
-
-  * configuring the AS number and range to use to allocate BGP Route Targets
-    for tenant networks
-
-  * example result:
-
-    .. code-block:: ini
-
-       [ml2]
-       tenant_network_types = route_target
-       type_drivers = flat,vlan,route_target
-       mechanism_drivers = bagpipe,linuxbridge
-
-       [ml2_type_route_target]
-       rt_nn_ranges = 100:319,500:5190
-
-       [ml2_bagpipe]
-       as_number = 64512
 
 You need to deploy a BGP Route Reflector, that will distribute BGP VPN routes
 among compute and network nodes. This route reflector will need to support
@@ -136,6 +113,9 @@ ML2/linuxbridge configuration* as a starting point:
 
   * disabling VXLAN
 
+  * configuring the AS number and range to use to allocate BGP Route Targets
+    for tenant networks
+
   * result:
 
     .. code-block:: ini
@@ -145,6 +125,9 @@ ML2/linuxbridge configuration* as a starting point:
 
        [vxlan]
        enable_vxlan = False
+
+       [ml2_bagpipe_extension]
+       as_number = 64512
 
 * configuring :ref:`bagpipe-bgp`:
 

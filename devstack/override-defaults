@@ -1,6 +1,6 @@
 NETWORKING_BAGPIPE_DIR=$DEST/networking-bagpipe
 
-[[ "$DEVSTACK_PLUGINS" =~ "bagpipe-bgp" ]] && die "Using 'enable_plugin bagpipe-bgp ...' in local.conf is not supported anymore, networking-bagpipe now fetches bagpipe-bgp as a git submodule"
+[[ "$DEVSTACK_PLUGINS" =~ "bagpipe-bgp" ]] && die "Using 'enable_plugin bagpipe-bgp ...' in local.conf is not supported anymore, networking-bagpipe now embeds bagpipe-bgp"
 
 if [[ "$Q_AGENT" =~ "bagpipe-linuxbridge" ]] ; then
   echo "Using 'Q_AGENT='bagpipe-linuxbridge' in local.conf is deprecated, please replace by enable_service q-agt-bagpipe"
@@ -10,9 +10,5 @@ fi
 ENABLE_BAGPIPE_L2=$(trueorfalse False ENABLE_BAGPIPE_L2)
 if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
   Q_AGENT=linuxbridge
-
-  # Temporary, until we don't need a different main() that the linuxbridge agent's
-  echo "Patching $TOP_DIR/lib/neutron_plugins/linuxbridge_agent to use neutron-bagpipe-linuxbridge-agent binary"
-  perl -i -pe 's:^( *)AGENT_BINARY=.*:${1}AGENT_BINARY="\$NEUTRON_BIN_DIR/neutron-bagpipe-linuxbridge-agent":' $TOP_DIR/lib/neutron_plugins/linuxbridge_agent || die $LINENO "Could not patch linuxbridge agent devstack plugin"
 fi
 

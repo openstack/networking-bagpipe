@@ -47,7 +47,6 @@ class BaGPipeBaseFullStackTestCase(base.BaseFullStackTestCase):
                 bgpvpn=self.bgpvpn,
                 ipvpn_driver=self.ipvpn_driver,
                 ipvpn_encap=self.ipvpn_encap,
-                network_type=self.network_type,
                 mech_drivers=self.mech_drivers,
                 service_plugins=self.service_plugins
             ),

@@ -58,7 +58,8 @@ PORT11 = {'id': uuidutils.generate_uuid(),
           'ip_address': '10.0.0.3'}
 
 NETWORK1 = {'id': uuidutils.generate_uuid(),
-            'gateway_ip': '10.0.0.1'}
+            'gateway_ip': '10.0.0.1',
+            'segmentation_id': '101'}
 
 PORT20 = {'id': uuidutils.generate_uuid(),
           'mac_address': '00:00:de:ad:be:ef',
@@ -69,7 +70,8 @@ PORT21 = {'id': uuidutils.generate_uuid(),
           'ip_address': '20.0.0.3'}
 
 NETWORK2 = {'id': uuidutils.generate_uuid(),
-            'gateway_ip': '20.0.0.1'}
+            'gateway_ip': '20.0.0.1',
+            'segmentation_id': '202'}
 
 ROUTER1 = {'id': uuidutils.generate_uuid()}
 
@@ -84,12 +86,6 @@ LOCAL_VLAN_MAP = {
     NETWORK1['id']: 31,
     NETWORK2['id']: 52
 }
-
-BAGPIPE_L2_RT1 = {'import_rt': 'BAGPIPE_L2:1',
-                  'export_rt': 'BAGPIPE_L2:1'}
-
-BAGPIPE_L2_RT2 = {'import_rt': 'BAGPIPE_L2:2',
-                  'export_rt': 'BAGPIPE_L2:2'}
 
 BGPVPN_L2_RT10 = {'route_targets': ['BGPVPN_L2:10'],
                   'import_targets': [],
@@ -110,8 +106,6 @@ BGPVPN_L3_RT200 = {'route_targets': ['BGPVPN_L3:200'],
                    'import_targets': [],
                    'export_targets': []
                    }
-
-TEST_VNI = 411
 
 
 class DummyPort(object):
@@ -197,7 +191,7 @@ class BaseTestAgentExtension(object):
             data.update({
                 'port_id': port['id'],
                 'network_id': port_2_net[port['id']]['id'],
-                'segmentation_id': TEST_VNI,
+                'segmentation_id': port_2_net[port['id']]['segmentation_id'],
                 'network_type': 'vxlan',
                 'device_owner': 'compute:None',
                 'mac_address': port['mac_address'],
@@ -224,16 +218,6 @@ class BaseTestAgentExtension(object):
             network_info = self.agent_ext.networks_info[network_id]
             self.assertEqual(len(network_info.ports), expected_size,
                              "Network ports size not as expected")
-
-            if vpn_type and vpn_rts:
-                service_infos = network_info.service_infos
-                self.assertIn(vpn_type, service_infos,
-                              "No %s details found for network %s" %
-                              (vpn_type, network_id))
-
-                self.assertEqual(vpn_rts, service_infos[vpn_type],
-                                 "%s details not matching %s for network %s" %
-                                 (vpn_type, vpn_rts, network_id))
 
 
 class BaseTestLinuxBridgeAgentExtension(base.BaseTestCase,

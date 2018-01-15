@@ -51,15 +51,6 @@ class CommonInfo(object):
     def __init__(self, id):
         self.id = id
         self._associations = dict()
-        self.service_infos = dict()
-
-    def add_service_info(self, service_info):
-        if not service_info:
-            return
-
-        if not all(item in self.service_infos.items()
-                   for item in service_info.items()):
-            self.service_infos.update(service_info)
 
     @property
     def associations(self):
@@ -86,7 +77,6 @@ class PortInfo(CommonInfo):
         self.ip_address = None
         self.mac_address = None
         self.network = None
-        self.local_port = dict()
 
     def __eq__(self, other):
         return (isinstance(other, self.__class__) and
@@ -94,16 +84,6 @@ class PortInfo(CommonInfo):
 
     def __hash__(self):
         return hash(self.id)
-
-    def set_local_port(self, linuxif):
-        self.local_port = dict(linuxif=linuxif)
-
-    def set_ip_mac_infos(self, ip_address, mac_address):
-        self.ip_address = ip_address
-        self.mac_address = mac_address
-
-    def set_network(self, network):
-        self.network = network
 
     @property
     def all_associations(self):
@@ -150,7 +130,7 @@ class BaseInfoManager(object):
         net_info = self.networks_info[net_id]
         port_info = self.ports_info[port_id]
         net_info.ports.add(port_info)
-        port_info.set_network(net_info)
+        port_info.network = net_info
 
         return net_info, port_info
 

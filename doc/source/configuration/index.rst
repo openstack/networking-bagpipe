@@ -17,7 +17,6 @@ various services.
 
    neutron-agent
    bagpipe-bgp
-   ml2-bagpipe
 
 Sample Configuration Files
 --------------------------
@@ -32,4 +31,3 @@ in the networking-bagpipe repository.
 
    samples/neutron-agent
    samples/bagpipe-bgp
-   samples/ml2-bagpipe

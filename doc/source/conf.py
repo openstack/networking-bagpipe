@@ -94,7 +94,6 @@ _config_generator_config_files = [
     'dataplane-evpn-linux-vxlan.conf',
     'dataplane-ipvpn-mpls-linux.conf',
     'dataplane-ipvpn-mpls-ovs.conf',
-    'ml2-bagpipe.conf',
 ]
 
 def _get_config_generator_config_definition(config_file):

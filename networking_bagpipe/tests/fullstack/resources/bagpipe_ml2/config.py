@@ -23,9 +23,4 @@ class ML2ConfigFixture(neutron_cfg.ML2ConfigFixture):
             env_desc, host_desc, temp_dir, tenant_network_types)
 
         if env_desc.bagpipe_ml2:
-            self.config['ml2']['type_drivers'] = 'route_target'
-            self.config.update({
-                'ml2_type_route_target': {
-                    'rt_nn_ranges': '100:199'
-                }
-            })
+            self.config['ml2']['type_drivers'] = 'vxlan'

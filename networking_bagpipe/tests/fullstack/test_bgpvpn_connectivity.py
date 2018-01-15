@@ -32,7 +32,6 @@ load_tests = testscenarios.load_tests_apply_scenarios
 class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
 
     bagpipe_ml2 = False
-    network_type = 'vxlan'
     service_plugins = 'router,%s' % bgpvpn_cfg.BGPVPN_SERVICE
 
     of_interface = 'ovs-ofctl'

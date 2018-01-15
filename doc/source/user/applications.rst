@@ -11,12 +11,13 @@ Neutron L2
 
 The ``bagpipe`` mechanism driver for Neutron's ML2 core plugin, when enabled
 along with the corresponding compute node agent extension, will result in
-Neutron tenant networks to be realized with E-VPN.
+Neutron tenant networks to be realized with E-VPN/VXLAN.
 
-How it works is that ``bagpipe`` ML2 driver will allocate a BGP VPN identifier
-(called a BGP "Route Target") for each Neutron tenant network, and the
-``bagpipe`` agent extension on compute node will exchange messages (typically
-via RabbitMQ) with Neutron server to setup a corresponding E-VPN instance with
+How it works is that ``bagpipe`` ML2 driver will use a BGP VPN identifier
+(called a BGP "Route Target") for each Neutron tenant network, derived from the
+VXLAN VNI a.k.a segmentation ID, and the ``bagpipe`` agent extension on compute
+nodes will exchange messages (typically via RabbitMQ) with Neutron server to
+setup a corresponding E-VPN instance with
 this identifier on the local :ref:`bagpipe-bgp` instance on the compute node and
 attach ports to this instance as needed.
 

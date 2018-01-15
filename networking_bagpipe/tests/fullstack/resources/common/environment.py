@@ -19,8 +19,6 @@ import random
 
 from networking_bagpipe.tests.fullstack.resources.bagpipe_ml2 \
     import config as bagpipe_ml2_cfg
-from networking_bagpipe.tests.fullstack.resources.bagpipe_ml2 \
-    import process as bagpipe_ml2_proc
 from networking_bagpipe.tests.fullstack.resources.bgpvpn \
     import config as bgpvpn_cfg
 from networking_bagpipe.tests.fullstack.resources.common \
@@ -120,10 +118,7 @@ class BaGPipeHost(neutron_env.Host):
         )
         self.useFixture(agent_cfg_fixture)
 
-        if self.env_desc.bagpipe_ml2:
-            agent_fixture_cls = bagpipe_ml2_proc.LinuxBridgeAgentFixture
-        else:
-            agent_fixture_cls = neutron_proc.LinuxBridgeAgentFixture
+        agent_fixture_cls = neutron_proc.LinuxBridgeAgentFixture
 
         self.linuxbridge_agent = self.useFixture(
             agent_fixture_cls(

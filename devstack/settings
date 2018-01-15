@@ -5,8 +5,8 @@ NETWORKING_BAGPIPE_DIR=$DEST/networking-bagpipe
 # configuration for bagpipe ML2:
 if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
 
-    Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan,vxlan,route_target
-    Q_ML2_PLUGIN_MECHANISM_DRIVERS=linuxbridge,bagpipe,logger
+    Q_ML2_PLUGIN_TYPE_DRIVERS=flat,vlan,vxlan
+    Q_ML2_PLUGIN_MECHANISM_DRIVERS=linuxbridge,logger
 
     # Have bagpipe-bgp use VXLAN driver for E-VPN (unless overriden)
     BAGPIPE_DATAPLANE_DRIVER_EVPN=${BAGPIPE_DATAPLANE_DRIVER_EVPN:-linux}

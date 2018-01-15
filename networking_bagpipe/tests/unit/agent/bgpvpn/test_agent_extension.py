@@ -96,26 +96,6 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         return vpn_info
 
-    def _port_data(self, port, delete=False):
-        data = {
-            'port_id': port['id']
-        }
-        if not delete:
-            data.update({
-                'port_id': port['id'],
-                'network_id': base.port_2_net[port['id']]['id'],
-                'segmentation_id': base.TEST_VNI,
-                'network_type': 'vxlan',
-                'device_owner': 'compute:None',
-                'mac_address': port['mac_address'],
-                'fixed_ips': [
-                    {
-                        'ip_address': port['ip_address'],
-                    }
-                ]
-            })
-        return data
-
     def _fake_bgpvpn(self, bgpvpn_type, **bgpvpn_params):
         return objects.BGPVPN(None,
                               id=uuidutils.generate_uuid(),
@@ -877,7 +857,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
-                        vni=base.TEST_VNI,
+                        vni=base.NETWORK1["segmentation_id"],
                         **dict(list(local_port.items()) +
                                list(self._expand_rts(
                                     base.BGPVPN_L2_RT10).items()))

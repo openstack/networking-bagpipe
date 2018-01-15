@@ -10,8 +10,8 @@
 #  License for the specific language governing permissions and limitations
 #  under the License.
 
-from networking_bagpipe.agent import bagpipe_bgp_agent
-from networking_bagpipe.agent.bgpvpn import agent_extension
+from networking_bagpipe.agent.bagpipe_ml2 import agent_extension as ml2_agt_ext
+from networking_bagpipe.agent.bgpvpn import agent_extension as bgpvpn_agt_ext
 from networking_bagpipe.bagpipe_bgp.api import api
 from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.common import run_command
@@ -20,8 +20,6 @@ from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers
 from networking_bagpipe.bagpipe_bgp.vpn.evpn import linux_vxlan
 from networking_bagpipe.bagpipe_bgp.vpn.ipvpn import mpls_linux_dataplane
 from networking_bagpipe.bagpipe_bgp.vpn.ipvpn import mpls_ovs_dataplane
-from networking_bagpipe.driver import mech_bagpipe
-from networking_bagpipe.driver import type_route_target
 
 
 # NOTE(amotoki): oslo.config suggests to use lower case as group name.
@@ -32,8 +30,8 @@ from networking_bagpipe.driver import type_route_target
 
 def list_bagpipe_bgp_agent_opts():
     return [
-        ('bagpipe', bagpipe_bgp_agent.bagpipe_bgp_opts),
-        ('bagpipe', agent_extension.bagpipe_bgpvpn_opts),
+        ('bagpipe_ml2_extension', ml2_agt_ext.opts),
+        ('bagpipe', bgpvpn_agt_ext.bagpipe_bgpvpn_opts),
     ]
 
 
@@ -87,16 +85,4 @@ def list_dataplane_driver_ipvpn_mpls_ovs_opts():
     return [
         (constants.config_group(constants.IPVPN).lower(),
          mpls_ovs_dataplane.MPLSOVSDataplaneDriver.driver_opts),
-    ]
-
-
-def list_ml2_mech_bagpipe_opts():
-    return [
-        ('ml2_bagpipe', mech_bagpipe.ml2_bagpipe_opts),
-    ]
-
-
-def list_ml2_type_route_target_opts():
-    return [
-        ('ml2_type_route_target', type_route_target.route_target_opts),
     ]

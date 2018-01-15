@@ -32,7 +32,6 @@ from networking_bagpipe.agent import agent_base_info
 from networking_bagpipe.agent import bagpipe_bgp_agent
 from networking_bagpipe.agent.bgpvpn import constants as bgpvpn_const
 from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
-from networking_bagpipe.driver import type_route_target
 from networking_bagpipe.objects import bgpvpn as objects
 
 from neutron.agent.common import ovs_lib
@@ -44,8 +43,8 @@ from neutron.conf.plugins.ml2.drivers import ovs_conf
 from neutron.debug import debug_agent
 from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
     import constants as lnxbridge_agt_constants
-from neutron.plugins.ml2.drivers.linuxbridge.agent.linuxbridge_neutron_agent \
-    import LinuxBridgeManager
+from neutron.plugins.ml2.drivers.linuxbridge.agent import \
+    linuxbridge_neutron_agent as lnx_agt
 from neutron.plugins.ml2.drivers.openvswitch.agent.common \
     import constants as ovs_agt_constants
 from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
@@ -82,9 +81,6 @@ cfg.CONF.register_opts(bagpipe_bgpvpn_opts, "BAGPIPE")
 cfg.CONF.register_opts(internal_opts, "BAGPIPE")
 ovs_conf.register_ovs_agent_opts()
 config.register_agent_state_opts_helper(cfg.CONF)
-
-
-NO_NEED_FOR_VNI = -1
 
 
 def port_association_prefixes_lp(port_assoc):
@@ -210,13 +206,9 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
         if data['network_type'] == n_const.TYPE_VXLAN:
             net_info.segmentation_id = data['segmentation_id']
-        # for type driver 'ROUTE_TARGET' we need to track the fact
-        # that we don't need a VNI (using -1 special value)
-        if data['network_type'] == type_route_target.TYPE_ROUTE_TARGET:
-            net_info.segmentation_id = NO_NEED_FOR_VNI
 
-        port_info.set_ip_mac_infos(data['fixed_ips'][0]['ip_address'],
-                                   data['mac_address'])
+        port_info.mac_address = data['mac_address']
+        port_info.ip_address = data['fixed_ips'][0]['ip_address']
 
         net_assocs = self.rpc_pull_api.bulk_pull(
             context,
@@ -710,12 +702,12 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                 '%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan))
         else:
             i['local_port']['linuxif'] = (
-                LinuxBridgeManager.get_tap_device_name(port_info.id))
+                lnx_agt.LinuxBridgeManager.get_tap_device_name(port_info.id))
             if bbgp_vpn_type == bbgp_const.IPVPN:
                 # the interface we need to pass to bagpipe is the
                 # bridge
                 i['local_port'].update({
-                    'linuxif': LinuxBridgeManager.get_bridge_name(
+                    'linuxif': lnx_agt.LinuxBridgeManager.get_bridge_name(
                         port_info.network.id)
                 })
 
@@ -800,20 +792,15 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         else:  # linuxbridge
             if bbgp_vpn_type == bbgp_const.EVPN:
                 attach_info['linuxbr'] = (
-                    LinuxBridgeManager.get_bridge_name(net_info.id)
+                    lnx_agt.LinuxBridgeManager.get_bridge_name(net_info.id)
                 )
 
         if bbgp_vpn_type == bbgp_const.EVPN:
             # if the network is a VXLAN network, then reuse same VNI
             # in bagpipe-bgp
             vni = net_info.segmentation_id
-            if vni == NO_NEED_FOR_VNI:
-                LOG.debug("no VNI reuse, because 'route_target' type driver "
-                          "in use")
-            else:
-                LOG.debug("vni %s found for net %s, reusing for E-VPN",
-                          vni, net_info.id)
-                attach_info['vni'] = vni
+            LOG.debug("reusing vni %s for net %s", vni, net_info.id)
+            attach_info['vni'] = vni
 
         # use the highest local_pref of all associations
         all_local_prefs = [assoc.bgpvpn.local_pref

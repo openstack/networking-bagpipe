@@ -39,7 +39,6 @@ class TestBaGPipeML2ConnectivitySameNetwork(base.BaGPipeBaseFullStackTestCase):
 
     scenarios = [
         ('BaGPipe native VXLAN', {'bagpipe_ml2': True,
-                                  'network_type': 'route_target',
                                   'evpn_driver': 'linux'})]
 
     def test_connectivity(self):
