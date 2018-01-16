@@ -293,6 +293,7 @@ class VPNManager(lg.LookingGlassMixin):
         readvertise = params.get('readvertise')
         attract_traffic = params.get('attract_traffic')
         lb_consistent_hash_order = params.get('lb_consistent_hash_order')
+        local_pref = params.get('local_pref')
         fallback = params.get('fallback')
         vni = params.get('vni')
 
@@ -346,7 +347,8 @@ class VPNManager(lg.LookingGlassMixin):
 
         # Plug VIF to VPN instance
         vpn_instance.vif_plugged(mac_address, ip_address_prefix, localport,
-                                 advertise_subnet, lb_consistent_hash_order)
+                                 advertise_subnet, lb_consistent_hash_order,
+                                 local_pref)
 
     @log_decorator.log_info
     def unplug_vif_from_vpn(self, **params):

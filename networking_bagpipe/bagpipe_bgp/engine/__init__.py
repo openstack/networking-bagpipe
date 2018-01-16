@@ -172,9 +172,8 @@ class RouteEntry(lg.LookingGlassMixin):
         for attribute in self.attributes.values():
 
             # skip some attributes that we care less about
-            if (attribute.ID == exa.Attribute.CODE.AS_PATH or
-                    attribute.ID == exa.Attribute.CODE.ORIGIN or
-                    attribute.ID == exa.Attribute.CODE.LOCAL_PREF):
+            if attribute.ID in (exa.Attribute.CODE.AS_PATH,
+                                exa.Attribute.CODE.ORIGIN):
                 continue
 
             att_dict[

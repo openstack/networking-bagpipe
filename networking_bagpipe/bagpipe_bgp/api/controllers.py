@@ -89,6 +89,7 @@ class AttachController(VPNManagerController):
                         ip_address as a singleton (/32)
     'linuxbr': Name of a linux bridge to which the linuxif is already
              plugged-in (optional)
+    'local_pref': BGP LOCAL_PREF for the route to this vif (optional)
     'local_port': local port to plug to the VPN instance
         should be a dict containing any of the following key,value pairs
         {

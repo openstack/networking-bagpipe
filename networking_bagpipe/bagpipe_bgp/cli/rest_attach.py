@@ -247,6 +247,10 @@ def main():
                       default=0,
                       type="int",
                       help="VXLAN VNI to use for this VPN instance (optional)")
+    parser.add_option("--local-pref", dest="local_pref",
+                      default=None,
+                      type="int",
+                      help="BGP LOCAL PREF attribute (optional)")
     (options, _) = parser.parse_args()
 
     if not(options.operation):
@@ -368,22 +372,26 @@ def main():
                 parser.error("Need to specify --attract-to-rt and at least "
                              "one static destination prefix option")
 
-    json_data = jsonutils.dumps(
-        {"import_rt":  import_rts,
-         "export_rt":  export_rts,
-         "local_port":  local_port,
-         "vpn_instance_id":  options.vpn_instance_id,
-         "vpn_type":    options.network_type,
-         "gateway_ip":  options.gw_ip,
-         "mac_address": options.mac,
-         "ip_address":  options.ip,
-         "advertise_subnet": options.advertise_subnet,
-         "readvertise": readvertise,
-         "attract_traffic": attract_traffic,
-         "lb_consistent_hash_order": options.lb_consistent_hash_order,
-         "vni": options.vni
-         }
-    )
+    data = {
+        "import_rt":  import_rts,
+        "export_rt":  export_rts,
+        "local_port":  local_port,
+        "vpn_instance_id":  options.vpn_instance_id,
+        "vpn_type":    options.network_type,
+        "gateway_ip":  options.gw_ip,
+        "mac_address": options.mac,
+        "ip_address":  options.ip,
+        "advertise_subnet": options.advertise_subnet,
+        "readvertise": readvertise,
+        "attract_traffic": attract_traffic,
+        "lb_consistent_hash_order": options.lb_consistent_hash_order,
+        "vni": options.vni
+    }
+
+    if options.local_pref:
+        data['local_pref'] = options.local_pref
+
+    json_data = jsonutils.dumps(data)
 
     print("request: %s" % json_data)
 

@@ -37,6 +37,8 @@ from networking_bagpipe.bagpipe_bgp.engine import tracker_worker
 
 LOG = logging.getLogger(__name__)
 
+DEFAULT_LOCAL_PREF = 100
+
 
 class TrafficClassifier(object):
 
@@ -507,7 +509,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
     def synthesize_vif_bgp_route(self, mac_address, ip_prefix, plen, label,
                                  lb_consistent_hash_order,
-                                 route_distinguisher=None):
+                                 route_distinguisher=None,
+                                 local_pref=None):
         rd = route_distinguisher if route_distinguisher else self.instance_rd
         route_entry = self.generate_vif_bgp_route(mac_address, ip_prefix, plen,
                                                   label, rd)
@@ -520,6 +523,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
         ecommunities.communities.append(
             exa.ConsistentHashSortOrder(lb_consistent_hash_order))
         route_entry.attributes.add(ecommunities)
+
+        route_entry.attributes.add(exa.LocalPreference(local_pref
+                                                       or DEFAULT_LOCAL_PREF))
 
         self.log.debug("Synthesized Vif route entry: %s", route_entry)
         return route_entry
@@ -637,7 +643,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
     @log_decorator.log_info
     def vif_plugged(self, mac_address, ip_address_prefix, localport,
                     advertise_subnet=False,
-                    lb_consistent_hash_order=0):
+                    lb_consistent_hash_order=0, local_pref=None):
         linuxif = localport['linuxif']
         # Check if this port has already been plugged
         # - Verify port informations consistency
@@ -703,7 +709,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
                           mac_address, ip_prefix, plen)
             route_entry = self.synthesize_vif_bgp_route(
                 mac_address, ip_prefix, plen,
-                pdata['label'], lb_consistent_hash_order, rd)
+                pdata['label'], lb_consistent_hash_order, rd, local_pref)
 
             self._advertise_route(route_entry)
 
