@@ -29,12 +29,6 @@ class TestBaGPipeAgentExtensionMixin(object):
     def _format_rt_as_list(self, rt):
         return {k: [v] for k, v in rt.items()}
 
-    def _get_vpn_info(self, vpn_type, vpn_if, rts):
-        vpn_info = {vpn_type: vpn_if}
-        vpn_info[vpn_type].update(self._format_rt_as_list(rts))
-
-        return vpn_info
-
     def test_bagpipe_l2_attach_single_port(self):
         dummy_port10 = base.DummyPort(base.NETWORK1, base.PORT10,
                                       evpn=base.BAGPIPE_L2_RT1).__dict__
@@ -54,17 +48,17 @@ class TestBaGPipeAgentExtensionMixin(object):
         local_port = self._get_expected_local_port(bbgp_const.EVPN,
                                                    base.NETWORK1['id'],
                                                    base.PORT10['id'])
-
-        self.assertEqual(
+        self.assertDictEqual(
             dict(
                 network_id=base.NETWORK1['id'],
-                ip_address=base.PORT10['ip_address'],
-                mac_address=base.PORT10['mac_address'],
-                gateway_ip=base.NETWORK1['gateway_ip'],
-                local_port=dict(linuxif=local_port['linuxif']),
-                **self._get_vpn_info(bbgp_const.EVPN,
-                                     local_port['evpnif'],
-                                     base.BAGPIPE_L2_RT1)
+                evpn=[dict(
+                    ip_address=base.PORT10['ip_address'],
+                    mac_address=base.PORT10['mac_address'],
+                    gateway_ip=base.NETWORK1['gateway_ip'],
+                    local_port=local_port['local_port'],
+                    linuxbr=local_port['linuxbr'],
+                    **self._format_rt_as_list(base.BAGPIPE_L2_RT1)
+                )]
             ),
             self.agent_ext.build_bagpipe_l2_attach_info(base.PORT10['id'])
         )
@@ -93,16 +87,17 @@ class TestBaGPipeAgentExtensionMixin(object):
                                                        base.NETWORK1['id'],
                                                        port['id'])
 
-            self.assertEqual(
+            self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=port['ip_address'],
-                    mac_address=port['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_vpn_info(bbgp_const.EVPN,
-                                         local_port['evpnif'],
-                                         base.BAGPIPE_L2_RT1)
+                    evpn=[dict(
+                        ip_address=port['ip_address'],
+                        mac_address=port['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        local_port=local_port['local_port'],
+                        linuxbr=local_port['linuxbr'],
+                        **self._format_rt_as_list(base.BAGPIPE_L2_RT1)
+                    )]
                 ),
                 self.agent_ext.build_bagpipe_l2_attach_info(port['id'])
             )
@@ -137,16 +132,17 @@ class TestBaGPipeAgentExtensionMixin(object):
                                                        network['id'],
                                                        port['id'])
 
-            self.assertEqual(
+            self.assertDictEqual(
                 dict(
                     network_id=network['id'],
-                    ip_address=port['ip_address'],
-                    mac_address=port['mac_address'],
-                    gateway_ip=network['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_vpn_info(bbgp_const.EVPN,
-                                         local_port['evpnif'],
-                                         rts)
+                    evpn=[dict(
+                        ip_address=port['ip_address'],
+                        mac_address=port['mac_address'],
+                        gateway_ip=network['gateway_ip'],
+                        local_port=local_port['local_port'],
+                        linuxbr=local_port['linuxbr'],
+                        **self._format_rt_as_list(rts)
+                    )]
                 ),
                 self.agent_ext.build_bagpipe_l2_attach_info(port['id'])
             )
@@ -167,11 +163,11 @@ class TestBaGPipeAgentExtensionMixin(object):
                                                    base.NETWORK1['id'],
                                                    base.PORT10['id'])
         detach_info = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
-                'local_port': dict(linuxif=local_port['linuxif'])
+                'local_port': local_port['local_port']
             }
         }
 
@@ -217,11 +213,11 @@ class TestBaGPipeAgentExtensionMixin(object):
                                                      base.NETWORK1['id'],
                                                      base.PORT10['id'])
         detach_info10 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
-                'local_port': dict(linuxif=local_port10['linuxif'])
+                'local_port': local_port10['local_port']
             }
         }
 
@@ -229,11 +225,11 @@ class TestBaGPipeAgentExtensionMixin(object):
                                                      base.NETWORK1['id'],
                                                      base.PORT11['id'])
         detach_info11 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT11['ip_address'],
                 'mac_address': base.PORT11['mac_address'],
-                'local_port': dict(linuxif=local_port11['linuxif'])
+                'local_port': local_port11['local_port']
             }
         }
 
@@ -287,11 +283,11 @@ class TestBaGPipeAgentExtensionMixin(object):
                                                      base.NETWORK1['id'],
                                                      base.PORT10['id'])
         detach_info10 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
-                'local_port': dict(linuxif=local_port10['linuxif'])
+                'local_port': local_port10['local_port']
             }
         }
 
@@ -299,11 +295,11 @@ class TestBaGPipeAgentExtensionMixin(object):
                                                      base.NETWORK2['id'],
                                                      base.PORT20['id'])
         detach_info20 = {
+            'network_id': base.NETWORK2['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK2['id'],
                 'ip_address': base.PORT20['ip_address'],
                 'mac_address': base.PORT20['mac_address'],
-                'local_port': dict(linuxif=local_port20['linuxif'])
+                'local_port': local_port20['local_port']
             }
         }
 
@@ -331,11 +327,11 @@ class TestBaGPipeAgentExtensionMixin(object):
                                                      base.NETWORK1['id'],
                                                      base.PORT11['id'])
         detach_info11 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT11['ip_address'],
                 'mac_address': base.PORT11['mac_address'],
-                'local_port': dict(linuxif=local_port11['linuxif'])
+                'local_port': local_port11['local_port']
             }
         }
 
@@ -343,11 +339,11 @@ class TestBaGPipeAgentExtensionMixin(object):
                                                      base.NETWORK2['id'],
                                                      base.PORT21['id'])
         detach_info21 = {
+            'network_id': base.NETWORK2['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK2['id'],
                 'ip_address': base.PORT21['ip_address'],
                 'mac_address': base.PORT21['mac_address'],
-                'local_port': dict(linuxif=local_port21['linuxif'])
+                'local_port': local_port21['local_port']
             }
         }
 

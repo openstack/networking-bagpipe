@@ -21,6 +21,7 @@ from oslo_utils import uuidutils
 
 from networking_bagpipe.agent import bagpipe_bgp_agent
 from networking_bagpipe.agent.bgpvpn import constants as bgpvpn_const
+from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 
 from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
     import constants as lnx_agt_constants
@@ -35,8 +36,6 @@ from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 from neutron.tests import base
 from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent \
     import ovs_test_base
-
-from neutron_lib.api.definitions import bgpvpn
 
 
 PATCH_TUN_TO_MPLS_OFPORT = 1
@@ -210,7 +209,8 @@ class BaseTestAgentExtension(object):
             })
         return data
 
-    def _get_expected_local_port(self, vpn_type, network_id, port_id):
+    def _get_expected_local_port(self, bbgp_vpn_type, network_id, port_id,
+                                 detach=False):
         raise NotImplementedError
 
     def _check_network_info(self, network_id, expected_size,
@@ -250,26 +250,27 @@ class BaseTestLinuxBridgeAgentExtension(base.BaseTestCase,
         self.agent_ext.initialize(self.connection,
                                   lnx_agt_constants.EXTENSION_DRIVER_TYPE)
 
-    def _get_expected_local_port(self, vpn_type, network_id, port_id):
+    def _get_expected_local_port(self, bbgp_vpn_type, network_id, port_id,
+                                 detach=False):
         linuxbr = lnx_agt.LinuxBridgeManager.get_bridge_name(network_id)
 
-        local_port = {
-            'linuxif': lnx_agt.LinuxBridgeManager.get_tap_device_name(port_id),
-            'evpnif': {
-                'linuxbr': linuxbr
-            }
-        }
-
-        local_port.update({
-            'ipvpnif': {
+        if bbgp_vpn_type == bbgp_const.EVPN:
+            r = {
+                'linuxbr': linuxbr,
                 'local_port': {
-                    'linuxif': (linuxbr if vpn_type == bgpvpn.BGPVPN_L3
-                                else None)
+                    'linuxif': lnx_agt.LinuxBridgeManager.get_tap_device_name(
+                        port_id)
                 }
             }
-        })
-
-        return local_port
+            if detach:
+                del r['linuxbr']
+            return r
+        else:  # if bbgp_const.IPVPN:
+            return {
+                'local_port': {
+                    'linuxif': linuxbr
+                }
+            }
 
 
 class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
@@ -324,19 +325,20 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
             except vlanmanager.MappingAlreadyExists:
                 pass
 
-    def _get_expected_local_port(self, vpn_type, network_id, port_id):
-        vlan = self.vlan_manager.get(network_id).vlan
-
-        local_port = dict(
-            linuxif='%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan),
-            evpnif=None,
-            ipvpnif=dict(
+    def _get_expected_local_port(self, bbgp_vpn_type, network_id, port_id,
+                                 detach=False):
+        if bbgp_vpn_type == bbgp_const.IPVPN:
+            vlan = self.vlan_manager.get(network_id).vlan
+            r = dict(
                 local_port=dict(
+                    linuxif='%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan),
                     ovs=dict(plugged=True,
                              port_number=PATCH_MPLS_TO_TUN_OFPORT,
                              vlan=vlan)
                 )
             )
-        )
-
-        return local_port
+            if detach:
+                del r['local_port']['ovs']
+            return r
+        else:
+            return {}

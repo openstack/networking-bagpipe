@@ -17,12 +17,9 @@ import socket
 import httplib2
 import json
 
-from copy import deepcopy
-
-from collections import defaultdict
-
 from oslo_config import cfg
 
+from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 
 from oslo_concurrency import lockutils
@@ -35,6 +32,7 @@ from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 
 from neutron.conf.agent import common as config
 
+from neutron_lib import constants as n_const
 from neutron_lib import exceptions as n_exc
 
 LOG = logging.getLogger(__name__)
@@ -73,6 +71,17 @@ class BaGPipeBGPException(n_exc.NeutronException):
                REST service: %(reason)s"
 
 
+class SetJSONEncoder(json.JSONEncoder):
+    # JSON encoder that encodes set like a list, this
+    # allows to store list of RTs as sets and simplify the code
+    # in many places
+    # pylint: disable=method-hidden
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
 class HTTPClientBase(object):
     """An HTTP client base class"""
 
@@ -93,7 +102,7 @@ class HTTPClientBase(object):
                   {'method': method, 'action': action, 'body': str(body)})
 
         if isinstance(body, dict):
-            body = json.dumps(body)
+            body = json.dumps(body, cls=SetJSONEncoder)
         try:
             headers = {'User-Agent': self.client_name,
                        "Content-Type": "application/json",
@@ -128,6 +137,10 @@ class HTTPClientBase(object):
 
     def delete(self, action):
         return self.do_request("DELETE", action)
+
+
+def get_default_vpn_instance_id(vpn_type, network_id):
+    return '%s_%s' % (vpn_type, network_id)
 
 
 class BaGPipeBGPAgent(HTTPClientBase):
@@ -242,72 +255,166 @@ class BaGPipeBGPAgent(HTTPClientBase):
         if (vpn_type == bbgp_const.IPVPN and bbgp_const.EVPN in attach_list):
             attach_info['local_port'] = {
                 bbgp_const.EVPN: {
-                    'id': '%s_evpn' % network_id
+                    'id': get_default_vpn_instance_id('evpn', network_id)
                 }
             }
 
     def _compile_port_attach_info(self, port_id):
-        service_attach_info = {}
-        for service, build_callback in self.build_callbacks.items():
-            service_attach_info[service] = build_callback(port_id)
-            LOG.debug("port %s, attach info for %s: %s",
-                      port_id, service, service_attach_info[service])
+        # this method returns information for all bagpipe-bgp attachments to
+        # produce for a given port:
+        # {
+        #   'evpn': [
+        #       {
+        #          'vpn_instance_id':
+        #          'ip_address'
+        #          ..
+        #          'import_rts': [...]
+        #          'export_rts': [...]
+        #       },
+        #       ...
+        #   ],
+        #   'ipvpn': [
+        #       {
+        #          'vpn_instance_id':
+        #          'ip_address'
+        #          ..
+        #          'import_rts': [...]
+        #          'export_rts': [...]
+        #       },
+        #       ...
+        #   ]
+        # }
+        #
+        # This structure produces consolidated information across all services
+        # for all Route Target parameters: the import_rt and export_rt
+        # attributes accumulate the RTs of all the service producing
+        # attachments for a given VPN instance (vpn instance id).
+        #
+        # Another consolidation that is done in the case where both EVPN and
+        # IPVPN attachments are produced, and the agent is a linuxbridge agent.
+        # In that case the IPVPN attachments are modified so that instead of
+        # plugging the port into the IPVPN, the EVPN instance is plugged into
+        # the IPVPN, which is necessary so that bagpipe-bgp will connect the
+        # linux bridge to a linux VRF with a veth interface.
+        #
+        # NOTE(tmorin): the code does not do consistency checks for parameters
+        # that would be conflicting between attachments, for instance if
+        # an EVPN attachment would specify a VNI X and another a VNI Y.
+        # For read-only parameters, bagpipe-bgp would be in charge of detecting
+        # an attempt at overwriting the parameters with a different value and
+        # raising an error.
+        # For proper safeguarding, the code here would need to check
+        # consistency across attachments of read-write values.
 
-        attach_list = defaultdict(list)
+        service_attachments_map = {}
+        for service, build_callback in self.build_callbacks.items():
+            # what was returned by the callbacks before (a dict allowing to
+            # describe one EVPN and one IPVPN attachment):
+            # {
+            #    'network_id':
+            #    'ip_address'
+            #    ..
+            #    'evpn': {
+            #         'import_rt': [...]
+            #         'export_rt': [...]
+            #         'static_routes': ...
+            #    }
+            #    'ipvpn': {
+            #         'import_rt': [...]
+            #         'export_rt': [...]
+            #         'static_routes': ...
+            #    }
+            # }
+            #
+            # we expect the callback to return a dict or lists,
+            # following this template:
+            # {
+            #    'network_id': # use to generate vpn_instance_id if
+            #                  # vpn_instance_id is omitted below
+            #    'evpn': [
+            #       {
+            #         'vpn_instance_id': ..
+            #         'ip_address': ..
+            #         ...
+            #         'import_rt': [...]
+            #         'export_rt': [...]
+            #       },
+            #       ...
+            #    ],
+            #    'ipvpn': [
+            #    ]
+            # }
+            service_attachments_map[service] = build_callback(port_id)
+            LOG.debug("port %s, attach info for %s: %s",
+                      port_id, service, service_attachments_map[service])
+
+        attach_list = {}
+
+        # map in which we consolidate the RTs for a given vpn instance
+        # vpn_instance_rts[vpn_instance_id]['import_rt'] = set()
+        # vpn_instance_rts[vpn_instance_id]['export_rt'] = set()
+        vpn_instance_rts = {}
+
         for vpn_type in VPN_TYPES:
-            attach_info = {}
+            vpn_attachment_list = []
 
             for service in self.build_callbacks.keys():
-                if vpn_type in service_attach_info[service]:
-                    network_id = service_attach_info[service]['network_id']
-                    service_info = service_attach_info[service]
+                service_attachments = (
+                    service_attachments_map[service].get(vpn_type)
+                )
 
-                    if not attach_info:
-                        attach_info = dict(
-                            vpn_instance_id='%s_%s' % (network_id, vpn_type),
-                            ip_address=service_info['ip_address'],
-                            mac_address=service_info['mac_address'],
-                            gateway_ip=service_info['gateway_ip'],
-                            local_port=service_info['local_port']
-                        )
+                if not service_attachments:
+                    continue
 
-                    service_vpn_info = service_info[vpn_type]
+                default_vpn_instance_id = get_default_vpn_instance_id(
+                    vpn_type,
+                    service_attachments_map[service]['network_id'])
 
-                    if vpn_type not in attach_info:
-                        attach_info.update(dict(vpn_type=vpn_type))
+                for service_attachment in service_attachments:
 
-                    attach_info['local_port'].update(
-                        service_vpn_info.pop('local_port', {})
-                    )
+                    vpn_instance_id = service_attachment.setdefault(
+                        'vpn_instance_id', default_vpn_instance_id)
 
-                    self._check_evpn2ipvpn_info(vpn_type, network_id,
-                                                attach_list, attach_info)
+                    service_attachment['vpn_type'] = vpn_type
 
-                    # Check if static routes
-                    static_routes = service_vpn_info.pop('static_routes', [])
-                    if static_routes:
-                        static_info = deepcopy(attach_info)
-                        static_info.update({'advertise_subnet': True})
-                        for static_route in static_routes:
-                            static_info['ip_address'] = static_route
-                            static_info.update(service_vpn_info)
+                    # initialize consolidated RTs for this vpn_instance_id
+                    # if this wasn't done yet
+                    vpn_instance_rts.setdefault(vpn_instance_id, {
+                        bbgp_const.RT_IMPORT: set(),
+                        bbgp_const.RT_EXPORT: set()
+                    })
 
-                            attach_list[vpn_type].append(static_info)
+                    for rt_type in (bbgp_const.RT_IMPORT,
+                                    bbgp_const.RT_EXPORT):
+                        # merge this service RTs with the RTs we already had
+                        # for this vpn_instance_id
+                        orig_rts = set(service_attachment[rt_type])
+                        vpn_instance_rts[vpn_instance_id][rt_type] |= orig_rts
+                        # have the RT information for this attachment
+                        # point to the consolidated RT list
+                        service_attachment[rt_type] = (
+                            vpn_instance_rts[vpn_instance_id][rt_type])
 
-                    for rt_type in bbgp_const.RT_TYPES:
-                        if rt_type in service_vpn_info:
-                            if rt_type not in attach_info:
-                                attach_info[rt_type] = []
+                    LOG.debug("adding processed attachment: %s",
+                              service_attachment)
+                    vpn_attachment_list.append(service_attachment)
 
-                            attach_info[rt_type] += (
-                                service_vpn_info.pop(rt_type)
-                            )
+            if vpn_attachment_list:
+                attach_list[vpn_type] = vpn_attachment_list
 
-                    attach_info.update(service_vpn_info)
+        if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
+            if (attach_list.get(bbgp_const.EVPN) and
+                    attach_list.get(bbgp_const.IPVPN)):
+                # go through all IPVPN attachments and rewrite local_port
+                # to point to the evpn instance, rather than the VM port
+                for attachment in attach_list[bbgp_const.IPVPN]:
+                    attachment['local_port'] = {bbgp_const.EVPN: {
+                        'id': attachment['vpn_instance_id'].replace('ipvpn',
+                                                                    'evpn')
+                        }
+                    }
 
-            if attach_info:
-                attach_list[vpn_type].append(attach_info)
-
+        LOG.debug("all attachments for port %s: %s", port_id, attach_list)
         return attach_list
 
     def _request_ping(self):
@@ -321,6 +428,7 @@ class BaGPipeBGPAgent(HTTPClientBase):
             LOG.warning(str(e))
             return -1
 
+    @log_helpers.log_method_call
     def _send_attach_local_port(self, local_port_details):
         """Send local port attach request to BaGPipe-BGP if running"""
         if self.bagpipe_bgp_status is self.BAGPIPEBGP_UP:
@@ -333,6 +441,7 @@ class BaGPipeBGPAgent(HTTPClientBase):
         else:
             LOG.debug("Local port not yet attached to bagpipe-bgp (not up)")
 
+    @log_helpers.log_method_call
     def _send_detach_local_port(self, local_port_details):
         """Send local port detach request to BaGPipe-BGP if running"""
         if self.bagpipe_bgp_status is self.BAGPIPEBGP_UP:
@@ -347,41 +456,61 @@ class BaGPipeBGPAgent(HTTPClientBase):
         else:
             LOG.debug("Local port not yet detached from bagpipe-bgp (not up)")
 
+    @log_helpers.log_method_call
+    def _send_all_attachments(self, plug_details):
+        # First plug E-VPNs because they could be plugged into IP-VPNs
+        for vpn_type in [t for t in VPN_TYPES if t in plug_details]:
+            for plug_detail in plug_details[vpn_type]:
+                self._send_attach_local_port(plug_detail)
+
+    @log_helpers.log_method_call
     def do_port_plug(self, port_id):
         """Send port attach request to bagpipe-bgp."""
         all_plug_details = self._compile_port_attach_info(port_id)
 
-        # First plug E-VPNs because they could be plugged into IP-VPNs
-        for vpn_type in [t for t in VPN_TYPES if t in all_plug_details]:
-            for plug_detail in all_plug_details[vpn_type]:
-                self._send_attach_local_port(plug_detail)
+        self._send_all_attachments(all_plug_details)
 
+    @log_helpers.log_method_call
     def do_port_plug_refresh(self, port_id, detach_infos):
         """Refresh port attach on bagpipe-bgp
 
         Send port attach and/or detach request to bagpipe-bgp when necessary.
+
+        detach_infos:
+        {
+            'network_id': ...
+            'evpn': {
+                ...
+            }
+            'ipvpn': {
+                ...
+            }
+        }
+        ]
         """
         plug_details = self._compile_port_attach_info(port_id)
 
+        network_id = detach_infos.pop('network_id')
         for detach_vpn_type, detach_info in list(detach_infos.items()):
             if detach_vpn_type not in plug_details.keys():
-                network_id = detach_info.pop('network_id')
-                detach_info.update({'vpn_instance_id': '%s_%s' %
-                                    (network_id, detach_vpn_type),
-                                    'vpn_type': detach_vpn_type})
+                detach_info.setdefault(
+                    'vpn_instance_id',
+                    get_default_vpn_instance_id(detach_vpn_type, network_id))
+                detach_info['vpn_type'] = detach_vpn_type
 
+                # NOTE(tmorin): to be reconsidered
                 self._check_evpn2ipvpn_info(detach_vpn_type, network_id,
                                             plug_details, detach_info)
             else:
+                # NOTE(tmorin): this is buggy
                 del detach_infos[detach_vpn_type]
 
         if detach_infos:
+            # unplug IPVPN first, then EVPN (hence ::-1 below)
             for vpn_type in [t for t in VPN_TYPES[::-1] if t in detach_infos]:
                 self._send_detach_local_port(detach_infos[vpn_type])
 
-        for vpn_type in [t for t in VPN_TYPES if t in plug_details]:
-            for plug_detail in plug_details[vpn_type]:
-                self._send_attach_local_port(plug_detail)
+        self._send_all_attachments(plug_details)
 
     @lockutils.synchronized('bagpipe-bgp-agent')
     def register_build_callback(self, service_name, callback):

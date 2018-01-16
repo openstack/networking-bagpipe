@@ -114,11 +114,11 @@ class BagpipeAgentExtension(l2_extension.L2AgentExtension,
         service_info = port_info.network.service_infos
         attach_info = {
             'network_id': port_info.network.id,
-            'ip_address': port_info.ip_address,
-            'mac_address': port_info.mac_address,
-            'gateway_ip': port_info.network.gateway_info.ip,
-            'local_port': port_info.local_port,
-            bbgp_const.EVPN: {
+            bbgp_const.EVPN: [{
+                'gateway_ip': port_info.network.gateway_info.ip,
+                'local_port': port_info.local_port,
+                'ip_address': port_info.ip_address,
+                'mac_address': port_info.mac_address,
                 'linuxbr': LinuxBridgeManager.get_bridge_name(
                     port_info.network.id
                 ),
@@ -126,7 +126,7 @@ class BagpipeAgentExtension(l2_extension.L2AgentExtension,
                     service_info[bbgp_const.EVPN][bbgp_const.RT_IMPORT]],
                 bbgp_const.RT_EXPORT: [
                     service_info[bbgp_const.EVPN][bbgp_const.RT_EXPORT]]
-            }
+            }]
         }
 
         return attach_info
@@ -178,8 +178,8 @@ class BagpipeAgentExtension(l2_extension.L2AgentExtension,
             port_info = self.ports_info[port_id]
 
             detach_info = {
+                'network_id': net_id,
                 bbgp_const.EVPN: {
-                    'network_id': net_id,
                     'ip_address': port_info.ip_address,
                     'mac_address': port_info.mac_address,
                     'local_port': port_info.local_port,

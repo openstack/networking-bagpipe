@@ -15,9 +15,10 @@
 
 """
 L2 Agent extension to support bagpipe networking-bgpvpn driver RPCs in the
-OpenVSwitch agent
+OpenVSwitch and Linuxbridge agents
 """
 
+import copy
 import itertools
 import netaddr
 
@@ -86,11 +87,10 @@ config.register_agent_state_opts_helper(cfg.CONF)
 NO_NEED_FOR_VNI = -1
 
 
-def has_attachement(bgpvpn_info, vpn_type):
-    return (vpn_type in bgpvpn_info and (
-            bgpvpn_info[vpn_type].get(bbgp_const.RT_IMPORT) or
-            bgpvpn_info[vpn_type].get(bbgp_const.RT_EXPORT))
-            )
+def port_association_prefixes_lp(port_assoc):
+    for route in port_assoc.routes:
+        if route.type == bgpvpn_rc.PREFIX_TYPE:
+            yield str(route.prefix), route.local_pref
 
 
 def port_association_prefixes(port_assoc):
@@ -428,29 +428,22 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         self._remove_association_for_net(port_info.network.id, assoc)
         self.bagpipe_bgp_agent.do_port_plug(port_info.id)
 
-    def _format_associations_route_targets(self, assocs):
-        bgpvpn_rts = {}
+    def _format_associations_route_targets(self, assocs, bbgp_vpn_type):
+        rts = {bbgp_const.RT_IMPORT: set(),
+               bbgp_const.RT_EXPORT: set()}
         for assoc in assocs:
-            bgpvpn = assoc.bgpvpn
-            vpn_type = bagpipe_vpn_type(bgpvpn.type)
+            # only look at associations with a BGPVPN of a type
+            # that maps to bbgp_vpn_type
+            if bagpipe_vpn_type(assoc.bgpvpn.type) != bbgp_vpn_type:
+                continue
 
-            # Add necessary keys to BGP VPN route targets dictionary
-            if vpn_type not in bgpvpn_rts:
-                bgpvpn_rts[vpn_type] = {bbgp_const.RT_IMPORT: [],
-                                        bbgp_const.RT_EXPORT: []}
+            rts[bbgp_const.RT_IMPORT] |= set(assoc.bgpvpn.route_targets)
+            rts[bbgp_const.RT_IMPORT] |= set(assoc.bgpvpn.import_targets)
 
-            bgpvpn_rts[vpn_type][bbgp_const.RT_IMPORT] += bgpvpn.route_targets
-            bgpvpn_rts[vpn_type][bbgp_const.RT_IMPORT] += bgpvpn.import_targets
+            rts[bbgp_const.RT_EXPORT] |= set(assoc.bgpvpn.route_targets)
+            rts[bbgp_const.RT_EXPORT] |= set(assoc.bgpvpn.export_targets)
 
-            bgpvpn_rts[vpn_type][bbgp_const.RT_EXPORT] += bgpvpn.route_targets
-            bgpvpn_rts[vpn_type][bbgp_const.RT_EXPORT] += bgpvpn.export_targets
-
-        for rts in bgpvpn_rts.values():
-            for i_or_e in [bbgp_const.RT_IMPORT, bbgp_const.RT_EXPORT]:
-                if i_or_e in rts:
-                    rts[i_or_e] = list(set(rts[i_or_e]))
-
-        return bgpvpn_rts
+        return rts
 
     def _ignore_port(self, context, data):
         if data['port_id'] is None:
@@ -673,10 +666,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         if net_info.gateway_info.mac is not None:
             self._unhide_real_gw_arp(vlan, net_info.gateway_info.mac)
 
-    def _base_attach_info(self, port_info, ip_address):
+    def _base_attach_info(self, port_info, bbgp_vpn_type):
         i = {
-            'network_id': port_info.network.id,
-            'ip_address': ip_address,
             'mac_address': port_info.mac_address,
             'local_port': {}
         }
@@ -688,6 +679,13 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         else:
             i['local_port']['linuxif'] = (
                 LinuxBridgeManager.get_tap_device_name(port_info.id))
+            if bbgp_vpn_type == bbgp_const.IPVPN:
+                # the interface we need to pass to bagpipe is the
+                # bridge
+                i['local_port'].update({
+                    'linuxif': LinuxBridgeManager.get_bridge_name(
+                        port_info.network.id)
+                })
 
         return i
 
@@ -707,44 +705,57 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             return {}
 
         port_info = self.ports_info[port_id]
+
+        attachments = {}
+
+        for vpn_type in bbgp_const.VPN_TYPES:
+            vpn_type_attachments = self._build_attachments(port_info,
+                                                           vpn_type)
+            if vpn_type_attachments:
+                attachments[vpn_type] = vpn_type_attachments
+
+        if attachments:
+            attachments['network_id'] = port_info.network.id
+
+        return attachments
+
+    def _build_attachments(self, port_info, bbgp_vpn_type):
         net_info = port_info.network
 
-        attach_info = self._base_attach_info(port_info, port_info.ip_address)
+        attach_info = self._base_attach_info(port_info, bbgp_vpn_type)
         attach_info['gateway_ip'] = net_info.gateway_info.ip
 
         attach_info.update(
-            self._format_associations_route_targets(port_info.all_associations)
+            self._format_associations_route_targets(
+                port_info.all_associations, bbgp_vpn_type)
         )
 
-        if bbgp_const.IPVPN in attach_info:
-            port_prefixes = self._port_prefixes(port_info)
-            attach_info[bbgp_const.IPVPN].update(
-                {'static_routes': port_prefixes} if port_prefixes else {}
-            )
+        if (not attach_info[bbgp_const.RT_IMPORT] and
+                not attach_info[bbgp_const.RT_EXPORT]):
+            LOG.debug("no RTs for type %s, skipping")
+            return {}
 
         if self._is_ovs_extension():
             # Add OVS VLAN information
             vlan = self.vlan_manager.get(net_info.id).vlan
 
             # no OVS driver yet for EVPN
-            if bbgp_const.EVPN in attach_info:
+            if bbgp_vpn_type == bbgp_const.EVPN:
                 LOG.warning("BGPVPN type L2 (EVPN) is not supported with "
                             "OVS yet")
 
-            if has_attachement(attach_info, bbgp_const.IPVPN):
-                attach_info[bbgp_const.IPVPN].update({
-                    'local_port': {
-                        'ovs': {
-                            'plugged': True,
-                            'port_number': self.patch_mpls_to_tun_ofport,
-                            'vlan': vlan
-                        }
+            if bbgp_vpn_type == bbgp_const.IPVPN:
+                attach_info['local_port'].update({
+                    'ovs': {
+                        'plugged': True,
+                        'port_number': self.patch_mpls_to_tun_ofport,
+                        'vlan': vlan
                     }
                 })
 
                 # Add fallback information if needed as well
                 if net_info.gateway_info.mac:
-                    attach_info[bbgp_const.IPVPN].update({
+                    attach_info.update({
                         'fallback': {
                             'dst_mac': net_info.gateway_info.mac,
                             'src_mac': bgpvpn_const.FALLBACK_SRC_MAC,
@@ -752,19 +763,12 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                         }
                     })
         else:  # linuxbridge
-            if has_attachement(attach_info, bbgp_const.EVPN):
-                attach_info[bbgp_const.EVPN]['linuxbr'] = (
+            if bbgp_vpn_type == bbgp_const.EVPN:
+                attach_info['linuxbr'] = (
                     LinuxBridgeManager.get_bridge_name(net_info.id)
                 )
-            if has_attachement(attach_info, bbgp_const.IPVPN):
-                # the interface we need to pass to bagpipe is the
-                # bridge
-                attach_info[bbgp_const.IPVPN]['local_port'] = {
-                    'linuxif': LinuxBridgeManager.get_bridge_name(net_info.id)
-                }
-                # NOTE(tmorin): fallback support still missing
 
-        if has_attachement(attach_info, bbgp_const.EVPN):
+        if bbgp_vpn_type == bbgp_const.EVPN:
             # if the network is a VXLAN network, then reuse same VNI
             # in bagpipe-bgp
             vni = net_info.segmentation_id
@@ -774,14 +778,22 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             else:
                 LOG.debug("vni %s found for net %s, reusing for E-VPN",
                           vni, net_info.id)
-                attach_info[bbgp_const.EVPN]['vni'] = vni
+                attach_info['vni'] = vni
 
-        if not (has_attachement(attach_info, bbgp_const.EVPN) or
-                has_attachement(attach_info, bbgp_const.IPVPN)):
-            LOG.warning("no attachment for port %s: %s", port_id, attach_info)
-            return {}
+        ip_addresses = [port_info.ip_address]
+        if bbgp_vpn_type == bbgp_const.IPVPN:
+            ip_addresses += self._port_prefixes(port_info)
 
-        return attach_info
+        # produce one attachment per IP address
+        attachments = []
+        for ip_address in ip_addresses:
+            attachment = copy.deepcopy(attach_info)
+            attachment['ip_address'] = ip_address
+            if '/' in ip_address:
+                attachment['advertise_subnet'] = True
+            attachments.append(attachment)
+
+        return attachments
 
     @log_helpers.log_method_call
     def _build_bgpvpn_detach_infos(self, port_info, detach_bgpvpn_type=None,
@@ -798,12 +810,14 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                         else [assoc.bgpvpn.type for assoc in
                               port_info.all_associations])
         for ip_addr in ip_addresses:
-            detach_info = {}
+            detach_info = {'network_id': port_info.network.id}
             for assoc_type in bgpvpn_types:
+                bbgp_vpn_type = bagpipe_vpn_type(assoc_type)
                 detach_info.update({
-                    bagpipe_vpn_type(assoc_type):
-                        self._base_attach_info(port_info, ip_addr)
+                    bbgp_vpn_type: self._base_attach_info(port_info,
+                                                          bbgp_vpn_type)
                 })
+                detach_info[bbgp_vpn_type]['ip_address'] = ip_addr
             detach_infos.append(detach_info)
 
         return detach_infos

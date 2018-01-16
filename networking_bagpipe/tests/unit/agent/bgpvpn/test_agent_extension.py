@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import itertools
 import mock
 
 import netaddr
@@ -30,16 +29,6 @@ from neutron.api.rpc.callbacks import events as rpc_events
 from neutron.api.rpc.handlers import resources_rpc
 
 from neutron_lib.api.definitions import bgpvpn
-
-
-class UnorderedList(list):
-    # used to make comparison of lists of RTs independent of the
-    # order
-    def __init__(self, *lists):
-        super(UnorderedList, self).__init__(itertools.chain(*lists))
-
-    def __eq__(self, other):
-        return set(self) == set(other)
 
 
 class TestBgpvpnAgentExtensionMixin(object):
@@ -71,25 +60,14 @@ class TestBgpvpnAgentExtensionMixin(object):
             any_order=True
         )
 
-    def _get_bagpipe_vpn_info(self, vpn_type, vpn_if, rts, fallback=None,
-                              more_vpn_info=None, static_routes=None):
-        vpn_info = {vpn_type: vpn_if}
+    def _expand_rts(self, rts):
+        vpn_info = {}
 
         # rts are BGPVPN API resources rts
-        vpn_info[vpn_type]['import_rt'] = UnorderedList(
-            rts.get('route_targets'),
-            rts.get('import_targets'))
-        vpn_info[vpn_type]['export_rt'] = UnorderedList(
-            rts.get('route_targets') +
-            rts.get('export_targets'))
-
-        if fallback:
-            vpn_info[vpn_type].update(dict(fallback=fallback))
-
-        if static_routes:
-            vpn_info[vpn_type].update(dict(static_routes=static_routes))
-
-        vpn_info[vpn_type].update(more_vpn_info or {})
+        vpn_info['import_rt'] = set(rts.get('route_targets') +
+                                    rts.get('import_targets'))
+        vpn_info['export_rt'] = set(rts.get('route_targets') +
+                                    rts.get('export_targets'))
 
         return vpn_info
 
@@ -241,19 +219,19 @@ class TestBgpvpnAgentExtensionMixin(object):
         # Verify build callback attachments
         def check_build_cb(*args):
             for port in [base.PORT10, base.PORT11]:
-                local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                            base.NETWORK1['id'],
                                                            port['id'])
                 self.assertDictEqual(
                     dict(
                         network_id=base.NETWORK1['id'],
-                        ip_address=port['ip_address'],
-                        mac_address=port['mac_address'],
-                        gateway_ip=base.NETWORK1['gateway_ip'],
-                        local_port=dict(linuxif=local_port['linuxif']),
-                        **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                     local_port['ipvpnif'],
-                                                     base.BGPVPN_L3_RT100)
+                        ipvpn=[dict(
+                            ip_address=port['ip_address'],
+                            mac_address=port['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT100)
+                        )]
                     ),
                     self.agent_ext.build_bgpvpn_attach_info(port['id'])
                 )
@@ -286,19 +264,19 @@ class TestBgpvpnAgentExtensionMixin(object):
         # Verify build callback attachments
         def check_build_cb(*args):
             for port in [base.PORT10, base.PORT11]:
-                local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                            base.NETWORK1['id'],
                                                            port['id'])
                 self.assertDictEqual(
                     dict(
                         network_id=base.NETWORK1['id'],
-                        ip_address=port['ip_address'],
-                        mac_address=port['mac_address'],
-                        gateway_ip=base.NETWORK1['gateway_ip'],
-                        local_port=dict(linuxif=local_port['linuxif']),
-                        **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                     local_port['ipvpnif'],
-                                                     base.BGPVPN_L3_RT100)
+                        ipvpn=[dict(
+                            ip_address=port['ip_address'],
+                            mac_address=port['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT100)
+                        )]
                     ),
                     self.agent_ext.build_bgpvpn_attach_info(port['id'])
                 )
@@ -370,16 +348,16 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.agent_ext.delete_port(None, self._port_data(base.PORT10,
                                                          delete=True))
 
-        local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+        local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                    base.NETWORK1['id'],
-                                                   base.PORT10['id'])
+                                                   base.PORT10['id'],
+                                                   detach=True)
         detach_info = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
-                # FIXME(tmorin): should be  local_port['ipvpnif'] or...
-                'local_port': dict(linuxif=local_port['linuxif'])
+                'local_port': local_port['local_port']
             }
         }
 
@@ -415,19 +393,19 @@ class TestBgpvpnAgentExtensionMixin(object):
                        for k, rts in base.BGPVPN_L3_RT100.items()}
 
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 rts_1_2)
+                    ipvpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        local_port=local_port['local_port'],
+                        **self._expand_rts(rts_1_2)
+                    )]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -462,29 +440,29 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.mocked_bagpipe_agent.reset_mock()
 
         # prepare expected information for DELETE
-        local_port10 = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+        local_port10 = self._get_expected_local_port(bbgp_const.IPVPN,
                                                      base.NETWORK1['id'],
-                                                     base.PORT10['id'])
+                                                     base.PORT10['id'],
+                                                     detach=True)
         detach_info10 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: dict(
-                network_id=base.NETWORK1['id'],
                 ip_address=base.PORT10['ip_address'],
                 mac_address=base.PORT10['mac_address'],
-                # FIXME(tmorin): should be  local_port['ipvpnif'] or...
-                local_port=dict(linuxif=local_port10['linuxif'])
+                local_port=local_port10['local_port']
             )
         }
 
-        local_port11 = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+        local_port11 = self._get_expected_local_port(bbgp_const.IPVPN,
                                                      base.NETWORK1['id'],
-                                                     base.PORT11['id'])
+                                                     base.PORT11['id'],
+                                                     detach=True)
         detach_info11 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: dict(
-                network_id=base.NETWORK1['id'],
                 ip_address=base.PORT11['ip_address'],
                 mac_address=base.PORT11['mac_address'],
-                # FIXME(tmorin): should be  local_port['ipvpnif'] or...
-                local_port=dict(linuxif=local_port11['linuxif'])
+                local_port=local_port11['local_port']
             )
         }
 
@@ -540,19 +518,19 @@ class TestBgpvpnAgentExtensionMixin(object):
         def check_build_cb(*args):
             # Verify build callback attachments
             for port in [base.PORT10, base.PORT10]:
-                local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                            base.NETWORK1['id'],
                                                            port['id'])
                 self.assertDictEqual(
                     dict(
                         network_id=base.NETWORK1['id'],
-                        ip_address=port['ip_address'],
-                        mac_address=port['mac_address'],
-                        gateway_ip=base.NETWORK1['gateway_ip'],
-                        local_port=dict(linuxif=local_port['linuxif']),
-                        **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                     local_port['ipvpnif'],
-                                                     base.BGPVPN_L3_RT200)
+                        ipvpn=[dict(
+                            ip_address=port['ip_address'],
+                            mac_address=port['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT200)
+                        )]
                     ),
                     self.agent_ext.build_bgpvpn_attach_info(port['id'])
                 )
@@ -587,31 +565,31 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         self._net_assoc_notif(net_assoc_2, rpc_events.DELETED)
 
-        local_port_1 = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+        local_port_1 = self._get_expected_local_port(bbgp_const.IPVPN,
                                                      base.NETWORK1['id'],
-                                                     base.PORT10['id'])
+                                                     base.PORT10['id'],
+                                                     detach=True)
 
         detach_info_1 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
-                # FIXME(tmorin): should be  local_port['ipvpnif'] or...
-                'local_port': dict(linuxif=local_port_1['linuxif'])
+                'local_port': local_port_1['local_port']
             }
         }
 
-        local_port_2 = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+        local_port_2 = self._get_expected_local_port(bbgp_const.IPVPN,
                                                      base.NETWORK1['id'],
-                                                     base.PORT11['id'])
+                                                     base.PORT11['id'],
+                                                     detach=True)
 
         detach_info_2 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT11['ip_address'],
                 'mac_address': base.PORT11['mac_address'],
-                # FIXME(tmorin): should be  local_port['ipvpnif'] or...
-                'local_port': dict(linuxif=local_port_2['linuxif'])
+                'local_port': local_port_2['local_port']
             }
         }
 
@@ -630,6 +608,9 @@ class TestBgpvpnAgentExtensionMixin(object):
         self._check_network_info(base.NETWORK1['id'], 2)
 
     def test_two_assocs_one_deleted_then_the_second_different_types(self):
+        if isinstance(self, TestOVSAgentExtension):
+            self.skipTest("not relevant for OVS, because no EVPN driver")
+
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
         self.agent_ext.handle_port(None, self._port_data(base.PORT11))
 
@@ -659,19 +640,19 @@ class TestBgpvpnAgentExtensionMixin(object):
         def check_b_cb(*args):
             # Verify build callback attachments
             for port in [base.PORT10, base.PORT10]:
-                local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                            base.NETWORK1['id'],
                                                            port['id'])
                 self.assertDictEqual(
                     dict(
                         network_id=base.NETWORK1['id'],
-                        ip_address=port['ip_address'],
-                        mac_address=port['mac_address'],
-                        gateway_ip=base.NETWORK1['gateway_ip'],
-                        local_port=dict(linuxif=local_port['linuxif']),
-                        **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                     local_port['ipvpnif'],
-                                                     base.BGPVPN_L3_RT200)
+                        ipvpn=[dict(
+                            ip_address=port['ip_address'],
+                            mac_address=port['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT200)
+                        )]
                     ),
                     self.agent_ext.build_bgpvpn_attach_info(port['id'])
                 )
@@ -686,31 +667,31 @@ class TestBgpvpnAgentExtensionMixin(object):
         self._check_network_info(base.NETWORK1['id'], 2)
 
         # check that the bgpvpn type of first assoc was removed
-        local_port_1 = self._get_expected_local_port(bgpvpn.BGPVPN_L2,
+        local_port_1 = self._get_expected_local_port(bbgp_const.EVPN,
                                                      base.NETWORK1['id'],
-                                                     base.PORT10['id'])
+                                                     base.PORT10['id'],
+                                                     detach=True)
 
         detach_info_1 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
-                # FIXME(tmorin): should be  local_port['ipvpnif'] or...
-                'local_port': dict(linuxif=local_port_1['linuxif'])
+                'local_port': local_port_1['local_port']
             }
         }
 
-        local_port_2 = self._get_expected_local_port(bgpvpn.BGPVPN_L2,
+        local_port_2 = self._get_expected_local_port(bbgp_const.EVPN,
                                                      base.NETWORK1['id'],
-                                                     base.PORT11['id'])
+                                                     base.PORT11['id'],
+                                                     detach=True)
 
         detach_info_2 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT11['ip_address'],
                 'mac_address': base.PORT11['mac_address'],
-                # FIXME(tmorin): should be  local_port['ipvpnif'] or...
-                'local_port': dict(linuxif=local_port_2['linuxif'])
+                'local_port': local_port_2['local_port']
             }
         }
 
@@ -742,17 +723,17 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         self._net_assoc_notif(net_assoc_2, rpc_events.DELETED)
 
-        local_port_2 = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+        local_port_2 = self._get_expected_local_port(bbgp_const.IPVPN,
                                                      base.NETWORK1['id'],
-                                                     base.PORT11['id'])
+                                                     base.PORT11['id'],
+                                                     detach=True)
 
         detach_info_2 = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT11['ip_address'],
                 'mac_address': base.PORT11['mac_address'],
-                # FIXME(tmorin): should be  local_port['ipvpnif'] or...
-                'local_port': dict(linuxif=local_port_2['linuxif'])
+                'local_port': local_port_2['local_port']
             }
         }
 
@@ -816,19 +797,19 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 base.BGPVPN_L3_RT100)
+                    ipvpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        local_port=local_port['local_port'],
+                        **self._expand_rts(base.BGPVPN_L3_RT100)
+                    )]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -855,21 +836,21 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L2,
+            local_port = self._get_expected_local_port(bbgp_const.EVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.EVPN,
-                                                 local_port['evpnif'],
-                                                 base.BGPVPN_L2_RT10,
-                                                 more_vpn_info={
-                                                     'vni': base.TEST_VNI})
+                    evpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        vni=base.TEST_VNI,
+                        **dict(list(local_port.items()) +
+                               list(self._expand_rts(
+                                    base.BGPVPN_L2_RT10).items()))
+                    )]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -898,7 +879,7 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
             rts_1_2 = {k: rts + base.BGPVPN_L3_RT200[k]
@@ -907,13 +888,13 @@ class TestBgpvpnAgentExtensionMixin(object):
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 rts_1_2)
+                    ipvpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        local_port=local_port['local_port'],
+                        **self._expand_rts(rts_1_2)
+                    )]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -944,20 +925,20 @@ class TestBgpvpnAgentExtensionMixin(object):
                                         base.BGPVPN_L3_RT100),
                                        (base.PORT20, base.NETWORK2,
                                         base.BGPVPN_L3_RT200)]:
-                local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                            network['id'],
                                                            port['id'])
 
                 self.assertDictEqual(
                     dict(
                         network_id=network['id'],
-                        ip_address=port['ip_address'],
-                        mac_address=port['mac_address'],
-                        gateway_ip=network['gateway_ip'],
-                        local_port=dict(linuxif=local_port['linuxif']),
-                        **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                     local_port['ipvpnif'],
-                                                     rts)
+                        ipvpn=[dict(
+                            ip_address=port['ip_address'],
+                            mac_address=port['mac_address'],
+                            gateway_ip=network['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(rts)
+                        )]
                     ),
                     self.agent_ext.build_bgpvpn_attach_info(port['id'])
                 )
@@ -997,27 +978,26 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.agent_ext.delete_port(None, self._port_data(base.PORT10,
                                                          delete=True))
 
-        local_port_l3 = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
                                                       base.NETWORK1['id'],
-                                                      base.PORT10['id'])
+                                                      base.PORT10['id'],
+                                                      detach=True)
 
-        local_port_l2 = self._get_expected_local_port(bgpvpn.BGPVPN_L2,
+        local_port_l2 = self._get_expected_local_port(bbgp_const.EVPN,
                                                       base.NETWORK1['id'],
-                                                      base.PORT10['id'])
+                                                      base.PORT10['id'],
+                                                      detach=True)
         detach_info = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
-                # FIXME(tmorin): should be  local_port_l2['evpnif'] or...
-                'local_port': dict(linuxif=local_port_l2['linuxif'])
+                'local_port': local_port_l2['local_port']
             },
             bbgp_const.IPVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': base.PORT10['ip_address'],
                 'mac_address': base.PORT10['mac_address'],
-                # FIXME(tmorin): should be  local_port_l3['ipvpnif'] or...
-                'local_port': dict(linuxif=local_port_l3['linuxif'])
+                'local_port': local_port_l3['local_port']
             }
         }
 
@@ -1037,19 +1017,19 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 base.BGPVPN_L3_RT100)
+                    ipvpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        local_port=local_port['local_port'],
+                        **self._expand_rts(base.BGPVPN_L3_RT100)
+                    )]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -1074,19 +1054,19 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 base.BGPVPN_L3_RT100)
+                    ipvpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        local_port=local_port['local_port'],
+                        **self._expand_rts(base.BGPVPN_L3_RT100)
+                    )]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -1122,28 +1102,25 @@ class TestBgpvpnAgentExtensionMixin(object):
                                  export_targets=[]
                                  )
         ]
-        result = self.agent_ext._format_associations_route_targets(assocs)
+        result_ipvpn = self.agent_ext._format_associations_route_targets(
+            assocs, 'ipvpn')
         expected = {
-            'ipvpn': {
-                'import_rt': ['12345:1', '12345:2', '12345:3', '12345:5',
-                              '12345:6'],
-                'export_rt': ['12345:1', '12345:2', '12345:3', '12345:8',
-                              '12345:6']
-            },
-            'evpn': {
-                'import_rt': ['12347:1'],
-                'export_rt': ['12347:1']
-            }
+            'import_rt': ['12345:1', '12345:2', '12345:3', '12345:5',
+                          '12345:6'],
+            'export_rt': ['12345:1', '12345:2', '12345:3', '12345:8',
+                          '12345:6']
         }
+        self.assertItemsEqual(result_ipvpn['import_rt'], expected['import_rt'])
+        self.assertItemsEqual(result_ipvpn['export_rt'], expected['export_rt'])
 
-        self.assertItemsEqual(result['ipvpn']['import_rt'],
-                              expected['ipvpn']['import_rt'])
-        self.assertItemsEqual(result['ipvpn']['export_rt'],
-                              expected['ipvpn']['export_rt'])
-        self.assertItemsEqual(result['evpn']['import_rt'],
-                              expected['evpn']['import_rt'])
-        self.assertItemsEqual(result['evpn']['export_rt'],
-                              expected['evpn']['export_rt'])
+        result_evpn = self.agent_ext._format_associations_route_targets(
+            assocs, 'evpn')
+        expected = {
+            'import_rt': ['12347:1'],
+            'export_rt': ['12347:1']
+        }
+        self.assertItemsEqual(result_evpn['import_rt'], expected['import_rt'])
+        self.assertItemsEqual(result_evpn['export_rt'], expected['export_rt'])
 
     def test_port_association_before_port_up(self):
         port_assoc = self._fake_port_assoc(base.PORT10,
@@ -1156,20 +1133,29 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 base.BGPVPN_L3_RT100,
-                                                 static_routes=['40.0.0.0/24'])
+                    ipvpn=[
+                        dict(
+                            ip_address=base.PORT10['ip_address'],
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT100)
+                        ),
+                        dict(
+                            ip_address='40.0.0.0/24',
+                            advertise_subnet=True,
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT100)
+                        )
+                    ]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -1195,20 +1181,29 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 base.BGPVPN_L3_RT100,
-                                                 static_routes=['40.0.0.0/24'])
+                    ipvpn=[
+                        dict(
+                            ip_address=base.PORT10['ip_address'],
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT100)
+                        ),
+                        dict(
+                            ip_address='40.0.0.0/24',
+                            advertise_subnet=True,
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT100)
+                        )
+                    ]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -1242,19 +1237,19 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 base.BGPVPN_L3_RT100)
+                    ipvpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        local_port=local_port['local_port'],
+                        **self._expand_rts(base.BGPVPN_L3_RT100)
+                    )]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -1269,17 +1264,17 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         # check that a detach is produced for the removed prefix route
 
-        local_port_l3 = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
                                                       base.NETWORK1['id'],
-                                                      base.PORT10['id'])
+                                                      base.PORT10['id'],
+                                                      detach=True)
 
         detach_info = {
+            'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
-                'network_id': base.NETWORK1['id'],
                 'ip_address': "40.0.0.0/24",
                 'mac_address': base.PORT10['mac_address'],
-                # FIXME(tmorin): should be  local_port_l3['ipvpnif'] or...
-                'local_port': dict(linuxif=local_port_l3['linuxif'])
+                'local_port': local_port_l3['local_port']
             }
         }
 
@@ -1301,17 +1296,17 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         # check that detach are produced for the deleted port
 
-        local_port_l3 = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
                                                       base.NETWORK1['id'],
-                                                      base.PORT10['id'])
+                                                      base.PORT10['id'],
+                                                      detach=True)
         calls = [
             mock.call(base.PORT10['id'], {
+                'network_id': base.NETWORK1['id'],
                 bbgp_const.IPVPN: {
-                    'network_id': base.NETWORK1['id'],
                     'ip_address': ip_address,
                     'mac_address': base.PORT10['mac_address'],
-                    # FIXME(tmorin): should be  local_port_l3['ipvpnif'] or...
-                    'local_port': dict(linuxif=local_port_l3['linuxif'])
+                    'local_port': local_port_l3['local_port']
                 }
             })
             for ip_address in (base.PORT10['ip_address'],
@@ -1351,30 +1346,30 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                                              gateway_mac=GW_MAC,
                                              **base.BGPVPN_L3_RT100)
 
-            fallback = {'dst_mac': GW_MAC,
-                        'ovs_port_number': base.PATCH_MPLS_TO_INT_OFPORT,
-                        'src_mac': '00:00:5e:2a:10:00'}
-
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
 
-            self.mocked_bagpipe_agent.do_port_plug.side_effect = (
-                lambda port:
-                    self.assertDictEqual(dict(
+            def check_build_cb(*args):
+                self.assertDictEqual(
+                    dict(
                         network_id=base.NETWORK1['id'],
-                        ip_address=base.PORT10['ip_address'],
-                        mac_address=base.PORT10['mac_address'],
-                        gateway_ip=base.NETWORK1['gateway_ip'],
-                        local_port=dict(linuxif=local_port['linuxif']),
-                        **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                     local_port['ipvpnif'],
-                                                     base.BGPVPN_L3_RT100,
-                                                     fallback=fallback)),
-                        self.agent_ext.build_bgpvpn_attach_info(
-                            base.PORT10['id'])
-                    )
-            )
+                        ipvpn=[dict(
+                            ip_address=base.PORT10['ip_address'],
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            fallback={'dst_mac': GW_MAC,
+                                      'ovs_port_number':
+                                      base.PATCH_MPLS_TO_INT_OFPORT,
+                                      'src_mac': '00:00:5e:2a:10:00'},
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT100)
+                            )]
+                    ),
+                    self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+                )
+
+            self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb
 
             self._net_assoc_notif(net_assoc, rpc_events.UPDATED)
 
@@ -1514,21 +1509,21 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
 
             self.assertEqual(2, add_flow.call_count)
 
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
 
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 base.BGPVPN_L3_RT100,
-                                                 fallback=fallback)
+                    ipvpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        fallback=fallback,
+                        local_port=local_port['local_port'],
+                        **self._expand_rts(base.BGPVPN_L3_RT100)
+                    )]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
@@ -1614,21 +1609,21 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
 
             self.assertEqual(2, add_flow.call_count)
 
-            local_port = self._get_expected_local_port(bgpvpn.BGPVPN_L3,
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
                                                        base.NETWORK1['id'],
                                                        base.PORT10['id'])
 
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
-                    ip_address=base.PORT10['ip_address'],
-                    mac_address=base.PORT10['mac_address'],
-                    gateway_ip=base.NETWORK1['gateway_ip'],
-                    local_port=dict(linuxif=local_port['linuxif']),
-                    **self._get_bagpipe_vpn_info(bbgp_const.IPVPN,
-                                                 local_port['ipvpnif'],
-                                                 base.BGPVPN_L3_RT100,
-                                                 fallback=fallback)
+                    ipvpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        fallback=fallback,
+                        local_port=local_port['local_port'],
+                        **self._expand_rts(base.BGPVPN_L3_RT100)
+                    )]
                 ),
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
