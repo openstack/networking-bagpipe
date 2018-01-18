@@ -103,6 +103,14 @@ def bagpipe_vpn_type(bgpvpn_type):
     return bgpvpn_const.BGPVPN_2_BAGPIPE[bgpvpn_type]
 
 
+def advertise_fixed_ip(port_info):
+    return (any([assoc.advertise_fixed_ips for assoc
+                 in port_info.associations]
+                ) or
+            any([not isinstance(assoc, objects.BGPVPNPortAssociation) for assoc
+                 in port_info.network.associations]))
+
+
 class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                                   agent_base_info.BaseInfoManager):
 
@@ -817,9 +825,12 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         attachments = []
 
         # attachment for the port fixed IP
-        attachment = copy.deepcopy(attach_info)
-        attachment['ip_address'] = port_info.ip_address
-        attachments.append(attachment)
+        # except if all routes of all port associations
+        # have advertise_fixed_ips = False
+        if advertise_fixed_ip(port_info):
+            attachment = copy.deepcopy(attach_info)
+            attachment['ip_address'] = port_info.ip_address
+            attachments.append(attachment)
 
         # produce one attachment per prefix route address
         for ip_address, local_pref in self._port_prefixes_lp(port_info):
@@ -841,9 +852,11 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
         # if ip_address is provided, we build detach info only for this
         # address, else we build detach_info for all prefixes of the port
-        ip_addrs = (ip_addresses if ip_addresses
-                    else ([port_info.ip_address] +
-                          self._port_prefixes(port_info)))
+        ip_addrs = ip_addresses
+        if not ip_addresses:
+            ip_addrs = self._port_prefixes(port_info)
+            if advertise_fixed_ip(port_info):
+                ip_addrs.append(port_info.ip_address)
 
         # if an association type is not provided, then detach for all VPN types
         # of all the associations relevant for the port
