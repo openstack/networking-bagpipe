@@ -92,34 +92,39 @@ def equivalent_route_in_routes(function, route, routes):
 #      - else 0
 #     """
 
-# TODO(tmorin): both comparison should first compare local_pref and MAC
-# Mobility if present
+# TODO(tmorin): both comparison should MAC Mobility if present
 
 
-def compare_no_ecmp(self, route_a, route_b):
+def compare_ecmp(worker, route_a, route_b):
+    # makes a comparison based on LOCAL_PREF
+    l_a = route_a.attributes.get(exa.Attribute.CODE.LOCAL_PREF, -1)
+    l_b = route_b.attributes.get(exa.Attribute.CODE.LOCAL_PREF, -1)
+    return (l_a > l_b) - (l_b > l_a)
+
+
+def compare_no_ecmp(worker, route_a, route_b):
     '''comparison operator without ECMP
 
     This compares the two routes in a consistent fashion, but two routes
     will never be considered of equal cost.
     The comparison is 'salted' so that two distinct VRFs (e.g. on two distinct
     bagpipe-bgp instances will not necessarily elect the same route as the
-    best one.
+    best one).
     '''
-    self.log.trace("compare_no_ecmp used")
-    salt = socket.gethostname() + self.name
+    worker.log.trace("compare_no_ecmp used")
+    base_comparison = compare_ecmp(worker, route_a, route_b)
+    if base_comparison:
+        return base_comparison
+
+    salt = socket.gethostname() + worker.name
     hash_a = hash(salt + repr(route_a))
     hash_b = hash(salt + repr(route_b))
     cmp_hashes = (hash_a > hash_b) - (hash_b > hash_a)
 
-    if cmp_hashes != 0:
+    if cmp_hashes:
         return cmp_hashes
 
     return (route_a > route_b) - (route_b > route_a)
-
-
-def compare_ecmp(self, route_a, route_b):
-    self.log.trace("compare_ecmp used")
-    return 0
 
 
 @six.add_metaclass(abc.ABCMeta)
