@@ -186,8 +186,9 @@ class TestBgpvpnAgentExtensionMixin(object):
             objects.BGPVPNPortAssociationRoute(
                 None,
                 type='prefix',
-                prefix=netaddr.IPNetwork(prefix))
-            for prefix in route_prefixes]
+                prefix=netaddr.IPNetwork(prefix),
+                local_pref=local_pref)
+            for prefix, local_pref in route_prefixes]
 
         return port_assoc
 
@@ -1150,11 +1151,15 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.assertItemsEqual(result_evpn['export_rt'], expected['export_rt'])
 
     def test_port_association_before_port_up(self):
-        port_assoc = self._fake_port_assoc(base.PORT10,
-                                           bgpvpn.BGPVPN_L3,
-                                           base.NETWORK1,
-                                           route_prefixes=["40.0.0.0/24"],
-                                           **base.BGPVPN_L3_RT100)
+        port_assoc = self._fake_port_assoc(
+            base.PORT10,
+            bgpvpn.BGPVPN_L3,
+            base.NETWORK1,
+            route_prefixes=[("40.0.0.0/24", None),
+                            ("60.0.0.0/24", 66)],
+            route_targets=base.BGPVPN_L3_RT100['route_targets'],
+            local_pref=44
+        )
 
         self.mocked_rpc_pull.side_effect = [[], [], [port_assoc]]
 
@@ -1171,6 +1176,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                             ip_address=base.PORT10['ip_address'],
                             mac_address=base.PORT10['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_pref=44,
                             local_port=local_port['local_port'],
                             **self._expand_rts(base.BGPVPN_L3_RT100)
                         ),
@@ -1179,6 +1185,16 @@ class TestBgpvpnAgentExtensionMixin(object):
                             advertise_subnet=True,
                             mac_address=base.PORT10['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_pref=44,
+                            local_port=local_port['local_port'],
+                            **self._expand_rts(base.BGPVPN_L3_RT100)
+                        ),
+                        dict(
+                            ip_address='60.0.0.0/24',
+                            advertise_subnet=True,
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_pref=66,
                             local_port=local_port['local_port'],
                             **self._expand_rts(base.BGPVPN_L3_RT100)
                         )
@@ -1203,7 +1219,8 @@ class TestBgpvpnAgentExtensionMixin(object):
         port_assoc = self._fake_port_assoc(base.PORT10,
                                            bgpvpn.BGPVPN_L3,
                                            base.NETWORK1,
-                                           route_prefixes=["40.0.0.0/24"],
+                                           route_prefixes=[("40.0.0.0/24",
+                                                            77)],
                                            **base.BGPVPN_L3_RT100)
 
         def check_build_cb(*args):
@@ -1225,6 +1242,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                         dict(
                             ip_address='40.0.0.0/24',
                             advertise_subnet=True,
+                            local_pref=77,
                             mac_address=base.PORT10['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
                             local_port=local_port['local_port'],
@@ -1285,7 +1303,8 @@ class TestBgpvpnAgentExtensionMixin(object):
         port_assoc = self._fake_port_assoc(base.PORT10,
                                            bgpvpn.BGPVPN_L3,
                                            base.NETWORK1,
-                                           route_prefixes=["40.0.0.0/24"],
+                                           route_prefixes=[("40.0.0.0/24",
+                                                            None)],
                                            **base.BGPVPN_L3_RT100)
 
         self._port_assoc_notif(port_assoc, rpc_events.CREATED)
@@ -1348,12 +1367,13 @@ class TestBgpvpnAgentExtensionMixin(object):
     def test_port_with_prefix_route_then_delete_port(self):
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 
-        port_assoc = self._fake_port_assoc(base.PORT10,
-                                           bgpvpn.BGPVPN_L3,
-                                           base.NETWORK1,
-                                           route_prefixes=["40.0.0.0/24",
-                                                           "60.0.0.0/16"],
-                                           **base.BGPVPN_L3_RT100)
+        port_assoc = self._fake_port_assoc(
+            base.PORT10,
+            bgpvpn.BGPVPN_L3,
+            base.NETWORK1,
+            route_prefixes=[("40.0.0.0/24", None),
+                            ("60.0.0.0/16", None)],
+            **base.BGPVPN_L3_RT100)
 
         self._port_assoc_notif(port_assoc, rpc_events.CREATED)
 

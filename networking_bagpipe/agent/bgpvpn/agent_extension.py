@@ -87,6 +87,12 @@ config.register_agent_state_opts_helper(cfg.CONF)
 NO_NEED_FOR_VNI = -1
 
 
+def port_association_prefixes_lp(port_assoc):
+    return [(str(route['prefix']), route['local_pref'])
+            for route in port_assoc.routes
+            if route['type'] == bgpvpn_rc.PREFIX_TYPE]
+
+
 def port_association_prefixes(port_assoc):
     return [str(route['prefix'])
             for route in port_assoc.routes
@@ -454,11 +460,11 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             if bagpipe_vpn_type(assoc.bgpvpn.type) != bbgp_vpn_type:
                 continue
 
-            rts[bbgp_const.RT_IMPORT] |= set(assoc.bgpvpn.route_targets)
-            rts[bbgp_const.RT_IMPORT] |= set(assoc.bgpvpn.import_targets)
+            rts[bbgp_const.RT_IMPORT] |= set(assoc.bgpvpn.route_targets or ())
+            rts[bbgp_const.RT_IMPORT] |= set(assoc.bgpvpn.import_targets or ())
 
-            rts[bbgp_const.RT_EXPORT] |= set(assoc.bgpvpn.route_targets)
-            rts[bbgp_const.RT_EXPORT] |= set(assoc.bgpvpn.export_targets)
+            rts[bbgp_const.RT_EXPORT] |= set(assoc.bgpvpn.route_targets or ())
+            rts[bbgp_const.RT_EXPORT] |= set(assoc.bgpvpn.export_targets or ())
 
         return rts
 
@@ -706,13 +712,16 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
         return i
 
-    def _port_prefixes(self, port_info):
+    def _port_prefixes_lp(self, port_info):
         l3_port_associations = [assoc for assoc in port_info.associations
                                 if assoc.bgpvpn.type == bgpvpn.BGPVPN_L3]
-        prefixes = []
+        prefixes_lp = []
         for port_assoc in l3_port_associations:
-            prefixes.extend(port_association_prefixes(port_assoc))
-        return prefixes
+            prefixes_lp.extend(port_association_prefixes_lp(port_assoc))
+        return prefixes_lp
+
+    def _port_prefixes(self, port_info):
+        return [p[0] for p in self._port_prefixes_lp(port_info)]
 
     @log_helpers.log_method_call
     def build_bgpvpn_attach_info(self, port_id):
@@ -749,7 +758,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
         if (not attach_info[bbgp_const.RT_IMPORT] and
                 not attach_info[bbgp_const.RT_EXPORT]):
-            LOG.debug("no RTs for type %s, skipping")
+            LOG.debug("no RTs for type %s, skipping", bbgp_vpn_type)
             return {}
 
         if self._is_ovs_extension():
@@ -797,17 +806,30 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                           vni, net_info.id)
                 attach_info['vni'] = vni
 
-        ip_addresses = [port_info.ip_address]
-        if bbgp_vpn_type == bbgp_const.IPVPN:
-            ip_addresses += self._port_prefixes(port_info)
+        # use the highest local_pref of all associations
+        all_local_prefs = [assoc.bgpvpn.local_pref
+                           for assoc in port_info.all_associations
+                           if assoc.bgpvpn.local_pref is not None]
+        if all_local_prefs:
+            attach_info['local_pref'] = max(all_local_prefs)
 
-        # produce one attachment per IP address
+        # produce attachments
         attachments = []
-        for ip_address in ip_addresses:
+
+        # attachment for the port fixed IP
+        attachment = copy.deepcopy(attach_info)
+        attachment['ip_address'] = port_info.ip_address
+        attachments.append(attachment)
+
+        # produce one attachment per prefix route address
+        for ip_address, local_pref in self._port_prefixes_lp(port_info):
             attachment = copy.deepcopy(attach_info)
             attachment['ip_address'] = ip_address
             if '/' in ip_address:
                 attachment['advertise_subnet'] = True
+            if local_pref:
+                attachment['local_pref'] = local_pref
+
             attachments.append(attachment)
 
         return attachments
