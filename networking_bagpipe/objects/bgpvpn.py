@@ -81,7 +81,7 @@ class BGPVPN(base.NeutronDbObject):
         'route_targets': obj_fields.ListOfStringsField(nullable=True),
         'import_targets': obj_fields.ListOfStringsField(nullable=True),
         'export_targets': obj_fields.ListOfStringsField(nullable=True),
-        'route_distinguishers': obj_fields.ListOfStringsField(nullable=True),
+        'route_distinguishers': obj_fields.ListOfStringsField(nullable=True)
     }
 
     foreign_keys = {'BGPVPNNetAssociation': {'id': 'bgpvpn_id'},
@@ -340,7 +340,8 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
         'id': common_types.UUIDField(),
         'port_association_id': common_types.UUIDField(),
         'type': BGPVPNPortAssociationRouteTypeField(),
-        'prefix': common_types.IPNetworkField()
+        'prefix': common_types.IPNetworkField(),
+        'local_pref': obj_fields.IntegerField(nullable=True)
     }
 
     foreign_keys = {'BGPVPNPortAssociation': {'port_association_id': 'id'}
