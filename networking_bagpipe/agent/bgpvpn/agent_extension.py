@@ -88,15 +88,15 @@ NO_NEED_FOR_VNI = -1
 
 
 def port_association_prefixes_lp(port_assoc):
-    for route in port_assoc.routes:
-        if route.type == bgpvpn_rc.PREFIX_TYPE:
-            yield str(route.prefix), route.local_pref
+    return [(str(route.prefix), route.local_pref)
+            for route in port_assoc.routes
+            if route.type == bgpvpn_rc.PREFIX_TYPE]
 
 
 def port_association_prefixes(port_assoc):
-    for route in port_assoc.routes:
-        if route['type'] == bgpvpn_rc.PREFIX_TYPE:
-            yield str(route['prefix'])
+    return [str(route['prefix'])
+            for route in port_assoc.routes
+            if route['type'] == bgpvpn_rc.PREFIX_TYPE]
 
 
 def bagpipe_vpn_type(bgpvpn_type):
@@ -389,15 +389,14 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             if event_type == rpc_events.CREATED:
                 self._add_association_for_port(port_info, port_assoc)
             elif event_type == rpc_events.UPDATED:
-                self._port_association_update_do_unplugs(port_info, port_assoc)
-                self._add_association_for_port(port_info, port_assoc)
+                self._update_port_association(port_info, port_assoc)
             elif event_type == rpc_events.DELETED:
                 self._remove_association_for_port(port_info, port_assoc)
             else:
                 LOG.warning("unsupported event: %s", event_type)
 
     @log_helpers.log_method_call
-    def _port_association_update_do_unplugs(self, port_info, new_port_assoc):
+    def _update_port_association(self, port_info, new_port_assoc):
         # if we already had this association, do unplugs for prefixes
         # that were in the association but are not port present anymore
         # in new_port_assoc
@@ -406,13 +405,25 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             old_prefixes = port_association_prefixes(
                 port_info.get_association(assoc_id))
             new_prefixes = port_association_prefixes(new_port_assoc)
+            LOG.debug("old prefixes: %s", list(old_prefixes))
+            LOG.debug("new prefixes: %s", list(new_prefixes))
+
+            # update the port association, so that build_bgpvpn_attach_info
+            # finds the updated version
+            port_info.add_association(new_port_assoc)
+            refresh_done = False
             for prefix in [p for p in old_prefixes if p not in new_prefixes]:
                 for detach_info in self._build_bgpvpn_detach_infos(
                         port_info,
                         bgpvpn.BGPVPN_L3,
                         ip_address=prefix):
+                    refresh_done = True
                     self.bagpipe_bgp_agent.do_port_plug_refresh(port_info.id,
                                                                 detach_info)
+            if not refresh_done:
+                self.bagpipe_bgp_agent.do_port_plug(port_info.id)
+        else:
+            self._add_association_for_port(port_info, new_port_assoc)
 
     @log_helpers.log_method_call
     def _add_association_for_port(self, port_info, assoc, replug_port=True):
@@ -820,4 +831,5 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                 detach_info[bbgp_vpn_type]['ip_address'] = ip_addr
             detach_infos.append(detach_info)
 
+        LOG.debug("detach_infos: %s", detach_infos)
         return detach_infos
