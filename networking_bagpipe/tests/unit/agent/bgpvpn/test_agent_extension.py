@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 import mock
 
 import netaddr
@@ -29,6 +30,28 @@ from neutron.api.rpc.callbacks import events as rpc_events
 from neutron.api.rpc.handlers import resources_rpc
 
 from neutron_lib.api.definitions import bgpvpn
+
+
+class HashableDict(dict):
+
+    def __init__(self, dictionary):
+        _dict = copy.deepcopy(dictionary)
+        for k, v in list(_dict.items()):
+            if (isinstance(v, dict) and not isinstance(v, HashableDict)):
+                _dict[k] = HashableDict(v)
+        super(HashableDict, self).__init__(_dict)
+
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))
+
+
+class UnorderedList(list):
+
+    def __eq__(self, other):
+        _other = other
+        if isinstance(other[0], dict):
+            _other = [HashableDict(d) for d in other]
+        return set(self) == set(_other)
 
 
 class TestBgpvpnAgentExtensionMixin(object):
@@ -313,7 +336,7 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
         self.assertEqual(
-            self.mocked_bagpipe_agent.do_port_plug_refresh.call_count, 2)
+            self.mocked_bagpipe_agent.do_port_plug_refresh_many.call_count, 2)
 
     def test_router_assoc_update_then_remove(self):
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
@@ -334,7 +357,7 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
         self.assertEqual(
-            self.mocked_bagpipe_agent.do_port_plug_refresh.call_count, 2)
+            self.mocked_bagpipe_agent.do_port_plug_refresh_many.call_count, 2)
 
     def test_net_assoc_before_delete_port(self):
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
@@ -361,8 +384,8 @@ class TestBgpvpnAgentExtensionMixin(object):
             }
         }
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
-            [mock.call(base.PORT10['id'], detach_info)]
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(base.PORT10['id'], [detach_info])]
         )
 
         # Verify attachments list consistency
@@ -474,14 +497,15 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         # we need to check that build_bgpvpn_attach_info contains the expected
         # content precisely at the time when do_port_plug_refresh is called
-        self.mocked_bagpipe_agent.do_port_plug_refresh.side_effect = check_b_cb
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.side_effect = (
+            check_b_cb)
 
         # Delete the network associations
         self._net_assoc_notif(net_assoc, rpc_events.DELETED)
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
-            [mock.call(base.PORT10['id'], detach_info10),
-             mock.call(base.PORT11['id'], detach_info11)],
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(base.PORT10['id'], [detach_info10]),
+             mock.call(base.PORT11['id'], [detach_info11])],
             any_order=True
         )
 
@@ -543,7 +567,7 @@ class TestBgpvpnAgentExtensionMixin(object):
             [mock.call(base.PORT10['id']), mock.call(base.PORT11['id'])],
             any_order=True
         )
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_not_called()
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_not_called()
 
         # Verify attachments list consistency
         self._check_network_info(base.NETWORK1['id'], 2)
@@ -559,7 +583,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                     self.agent_ext.build_bgpvpn_attach_info(port['id'])
                 )
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.side_effect = (
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.side_effect = (
             check_build_cb_empty
         )
 
@@ -596,11 +620,11 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
         self.assertEqual(
             2,
-            self.mocked_bagpipe_agent.do_port_plug_refresh.call_count)
+            self.mocked_bagpipe_agent.do_port_plug_refresh_many.call_count)
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
-            [mock.call(base.PORT10['id'], detach_info_1),
-             mock.call(base.PORT11['id'], detach_info_2)],
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(base.PORT10['id'], [detach_info_1]),
+             mock.call(base.PORT11['id'], [detach_info_2])],
             any_order=True,
         )
 
@@ -657,7 +681,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                     self.agent_ext.build_bgpvpn_attach_info(port['id'])
                 )
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.side_effect = check_b_cb
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.side_effect = (
+            check_b_cb)
 
         self._net_assoc_notif(net_assoc, rpc_events.DELETED)
 
@@ -698,11 +723,11 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
         self.assertEqual(
             2,
-            self.mocked_bagpipe_agent.do_port_plug_refresh.call_count)
+            self.mocked_bagpipe_agent.do_port_plug_refresh_many.call_count)
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
-            [mock.call(base.PORT10['id'], detach_info_1),
-             mock.call(base.PORT11['id'], detach_info_2)],
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(base.PORT10['id'], [detach_info_1]),
+             mock.call(base.PORT11['id'], [detach_info_2])],
             any_order=True
         )
 
@@ -717,7 +742,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                     self.agent_ext.build_bgpvpn_attach_info(port['id'])
                 )
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.side_effect = (
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.side_effect = (
             check_build_cb_empty
         )
 
@@ -740,10 +765,10 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
         self.assertEqual(
             2,
-            self.mocked_bagpipe_agent.do_port_plug_refresh.call_count)
+            self.mocked_bagpipe_agent.do_port_plug_refresh_many.call_count)
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
-            [mock.call(base.PORT11['id'], detach_info_2)]
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(base.PORT11['id'], [detach_info_2])]
         )
 
         # Verify attachments list consistency
@@ -756,7 +781,7 @@ class TestBgpvpnAgentExtensionMixin(object):
         self._net_assoc_notif(net_assoc_2, rpc_events.DELETED)
 
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_not_called()
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_not_called()
 
     def test_net_assoc_with_plugged_ports(self):
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
@@ -775,7 +800,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                                                          delete=True))
 
         self.assertEqual(
-            2, self.mocked_bagpipe_agent.do_port_plug_refresh.call_count)
+            2, self.mocked_bagpipe_agent.do_port_plug_refresh_many.call_count)
 
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
 
@@ -785,7 +810,7 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         self._net_assoc_notif(net_assoc, rpc_events.DELETED)
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_not_called()
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_not_called()
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
 
     def test_net_assoc_single_port_l3_bgpvpn(self):
@@ -1001,8 +1026,8 @@ class TestBgpvpnAgentExtensionMixin(object):
             }
         }
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
-            [mock.call(base.PORT10['id'], detach_info)]
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(base.PORT10['id'], [detach_info])]
         )
 
         # Verify attachments list consistency
@@ -1278,8 +1303,8 @@ class TestBgpvpnAgentExtensionMixin(object):
             }
         }
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
-            [mock.call(base.PORT10['id'], detach_info)]
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(base.PORT10['id'], [detach_info])]
         )
 
     def test_port_with_prefix_route_then_delete_port(self):
@@ -1301,22 +1326,26 @@ class TestBgpvpnAgentExtensionMixin(object):
                                                       base.PORT10['id'],
                                                       detach=True)
         calls = [
-            mock.call(base.PORT10['id'], {
-                'network_id': base.NETWORK1['id'],
-                bbgp_const.IPVPN: {
-                    'ip_address': ip_address,
-                    'mac_address': base.PORT10['mac_address'],
-                    'local_port': local_port_l3['local_port']
-                }
-            })
-            for ip_address in (base.PORT10['ip_address'],
-                               "40.0.0.0/24",
-                               "60.0.0.0/16")
+            mock.call(base.PORT10['id'],
+                      UnorderedList(
+                          [HashableDict({
+                              'network_id': base.NETWORK1['id'],
+                              bbgp_const.IPVPN: HashableDict({
+                                  'ip_address': ip_address,
+                                  'mac_address': base.PORT10['mac_address'],
+                                  'local_port': HashableDict(
+                                      local_port_l3['local_port'])
+                                  })
+                              })
+                           for ip_address in (base.PORT10['ip_address'],
+                                              "40.0.0.0/24",
+                                              "60.0.0.0/16")
+                           ]))
         ]
 
         self.agent_ext.delete_port(None, self._port_data(base.PORT10))
 
-        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
             calls,
             any_order=True,
         )

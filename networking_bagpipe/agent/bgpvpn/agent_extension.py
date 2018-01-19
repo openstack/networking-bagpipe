@@ -87,12 +87,6 @@ config.register_agent_state_opts_helper(cfg.CONF)
 NO_NEED_FOR_VNI = -1
 
 
-def port_association_prefixes_lp(port_assoc):
-    return [(str(route.prefix), route.local_pref)
-            for route in port_assoc.routes
-            if route.type == bgpvpn_rc.PREFIX_TYPE]
-
-
 def port_association_prefixes(port_assoc):
     return [str(route['prefix'])
             for route in port_assoc.routes
@@ -250,18 +244,15 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                 self._check_arp_voodoo_unplug(port_info.network,
                                               last_port=True)
 
-            detach_infos = (
-                self._build_bgpvpn_detach_infos(port_info)
-            )
+            detach_infos = self._build_bgpvpn_detach_infos(port_info)
 
             # here we clean our cache for this port,
             # and for its network if this was the last port on the network
             self._remove_network_port_infos(port_info.network.id, port_id)
             self.ports.remove(port_id)
 
-            for detach_info in detach_infos:
-                self.bagpipe_bgp_agent.do_port_plug_refresh(port_id,
-                                                            detach_info)
+            self.bagpipe_bgp_agent.do_port_plug_refresh_many(port_id,
+                                                             detach_infos)
 
     @log_helpers.log_method_call
     @lockutils.synchronized('bagpipe-bgpvpn')
@@ -369,9 +360,9 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             LOG.debug("no association of type %s remains, detaching it for "
                       "all ports", assoc.bgpvpn.type)
             for port_info in net_info.ports:
-                for detach_info in detach_infos[port_info.id]:
-                    self.bagpipe_bgp_agent.do_port_plug_refresh(port_info.id,
-                                                                detach_info)
+                self.bagpipe_bgp_agent.do_port_plug_refresh_many(
+                    port_info.id,
+                    detach_infos[port_info.id])
 
             if assoc.bgpvpn.type == bgpvpn.BGPVPN_L3:
                 self._check_arp_voodoo_unplug(net_info, last_assoc=True)
@@ -411,17 +402,15 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             # update the port association, so that build_bgpvpn_attach_info
             # finds the updated version
             port_info.add_association(new_port_assoc)
-            refresh_done = False
-            for prefix in [p for p in old_prefixes if p not in new_prefixes]:
-                for detach_info in self._build_bgpvpn_detach_infos(
-                        port_info,
-                        bgpvpn.BGPVPN_L3,
-                        ip_address=prefix):
-                    refresh_done = True
-                    self.bagpipe_bgp_agent.do_port_plug_refresh(port_info.id,
-                                                                detach_info)
-            if not refresh_done:
-                self.bagpipe_bgp_agent.do_port_plug(port_info.id)
+
+            self.bagpipe_bgp_agent.do_port_plug_refresh_many(
+                port_info.id,
+                self._build_bgpvpn_detach_infos(
+                    port_info,
+                    bgpvpn.BGPVPN_L3,
+                    ip_addresses=[p for p in old_prefixes
+                                  if p not in new_prefixes])
+            )
         else:
             self._add_association_for_port(port_info, new_port_assoc)
 
@@ -808,19 +797,19 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
     @log_helpers.log_method_call
     def _build_bgpvpn_detach_infos(self, port_info, detach_bgpvpn_type=None,
-                                   ip_address=None):
+                                   ip_addresses=None):
         detach_infos = []
         # if ip_address is provided, we build detach info only for this
         # address, else we build detach_info for all prefixes of the port
-        ip_addresses = ([ip_address] if ip_address
-                        else ([port_info.ip_address] +
-                              self._port_prefixes(port_info)))
+        ip_addrs = (ip_addresses if ip_addresses
+                    else ([port_info.ip_address] +
+                          self._port_prefixes(port_info)))
         # if an association type is not provided, then detach for all VPN types
         # of all the associations relevant for the port
         bgpvpn_types = ([detach_bgpvpn_type] if detach_bgpvpn_type
                         else [assoc.bgpvpn.type for assoc in
                               port_info.all_associations])
-        for ip_addr in ip_addresses:
+        for ip_addr in ip_addrs:
             detach_info = {'network_id': port_info.network.id}
             for assoc_type in bgpvpn_types:
                 bbgp_vpn_type = bagpipe_vpn_type(assoc_type)

@@ -488,23 +488,50 @@ class BaGPipeBGPAgent(HTTPClientBase):
         }
         ]
         """
+        self.do_port_plug_refresh_many(port_id, [detach_infos])
+
+    @log_helpers.log_method_call
+    def do_port_plug_refresh_many(self, port_id, detach_info_list):
+        """Refresh port attach on bagpipe-bgp
+
+        Send port attach and/or detach request to bagpipe-bgp when necessary.
+
+        detach_infos, a list of:
+        {
+            'network_id': ...
+            'evpn': {
+                ...
+            }
+            'ipvpn': {
+                ...
+            }
+        }
+        ]
+        """
         plug_details = self._compile_port_attach_info(port_id)
 
-        network_id = detach_infos.pop('network_id')
-        for detach_vpn_type, detach_info in list(detach_infos.items()):
-            detach_info.setdefault(
-                'vpn_instance_id',
-                get_default_vpn_instance_id(detach_vpn_type, network_id))
-            detach_info['vpn_type'] = detach_vpn_type
+        for detach_infos in detach_info_list:
+            network_id = detach_infos.pop('network_id')
+            for detach_vpn_type, detach_info in list(detach_infos.items()):
+                if detach_vpn_type not in plug_details.keys():
+                    detach_info.setdefault(
+                        'vpn_instance_id',
+                        get_default_vpn_instance_id(detach_vpn_type,
+                                                    network_id))
+                    detach_info['vpn_type'] = detach_vpn_type
 
-            # NOTE(tmorin): to be reconsidered
-            self._check_evpn2ipvpn_info(detach_vpn_type, network_id,
-                                        plug_details, detach_info)
+                    # NOTE(tmorin): to be reconsidered
+                    self._check_evpn2ipvpn_info(detach_vpn_type, network_id,
+                                                plug_details, detach_info)
+                else:
+                    # NOTE(tmorin): this is buggy
+                    del detach_infos[detach_vpn_type]
 
-        if detach_infos:
-            # unplug IPVPN first, then EVPN (hence ::-1 below)
-            for vpn_type in [t for t in VPN_TYPES[::-1] if t in detach_infos]:
-                self._send_detach_local_port(detach_infos[vpn_type])
+            if detach_infos:
+                # unplug IPVPN first, then EVPN (hence ::-1 below)
+                for vpn_type in [t for t in VPN_TYPES[::-1]
+                                 if t in detach_infos]:
+                    self._send_detach_local_port(detach_infos[vpn_type])
 
         self._send_all_attachments(plug_details)
 
