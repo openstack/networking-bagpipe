@@ -305,10 +305,9 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
             length,
             len(self.vpn.localport_2_endpoints[localport['linuxif']]))
 
-        for mac_address, ip_address in endpoints:
-            endpoint_info = {'mac': mac_address, 'ip': ip_address}
+        for endpoint in endpoints:
             self.assertIn(
-                endpoint_info,
+                endpoint,
                 self.vpn.localport_2_endpoints[localport['linuxif']])
 
     def validate_convert_params_duplicate_rts(self):

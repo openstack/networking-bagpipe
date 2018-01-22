@@ -190,11 +190,11 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         self.log.debug("Start re-advertising %s from VRF", nlri.cidr.prefix())
         for _, endpoints in self.localport_2_endpoints.items():
             for endpoint in endpoints:
-                port_data = self.mac_2_localport_data[endpoint['mac']]
+                port_data = self.mac_2_localport_data[endpoint[0]]
                 label = port_data['label']
                 lb_consistent_hash_order = port_data[
                     'lb_consistent_hash_order']
-                rd = self.endpoint_2_rd[(endpoint['mac'], endpoint['ip'])]
+                rd = self.endpoint_2_rd[endpoint]
                 self.log.debug("Start re-advertising %s from VRF, with label "
                                "%s and route distinguisher %s",
                                nlri, label, rd)
@@ -215,11 +215,11 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         self.log.debug("Stop re-advertising %s from VRF", nlri.cidr.prefix())
         for _, endpoints in self.localport_2_endpoints.items():
             for endpoint in endpoints:
-                port_data = self.mac_2_localport_data[endpoint['mac']]
+                port_data = self.mac_2_localport_data[endpoint[0]]
                 label = port_data['label']
                 lb_consistent_hash_order = port_data[
                     'lb_consistent_hash_order']
-                rd = self.endpoint_2_rd[(endpoint['mac'], endpoint['ip'])]
+                rd = self.endpoint_2_rd[endpoint]
                 self.log.debug("Stop re-advertising %s from VRF, with label %s"
                                "and route distinguisher %s", nlri, label, rd)
                 self._withdraw_route_or_default(route, label, rd,
@@ -238,8 +238,9 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                                      localport, advertise_subnet,
                                      lb_consistent_hash_order, local_pref)
 
+        endpoint = (mac_address, ip_address_prefix)
         label = self.mac_2_localport_data[mac_address]['label']
-        rd = self.endpoint_2_rd[(mac_address, ip_address_prefix)]
+        rd = self.endpoint_2_rd[endpoint]
         for route in itertools.chain(
                 self.readvertised,
                 self._route_for_attract_static_dest_prefixes(label, rd)):
@@ -255,10 +256,11 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     def vif_unplugged(self, mac_address, ip_address_prefix,
                       lb_consistent_hash_order=0):
+        endpoint = (mac_address, ip_address_prefix)
         label = self.mac_2_localport_data[mac_address]['label']
         lb_consistent_hash_order = (self.mac_2_localport_data[mac_address]
                                     ["lb_consistent_hash_order"])
-        rd = self.endpoint_2_rd[(mac_address, ip_address_prefix)]
+        rd = self.endpoint_2_rd[endpoint]
         for route in itertools.chain(
                 self.readvertised,
                 self._route_for_attract_static_dest_prefixes(label, rd)):

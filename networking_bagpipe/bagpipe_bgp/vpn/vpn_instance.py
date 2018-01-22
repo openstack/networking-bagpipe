@@ -294,8 +294,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         self.localport_data = dict()
 
-        # One local port -> List of endpoints (MAC and IP addresses tuple)
-        self.localport_2_endpoints = dict()
+        # One local port -> set of endpoints (MAC and IP addresses tuple)
+        self.localport_2_endpoints = collections.defaultdict(set)
         # One endpoint (MAC and IP addresses tuple) -> One route distinguisher
         self.endpoint_2_rd = dict()
         # endpoint (MAC and IP addresses tuple) -> route entry
@@ -303,7 +303,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         # One MAC address -> One local port
         self.mac_2_localport_data = dict()
         # One IP address ->  Multiple MAC address
-        self.ip_address_2_mac = dict()
+        self.ip_address_2_mac = collections.defaultdict(set)
 
         # One endpoint (MAC and IP addresses tuple) -> BGP local_pref
         self.endpoint_2_lp = dict()
@@ -644,12 +644,21 @@ class VPNInstance(tracker_worker.TrackerWorker,
         cls.validate_convert_params(params)
         cls.translate_api_internal(params)
 
+    def _rd_for_endpoint(self, endpoint, message):
+        # endpoint is a (mac, ip_address_prefix) tuple
+        rd = self.endpoint_2_rd.get(endpoint)
+        if not rd:
+            rd = self.manager.rd_allocator.get_new_rd(message)
+            self.endpoint_2_rd[endpoint] = rd
+        return rd
+
     @utils.synchronized
     @log_decorator.log_info
     def vif_plugged(self, mac_address, ip_address_prefix, localport,
                     advertise_subnet=False,
                     lb_consistent_hash_order=0, local_pref=None):
         linuxif = localport['linuxif']
+        endpoint = (mac_address, ip_address_prefix)
         # Check if this port has already been plugged
         # - Verify port informations consistency
         if mac_address in self.mac_2_localport_data:
@@ -674,6 +683,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
                 plen = 32
 
             # - Verify (MAC address, IP address) tuple consistency
+            refresh_only = False
             if ip_address_prefix in self.ip_address_2_mac and plen == 32:
                 if mac_address not in self.ip_address_2_mac[ip_address_prefix]:
                     raise exc.APIException("Inconsistent endpoint info: %s "
@@ -681,6 +691,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
                                            "different from %s" %
                                            (ip_address_prefix, mac_address))
                 else:
+                    LOG.debug("IP/MAC already plugged, only updating route")
+                    refresh_only = True
                     return
 
             self.log.debug("Plugging port (%s)", ip_prefix)
@@ -696,7 +708,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
                 pdata["port_info"] = localport
                 pdata["lb_consistent_hash_order"] = lb_consistent_hash_order
 
-            endpoint_rd = self.manager.rd_allocator.get_new_rd(
+            endpoint_rd = self._rd_for_endpoint(
+                endpoint,
                 "Route distinguisher for %s %d, interface %s, "
                 "endpoint %s/%s" % (self.instance_type, self.instance_id,
                                     linuxif, mac_address,
@@ -705,9 +718,10 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
             rd = self.instance_rd if plen == 32 else endpoint_rd
 
-            # Call driver to setup the dataplane for incoming traffic
-            self.dataplane.vif_plugged(mac_address, ip_prefix,
-                                       localport, pdata['label'])
+            if not refresh_only:
+                # Call driver to setup the dataplane for incoming traffic
+                self.dataplane.vif_plugged(mac_address, ip_prefix,
+                                           localport, pdata['label'])
 
             self.log.info("Synthesizing and advertising BGP route for VIF %s "
                           "endpoint (%s, %s/%d)", linuxif,
@@ -718,37 +732,24 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
             self._advertise_route(route_entry)
 
-            self.endpoint_2_route[
-                (mac_address, ip_address_prefix)] = route_entry
-
-            if linuxif not in self.localport_2_endpoints:
-                self.localport_2_endpoints[linuxif] = list()
-
-            self.localport_2_endpoints[linuxif].append(
-                {'mac': mac_address, 'ip': ip_address_prefix}
-            )
-            self.endpoint_2_rd[(mac_address, ip_address_prefix)] = endpoint_rd
-            self.endpoint_2_lp[(mac_address, ip_address_prefix)] = local_pref
+            self.endpoint_2_route[endpoint] = route_entry
+            self.endpoint_2_rd[endpoint] = endpoint_rd
+            self.localport_2_endpoints[linuxif].add(endpoint)
+            self.endpoint_2_lp[endpoint] = local_pref
             self.mac_2_localport_data[mac_address] = pdata
 
-            if ip_address_prefix not in self.ip_address_2_mac:
-                self.ip_address_2_mac[ip_address_prefix] = list()
-
-            self.ip_address_2_mac[ip_address_prefix].append(mac_address)
+            self.ip_address_2_mac[ip_address_prefix].add(mac_address)
 
         except Exception as e:
             self.log.error("Error in vif_plugged: %s", e)
             if linuxif in self.localport_2_endpoints:
-                endpoint = {'mac': mac_address, 'ip': ip_address_prefix}
-                if endpoint in self.localport_2_endpoints[linuxif]:
-                    self.localport_2_endpoints[linuxif].remove(endpoint)
+                self.localport_2_endpoints[linuxif].discard(endpoint)
                 if not self.localport_2_endpoints[linuxif]:
                     del self.localport_2_endpoints[linuxif]
             if mac_address in self.mac_2_localport_data:
                 del self.mac_2_localport_data[mac_address]
-            if (ip_address_prefix in self.ip_address_2_mac and
-                    mac_address in self.ip_address_2_mac[ip_address_prefix]):
-                self.ip_address_2_mac[ip_address_prefix].remove(mac_address)
+            if ip_address_prefix in self.ip_address_2_mac:
+                self.ip_address_2_mac[ip_address_prefix].discard(mac_address)
 
             raise
 
@@ -763,25 +764,22 @@ class VPNInstance(tracker_worker.TrackerWorker,
                       lb_consistent_hash_order=0):
         # NOTE(tmorin): move this as a vif_unplugged_precheck, so that
         # in ipvpn.VRF this is done before readvertised route withdrawal
-
+        endpoint = (mac_address, ip_address_prefix)
         # Verify port and endpoint (MAC address, IP address) tuple consistency
         pdata = self.mac_2_localport_data.get(mac_address)
         if (not pdata or
                 (ip_address_prefix in self.ip_address_2_mac and
                  mac_address not in self.ip_address_2_mac[ip_address_prefix])
-                or
-                (mac_address, ip_address_prefix) not in self.endpoint_2_rd):
+                or endpoint not in self.endpoint_2_rd):
             self.log.error("vif_unplugged called for endpoint (%s, %s), but "
                            "no consistent informations or was not plugged yet",
-                           mac_address, ip_address_prefix)
+                           *endpoint)
             raise exc.APIException("Inconsistent endpoint (%s, %s) info "
                                    "or endpoint wasn't plugged yet, "
-                                   "cannot unplug" %
-                                   (mac_address, ip_address_prefix))
+                                   "cannot unplug" % endpoint)
 
         # Finding label and local port informations
         label = pdata.get('label')
-        endpoint_rd = self.endpoint_2_rd[(mac_address, ip_address_prefix)]
         localport = pdata.get('port_info')
         linuxif = localport['linuxif']
         if not label or not localport:
@@ -792,15 +790,14 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         if linuxif in self.localport_2_endpoints:
             # Parse address/mask
-            (ip_prefix, plen) = self._parse_ipaddress_prefix(ip_address_prefix)
+            (ip_prefix, _) = self._parse_ipaddress_prefix(ip_address_prefix)
 
             last_endpoint = len(self.localport_2_endpoints[linuxif]) <= 1
 
             self.log.info("Withdrawing BGP route for VIF %s endpoint "
                           "(%s, %s)", linuxif, mac_address, ip_address_prefix)
 
-            self._withdraw_route(
-                self.endpoint_2_route.pop((mac_address, ip_address_prefix)))
+            self._withdraw_route(self.endpoint_2_route.pop(endpoint))
 
             # Unplug endpoint from data plane
             self.dataplane.vif_unplugged(
@@ -814,24 +811,21 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
                 del self.localport_2_endpoints[linuxif]
             else:
-                self.localport_2_endpoints[linuxif].remove(
-                    {'mac': mac_address, 'ip': ip_address_prefix}
-                )
+                self.localport_2_endpoints[linuxif].remove(endpoint)
 
-            del self.endpoint_2_rd[(mac_address, ip_address_prefix)]
             # Free route distinguisher to the allocator
-            self.manager.rd_allocator.release(endpoint_rd)
+            self.manager.rd_allocator.release(self.endpoint_2_rd.pop(endpoint))
 
             if not last_endpoint:
-                if not any([endpoint['mac'] == mac_address
-                            for endpoint
+                if not any([ep[0] == mac_address
+                            for ep
                             in self.localport_2_endpoints[linuxif]]
                            ):
                     del self.mac_2_localport_data[mac_address]
             else:
                 del self.mac_2_localport_data[mac_address]
 
-            self.ip_address_2_mac[ip_address_prefix].remove(mac_address)
+            self.ip_address_2_mac[ip_address_prefix].discard(mac_address)
 
             if not self.ip_address_2_mac[ip_address_prefix]:
                 del self.ip_address_2_mac[ip_address_prefix]
@@ -998,15 +992,13 @@ class VPNInstance(tracker_worker.TrackerWorker,
         for (port, endpoints) in self.localport_2_endpoints.items():
             eps = []
             for endpoint in endpoints:
+                mac, ip = endpoint
                 eps.append({
-                    'label':
-                    self.mac_2_localport_data[endpoint['mac']]['label'],
-                    'mac_address': endpoint['mac'],
-                    'ip_address': endpoint['ip'],
-                    'local_pref': self.endpoint_2_lp.get((endpoint['mac'],
-                                                          endpoint['ip'])),
-                    'rd': repr(self.endpoint_2_rd[(endpoint['mac'],
-                                                   endpoint['ip'])])
+                    'label': self.mac_2_localport_data[mac]['label'],
+                    'mac_address': mac,
+                    'ip_address': ip,
+                    'local_pref': self.endpoint_2_lp.get(endpoint),
+                    'rd': repr(self.endpoint_2_rd[endpoint])
                 })
 
             r[port] = {
