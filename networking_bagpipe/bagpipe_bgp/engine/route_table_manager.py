@@ -502,7 +502,10 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
         # remove worker from all of its subscriptions
         for match in worker._rtm_matches:
             wa = self._match_2_workers_entries[match]
-            wa.del_worker(worker)
+            if wa.del_worker(worker):
+                self.callback_last_local_subscriber(
+                    engine.Subscription(match.afi, match.safi,
+                                        match.route_target, worker))
             self._check_match_2_workers_and_entries_cleanup(match)
 
         worker._rtm_matches.clear()
