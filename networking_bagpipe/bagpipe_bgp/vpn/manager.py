@@ -374,6 +374,7 @@ class VPNManager(lg.LookingGlassMixin):
             raise exc.VPNNotFound(external_instance_id)
 
         # Unplug VIF from VPN instance
+        # NOTE(tmorin): this readvertise parameter seems buggy
         vpn_instance.vif_unplugged(mac_address, ip_address_prefix, readvertise)
 
         if vpn_instance.type == constants.IPVPN and 'evpn' in localport:

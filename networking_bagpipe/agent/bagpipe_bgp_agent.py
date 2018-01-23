@@ -513,19 +513,15 @@ class BaGPipeBGPAgent(HTTPClientBase):
         for detach_infos in detach_info_list:
             network_id = detach_infos.pop('network_id')
             for detach_vpn_type, detach_info in list(detach_infos.items()):
-                if detach_vpn_type not in plug_details.keys():
-                    detach_info.setdefault(
-                        'vpn_instance_id',
-                        get_default_vpn_instance_id(detach_vpn_type,
-                                                    network_id))
-                    detach_info['vpn_type'] = detach_vpn_type
+                detach_info.setdefault(
+                    'vpn_instance_id',
+                    get_default_vpn_instance_id(detach_vpn_type,
+                                                network_id))
+                detach_info['vpn_type'] = detach_vpn_type
 
-                    # NOTE(tmorin): to be reconsidered
-                    self._check_evpn2ipvpn_info(detach_vpn_type, network_id,
-                                                plug_details, detach_info)
-                else:
-                    # NOTE(tmorin): this is buggy
-                    del detach_infos[detach_vpn_type]
+                # NOTE(tmorin): to be reconsidered
+                self._check_evpn2ipvpn_info(detach_vpn_type, network_id,
+                                            plug_details, detach_info)
 
             if detach_infos:
                 # unplug IPVPN first, then EVPN (hence ::-1 below)

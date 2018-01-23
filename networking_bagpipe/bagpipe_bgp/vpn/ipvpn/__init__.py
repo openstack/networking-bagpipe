@@ -254,7 +254,6 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                 self._advertise_route(flow_route)
 
     def vif_unplugged(self, mac_address, ip_address_prefix,
-                      advertise_subnet=False,
                       lb_consistent_hash_order=0):
         label = self.mac_2_localport_data[mac_address]['label']
         lb_consistent_hash_order = (self.mac_2_localport_data[mac_address]
@@ -274,7 +273,6 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                 self._withdraw_route(flow_route)
 
         super(VRF, self).vif_unplugged(mac_address, ip_address_prefix,
-                                       advertise_subnet,
                                        lb_consistent_hash_order)
 
     # Callbacks for BGP route updates (TrackerWorker) ########################

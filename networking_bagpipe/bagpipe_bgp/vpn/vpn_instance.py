@@ -298,6 +298,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
         self.localport_2_endpoints = dict()
         # One endpoint (MAC and IP addresses tuple) -> One route distinguisher
         self.endpoint_2_rd = dict()
+        # endpoint (MAC and IP addresses tuple) -> route entry
+        self.endpoint_2_route = dict()
         # One MAC address -> One local port
         self.mac_2_localport_data = dict()
         # One IP address ->  Multiple MAC address
@@ -713,6 +715,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
             self._advertise_route(route_entry)
 
+            self.endpoint_2_route[
+                (mac_address, ip_address_prefix)] = route_entry
+
             if linuxif not in self.localport_2_endpoints:
                 self.localport_2_endpoints[linuxif] = list()
 
@@ -752,7 +757,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
     @utils.synchronized
     @log_decorator.log_info
     def vif_unplugged(self, mac_address, ip_address_prefix,
-                      advertise_subnet=False, lb_consistent_hash_order=0):
+                      lb_consistent_hash_order=0):
         # NOTE(tmorin): move this as a vif_unplugged_precheck, so that
         # in ipvpn.VRF this is done before readvertised route withdrawal
 
@@ -786,24 +791,13 @@ class VPNInstance(tracker_worker.TrackerWorker,
             # Parse address/mask
             (ip_prefix, plen) = self._parse_ipaddress_prefix(ip_address_prefix)
 
-            last_endpoint = len(
-                self.localport_2_endpoints[linuxif]) <= 1
+            last_endpoint = len(self.localport_2_endpoints[linuxif]) <= 1
 
-            if not advertise_subnet and plen != 32:
-                self.log.debug("Using /32 instead of /%d", plen)
-                plen = 32
+            self.log.info("Withdrawing BGP route for VIF %s endpoint "
+                          "(%s, %s)", linuxif, mac_address, ip_address_prefix)
 
-            rd = self.instance_rd if plen == 32 else endpoint_rd
-
-            self.log.info("Synthesizing and withdrawing BGP route for VIF %s "
-                          "endpoint (%s, %s/%d)", linuxif,
-                          mac_address, ip_prefix, plen)
-
-            route_entry = self.synthesize_vif_bgp_route(
-                mac_address, ip_prefix, plen,
-                label, lb_consistent_hash_order, rd)
-
-            self._withdraw_route(route_entry)
+            self._withdraw_route(
+                self.endpoint_2_route.pop((mac_address, ip_address_prefix)))
 
             # Unplug endpoint from data plane
             self.dataplane.vif_unplugged(
