@@ -571,6 +571,13 @@ class TestRouteTableManager(testtools.TestCase, t.BaseTestBagPipeBGP):
         self.assertNotIn(evt2.route_entry, bgp_peer_worker1._rtm_route_entries,
                          "Route entry found")
 
+        # Cleanup Worker1
+        self.rtm.enqueue(engine.WorkerCleanupEvent(worker1))
+
+        self._wait()
+        # check that last local subscriber callback for RT1 is called
+        self.assertEqual(1, self.rtm.last_local_subscriber_callback.call_count)
+
     def test_e1_dump_state(self):
         # BGPPeerWorker1 advertises a route for RT1 and RT2
         bgp_peer_worker1 = self._new_worker("BGPWorker1", bpw.BGPPeerWorker)
