@@ -305,6 +305,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
         # One IP address ->  Multiple MAC address
         self.ip_address_2_mac = dict()
 
+        # One endpoint (MAC and IP addresses tuple) -> BGP local_pref
+        self.endpoint_2_lp = dict()
+
         # Redirected instances list from which traffic is attracted (based on
         # FlowSpec 5-tuple classification)
         self.redirected_instances = set()
@@ -725,6 +728,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
                 {'mac': mac_address, 'ip': ip_address_prefix}
             )
             self.endpoint_2_rd[(mac_address, ip_address_prefix)] = endpoint_rd
+            self.endpoint_2_lp[(mac_address, ip_address_prefix)] = local_pref
             self.mac_2_localport_data[mac_address] = pdata
 
             if ip_address_prefix not in self.ip_address_2_mac:
@@ -750,8 +754,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         self.log.info("localport_2_endpoints: %s", self.localport_2_endpoints)
         self.log.info("endpoint_2_rd: %s", self.endpoint_2_rd)
-        self.log.info("mac_2_localport_data: %s",
-                      self.mac_2_localport_data)
+        self.log.info("mac_2_localport_data: %s", self.mac_2_localport_data)
         self.log.info("ip_address_2_mac: %s", self.ip_address_2_mac)
 
     @utils.synchronized
@@ -839,8 +842,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
             raise Exception("bagpipe-bgp bug, check its logs")
 
         self.log.info("localport_2_endpoints: %s", self.localport_2_endpoints)
-        self.log.info("mac_2_localport_data: %s",
-                      self.mac_2_localport_data)
+        self.log.info("mac_2_localport_data: %s", self.mac_2_localport_data)
         self.log.info("ip_address_2_mac: %s", self.ip_address_2_mac)
 
     @utils.synchronized
@@ -1001,6 +1003,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
                     self.mac_2_localport_data[endpoint['mac']]['label'],
                     'mac_address': endpoint['mac'],
                     'ip_address': endpoint['ip'],
+                    'local_pref': self.endpoint_2_lp.get((endpoint['mac'],
+                                                          endpoint['ip'])),
                     'rd': repr(self.endpoint_2_rd[(endpoint['mac'],
                                                    endpoint['ip'])])
                 })
