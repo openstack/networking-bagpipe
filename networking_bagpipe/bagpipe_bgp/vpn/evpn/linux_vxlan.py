@@ -202,7 +202,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self.bridge_name = linuxbr
 
     @log_decorator.log_info
-    def vif_plugged(self, mac_address, ip_address, localport, label):
+    def vif_plugged(self, mac_address, ip_address, localport, dpid):
         # Plug localport only if bridge was created by us
         if BRIDGE_NAME_PREFIX in self.bridge_name:
             self.log.debug("Plugging localport %s into EVPN bridge %s",
@@ -219,7 +219,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self._fdb_dump()
 
     @log_decorator.log_info
-    def vif_unplugged(self, mac_address, ip_address, localport, label,
+    def vif_unplugged(self, mac_address, ip_address, localport, dpid,
                       last_endpoint=True):
 
         # remove local fdb entry, but only if tap interface is still here
@@ -237,7 +237,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self._fdb_dump()
 
     @log_decorator.log
-    def setup_dataplane_for_remote_endpoint(self, prefix, remote_pe, label,
+    def setup_dataplane_for_remote_endpoint(self, prefix, remote_pe, dpid,
                                             nlri, encaps):
         if self._cleaning_up:
             self.log.debug("setup_dataplane_for_remote_endpoint: instance"
@@ -246,7 +246,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
         mac = prefix
         ip = nlri.ip
-        vni = label
+        vni = dpid
 
         # populate bridge forwarding db
         self._run_command("bridge fdb replace %s dev %s dst %s vni %s" %
@@ -264,7 +264,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self._fdb_dump()
 
     @log_decorator.log
-    def remove_dataplane_for_remote_endpoint(self, prefix, remote_pe, label,
+    def remove_dataplane_for_remote_endpoint(self, prefix, remote_pe, dpid,
                                              nlri):
         if self._cleaning_up:
             self.log.debug("setup_dataplane_for_remote_endpoint: instance"
@@ -273,7 +273,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
         mac = prefix
         ip = nlri.ip
-        vni = label
+        vni = dpid
 
         self._fdb_dump()
 
@@ -290,13 +290,13 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self._fdb_dump()
 
     @log_decorator.log
-    def add_dataplane_for_bum_endpoint(self, remote_pe, label, nlri, encaps):
+    def add_dataplane_for_bum_endpoint(self, remote_pe, dpid, nlri, encaps):
         if self._cleaning_up:
             self.log.debug("setup_dataplane_for_remote_endpoint: instance"
                            " cleaning up, do nothing")
             return
 
-        vni = label
+        vni = dpid
 
         # 00:00:00:00:00 usable as default since kernel commit
         # 58e4c767046a35f11a55af6ce946054ddf4a8580 (2013-06-25)
@@ -307,13 +307,13 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self._fdb_dump()
 
     @log_decorator.log
-    def remove_dataplane_for_bum_endpoint(self, remote_pe, label, nlri):
+    def remove_dataplane_for_bum_endpoint(self, remote_pe, dpid, nlri):
         if self._cleaning_up:
             self.log.debug("setup_dataplane_for_remote_endpoint: instance"
                            " cleaning up, do nothing")
             return
 
-        vni = label
+        vni = dpid
 
         self._fdb_dump()
 
