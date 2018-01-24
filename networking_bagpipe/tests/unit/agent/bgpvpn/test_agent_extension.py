@@ -45,13 +45,15 @@ class HashableDict(dict):
         return hash(tuple(sorted(self.items())))
 
 
+def make_list_hashable(list_):
+    if isinstance(list_[0], dict):
+        return [HashableDict(d) for d in list_]
+
+
 class UnorderedList(list):
 
     def __eq__(self, other):
-        _other = other
-        if isinstance(other[0], dict):
-            _other = [HashableDict(d) for d in other]
-        return set(self) == set(_other)
+        return set(make_list_hashable(self)) == set(make_list_hashable(other))
 
 
 class TestBgpvpnAgentExtensionMixin(object):
@@ -1241,6 +1243,42 @@ class TestBgpvpnAgentExtensionMixin(object):
             [mock.call(base.PORT10['id'])]
         )
 
+        # delete port association
+
+        def check_build_cb2(*args):
+            self.assertDictEqual(
+                {},
+                self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+            )
+        self.mocked_bagpipe_agent.do_port_plug.reset_mock()
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.side_effect = (
+            check_build_cb2)
+
+        self._port_assoc_notif(port_assoc, rpc_events.DELETED)
+
+        # check that a detach is produced for the removed prefix route
+
+        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
+                                                      base.NETWORK1['id'],
+                                                      base.PORT10['id'],
+                                                      detach=True)
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(base.PORT10['id'],
+                       UnorderedList([
+                           {'network_id': base.NETWORK1['id'],
+                            bbgp_const.IPVPN: {
+                                'ip_address': ip_address,
+                                'mac_address': base.PORT10['mac_address'],
+                                'local_port': local_port_l3['local_port']
+                                }
+                            } for ip_address in (base.PORT10['ip_address'],
+                                                 "40.0.0.0/24")]))
+             ]
+        )
+        self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
+
     def test_port_assoc_update_removes_a_prefix_route(self):
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 
@@ -1328,18 +1366,15 @@ class TestBgpvpnAgentExtensionMixin(object):
         calls = [
             mock.call(base.PORT10['id'],
                       UnorderedList(
-                          [HashableDict({
-                              'network_id': base.NETWORK1['id'],
-                              bbgp_const.IPVPN: HashableDict({
-                                  'ip_address': ip_address,
-                                  'mac_address': base.PORT10['mac_address'],
-                                  'local_port': HashableDict(
-                                      local_port_l3['local_port'])
-                                  })
-                              })
-                           for ip_address in (base.PORT10['ip_address'],
-                                              "40.0.0.0/24",
-                                              "60.0.0.0/16")
+                          [{'network_id': base.NETWORK1['id'],
+                            bbgp_const.IPVPN: {
+                                'ip_address': ip_address,
+                                'mac_address': base.PORT10['mac_address'],
+                                'local_port': local_port_l3['local_port']
+                                }
+                            } for ip_address in (base.PORT10['ip_address'],
+                                                 "40.0.0.0/24",
+                                                 "60.0.0.0/16")
                            ]))
         ]
 
