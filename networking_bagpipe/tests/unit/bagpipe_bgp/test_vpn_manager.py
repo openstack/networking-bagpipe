@@ -37,6 +37,58 @@ GW_MASK = 24
 VNID = 255
 
 
+class MockVPNInstance(object):
+
+    type = consts.EVPN
+
+    def __init__(self, vpn_manager, dataplane_driver,
+                 external_instance_id, instance_id, import_rts, export_rts,
+                 gateway_ip, mask, readvertise, attract_traffic, fallback=None,
+                 **kwargs):
+        self.manager = vpn_manager
+
+        self.external_instance_id = external_instance_id
+        self.instance_type = self.__class__.__name__
+        self.instance_id = instance_id
+
+        self.import_rts = import_rts
+        self.export_rts = export_rts
+
+    def __repr__(self):
+        return "%s:%s:%s" % (self.instance_type,
+                             self.instance_id,
+                             self.external_instance_id)
+
+    @classmethod
+    def validate_convert_attach_params(*args):
+        pass
+
+    @classmethod
+    def validate_convert_detach_params(*args):
+        pass
+
+    def update_fallback(self, *args):
+        pass
+
+    def vif_plugged(self, *args):
+        pass
+
+    def vif_unplugged(self, *args):
+        pass
+
+    def start(self):
+        pass
+
+    def stop_if_empty(self):
+        pass
+
+    def stop(self):
+        pass
+
+    def join(self):
+        pass
+
+
 class TestVPNManager(t.TestCase):
 
     def setUp(self):
@@ -160,6 +212,45 @@ class TestVPNManager(t.TestCase):
 
         self.assertIsNot(0, vpn_instance.instance_label,
                          "VPN instance label should be assigned locally")
+
+    def test_instance_id_uniqueness(self):
+        with mock.patch.object(manager.VPNManager, 'type2class',
+                               {consts.IPVPN: MockVPNInstance,
+                                consts.EVPN: MockVPNInstance
+                                }):
+            vpn_instance_unplug_args = dict(vpn_type=consts.EVPN,
+                                            mac_address=MAC,
+                                            ip_address=IP)
+            vpn_instance_plug_args = dict(vpn_type=consts.EVPN,
+                                          import_rts=['64512:74'],
+                                          export_rts=[],
+                                          mac_address=MAC,
+                                          ip_address_prefix=IP,
+                                          gateway_ip=GW_IP,
+                                          local_port=LOCAL_PORT)
+            BASE_VPN_EXT = "extid-"
+
+            for i in (1, 2, 3, 4, 5):
+                self.manager.plug_vif_to_vpn(
+                    external_instance_id=BASE_VPN_EXT+str(i),
+                    **vpn_instance_plug_args)
+
+            for i in (2, 4):
+                self.manager.unplug_vif_from_vpn(
+                    external_instance_id=BASE_VPN_EXT+str(i),
+                    **vpn_instance_unplug_args)
+
+            for i in (6, 7, 8):
+                self.manager.plug_vif_to_vpn(
+                    external_instance_id=BASE_VPN_EXT+str(i),
+                    **vpn_instance_plug_args)
+
+            instance_ids = [i.instance_id
+                            for i in self.manager.vpn_instances.values()]
+
+            # ensure that each value is unique
+            self.assertEqual(len(self.manager.vpn_instances.values()),
+                             len(set(instance_ids)))
 
     @mock.patch('networking_bagpipe.bagpipe_bgp.engine.bgp_manager.Manager')
     def test_manager_stop(self, mocked_bgp_manager):
