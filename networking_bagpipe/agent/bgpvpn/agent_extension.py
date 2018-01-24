@@ -391,7 +391,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             try:
                 port_info = self.ports_info[port_assoc.port_id]
             except KeyError:
-                LOG.debug("port %s is not present, skipping")
+                LOG.debug("port %s is not present, skipping",
+                          port_assoc.port_id)
                 continue
             if event_type == rpc_events.CREATED:
                 self._add_association_for_port(port_info, port_assoc)
