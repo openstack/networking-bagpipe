@@ -69,6 +69,7 @@ class VPNManager(lg.LookingGlassMixin):
 
         # VPN instance dict
         self.vpn_instances = {}
+        self.next_vpn_instance_id = 1
 
         LOG.debug("Creating label allocator")
         self.label_allocator = label_allocator.LabelAllocator()
@@ -240,7 +241,8 @@ class VPNManager(lg.LookingGlassMixin):
         dataplane_driver = self.dataplane_drivers[instance_type]
 
         # unique internal vpn instance id
-        instance_id = len(self.vpn_instances) + 1
+        instance_id = self.next_vpn_instance_id
+        self.next_vpn_instance_id += 1
 
         vpn_instance = vpn_instance_class(self, dataplane_driver,
                                           external_instance_id, instance_id,
@@ -256,6 +258,7 @@ class VPNManager(lg.LookingGlassMixin):
         return vpn_instance
 
     @utils.synchronized
+    @log_decorator.log_info
     def remove_from_vpn_instances(self, external_instance_id):
         del self.vpn_instances[external_instance_id]
 
