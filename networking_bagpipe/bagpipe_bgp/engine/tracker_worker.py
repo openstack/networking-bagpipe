@@ -97,8 +97,10 @@ def equivalent_route_in_routes(function, route, routes):
 
 def compare_ecmp(worker, route_a, route_b):
     # makes a comparison based on LOCAL_PREF
-    l_a = route_a.attributes.get(exa.Attribute.CODE.LOCAL_PREF, -1)
-    l_b = route_b.attributes.get(exa.Attribute.CODE.LOCAL_PREF, -1)
+    l_a = route_a.attributes.get(exa.Attribute.CODE.LOCAL_PREF)
+    l_a = l_a.localpref if l_a else -1
+    l_b = route_b.attributes.get(exa.Attribute.CODE.LOCAL_PREF)
+    l_b = l_b.localpref if l_b else -1
     return (l_a > l_b) - (l_b > l_a)
 
 

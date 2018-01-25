@@ -860,3 +860,22 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
         self._check_calls(
             self.tracker_worker.best_route_removed.call_args_list,
             [(t.NLRI1, route1.route_entry, False)])
+
+    def test_max_lp_is_best(self):
+        worker_a = worker.Worker(mock.Mock(), 'worker')
+
+        route_lp55 = self._new_route_event(
+            engine.RouteEvent.ADVERTISE, t.NLRI1, [t.RT1, t.RT2],
+            worker_a, t.NH1, 55).route_entry
+
+        route_lp45 = self._new_route_event(
+            engine.RouteEvent.ADVERTISE, t.NLRI1, [t.RT1, t.RT2],
+            worker_a, t.NH1, 45).route_entry
+
+        self.assertTrue(
+            tracker_worker.compare_ecmp(mock.Mock(),
+                                        route_lp55, route_lp45) > 0)
+
+        self.assertTrue(
+            tracker_worker.compare_no_ecmp(mock.Mock(),
+                                           route_lp55, route_lp45) > 0)
