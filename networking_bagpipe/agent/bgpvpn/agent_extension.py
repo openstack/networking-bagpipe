@@ -18,6 +18,7 @@ L2 Agent extension to support bagpipe networking-bgpvpn driver RPCs in the
 OpenVSwitch and Linuxbridge agents
 """
 
+import collections
 import copy
 import itertools
 import netaddr
@@ -301,12 +302,6 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
     @log_helpers.log_method_call
     def _add_association_for_net(self, network_id, assoc, replug_ports=True):
-        if not any([assoc.bgpvpn.route_targets,
-                    assoc.bgpvpn.import_targets,
-                    assoc.bgpvpn.export_targets]):
-            LOG.debug("ignoring association %s because empty RT params")
-            return
-
         LOG.debug("add association with bgpvpn %s", assoc.bgpvpn)
 
         net_info = self.networks_info[network_id]
@@ -460,15 +455,9 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                 detach_bgpvpn_type=assoc.bgpvpn.type,
                 ip_addresses=ip_addresses))
 
-    def _format_associations_route_targets(self, assocs, bbgp_vpn_type):
-        rts = {bbgp_const.RT_IMPORT: set(),
-               bbgp_const.RT_EXPORT: set()}
+    def _format_associations_route_targets(self, assocs):
+        rts = collections.defaultdict(set)
         for assoc in assocs:
-            # only look at associations with a BGPVPN of a type
-            # that maps to bbgp_vpn_type
-            if bagpipe_vpn_type(assoc.bgpvpn.type) != bbgp_vpn_type:
-                continue
-
             rts[bbgp_const.RT_IMPORT] |= set(assoc.bgpvpn.route_targets or ())
             rts[bbgp_const.RT_IMPORT] |= set(assoc.bgpvpn.import_targets or ())
 
@@ -757,18 +746,18 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
     def _build_attachments(self, port_info, bbgp_vpn_type):
         net_info = port_info.network
 
+        assocs = [assoc for assoc in port_info.all_associations
+                  if bagpipe_vpn_type(assoc.bgpvpn.type) == bbgp_vpn_type]
+
+        # skip if we don't have any association with a BGPVPN
+        # of a type corresponding to bbgp_vpn_type
+        if not assocs:
+            return
+
         attach_info = self._base_attach_info(port_info, bbgp_vpn_type)
         attach_info['gateway_ip'] = net_info.gateway_info.ip
 
-        attach_info.update(
-            self._format_associations_route_targets(
-                port_info.all_associations, bbgp_vpn_type)
-        )
-
-        if (not attach_info[bbgp_const.RT_IMPORT] and
-                not attach_info[bbgp_const.RT_EXPORT]):
-            LOG.debug("no RTs for type %s, skipping", bbgp_vpn_type)
-            return {}
+        attach_info.update(self._format_associations_route_targets(assocs))
 
         if self._is_ovs_extension():
             # Add OVS VLAN information
@@ -817,7 +806,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
         # use the highest local_pref of all associations
         all_local_prefs = [assoc.bgpvpn.local_pref
-                           for assoc in port_info.all_associations
+                           for assoc in assocs
                            if assoc.bgpvpn.local_pref is not None]
         if all_local_prefs:
             attach_info['local_pref'] = max(all_local_prefs)

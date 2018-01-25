@@ -344,6 +344,25 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.assertEqual(
             self.mocked_bagpipe_agent.do_port_plug_refresh_many.call_count, 2)
 
+    def test_net_assoc_update_rts_to_empty(self):
+        self.agent_ext.handle_port(None, self._port_data(base.PORT10))
+
+        self.assertEqual(self.mocked_bagpipe_agent.do_port_plug.call_count, 0)
+
+        net_assoc = self._fake_net_assoc(base.NETWORK1,
+                                         bgpvpn.BGPVPN_L3,
+                                         **base.BGPVPN_L3_RT100)
+        self._net_assoc_notif(net_assoc, rpc_events.CREATED)
+
+        self.assertEqual(self.mocked_bagpipe_agent.do_port_plug.call_count, 1)
+        self.mocked_bagpipe_agent.do_port_plug.reset_mock()
+
+        net_assoc.bgpvpn.route_targets = []
+        self._net_assoc_notif(net_assoc, rpc_events.UPDATED)
+
+        self.mocked_bagpipe_agent.do_port_plug.assert_called()
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_not_called()
+
     def test_router_assoc_update_then_remove(self):
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
         self.agent_ext.handle_port(None, self._port_data(base.PORT11))
@@ -1126,32 +1145,17 @@ class TestBgpvpnAgentExtensionMixin(object):
                                  route_targets=['12345:6', '12345:1'],
                                  import_targets=['12345:2'],
                                  export_targets=[]
-                                 ),
-            self._fake_net_assoc(n, bgpvpn.BGPVPN_L2,
-                                 route_targets=['12347:1'],
-                                 import_targets=['12347:1'],
-                                 export_targets=[]
                                  )
         ]
-        result_ipvpn = self.agent_ext._format_associations_route_targets(
-            assocs, 'ipvpn')
+        result = self.agent_ext._format_associations_route_targets(assocs)
         expected = {
             'import_rt': ['12345:1', '12345:2', '12345:3', '12345:5',
                           '12345:6'],
             'export_rt': ['12345:1', '12345:2', '12345:3', '12345:8',
                           '12345:6']
         }
-        self.assertItemsEqual(result_ipvpn['import_rt'], expected['import_rt'])
-        self.assertItemsEqual(result_ipvpn['export_rt'], expected['export_rt'])
-
-        result_evpn = self.agent_ext._format_associations_route_targets(
-            assocs, 'evpn')
-        expected = {
-            'import_rt': ['12347:1'],
-            'export_rt': ['12347:1']
-        }
-        self.assertItemsEqual(result_evpn['import_rt'], expected['import_rt'])
-        self.assertItemsEqual(result_evpn['export_rt'], expected['export_rt'])
+        self.assertItemsEqual(result['import_rt'], expected['import_rt'])
+        self.assertItemsEqual(result['export_rt'], expected['export_rt'])
 
     def test_port_association_before_port_up(self):
         port_assoc = self._fake_port_assoc(
