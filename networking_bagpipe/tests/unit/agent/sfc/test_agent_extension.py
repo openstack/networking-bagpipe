@@ -805,23 +805,23 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
         # Prepare expected information for DELETE
         linuxbr1 = LinuxBridgeManager.get_bridge_name(base.NETWORK1['id'])
 
-        detach_info10 = [dict(
+        detach_info10 = dict(
             network_id=base.NETWORK1['id'],
             ipvpn=dict(
                 ip_address=base.PORT10['ip_address'] + '/32',
                 mac_address=base.PORT10['mac_address'],
                 local_port=dict(linuxif=linuxbr1)
             )
-        )]
+        )
 
-        detach_info11 = [dict(
+        detach_info11 = dict(
             network_id=base.NETWORK1['id'],
             ipvpn=dict(
                 ip_address=base.PORT11['ip_address'] + '/32',
                 mac_address=base.PORT11['mac_address'],
                 local_port=dict(linuxif=linuxbr1)
             )
-        )]
+        )
 
         def check_build_cb(port_id, detach_info):
             self.assertDictEqual(

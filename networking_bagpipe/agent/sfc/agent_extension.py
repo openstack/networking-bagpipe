@@ -293,7 +293,7 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
                     ports_to_detach[port_id] = detach_info
 
         for port_id, detach_info in ports_to_detach.items():
-            self.bagpipe_bgp_agent.do_port_plug_refresh(port_id, [detach_info])
+            self.bagpipe_bgp_agent.do_port_plug_refresh(port_id, detach_info)
 
     def handle_sfc_port_hops(self, context, resource_type, port_hops,
                              event_type):
