@@ -802,6 +802,18 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             LOG.debug("reusing vni %s for net %s", vni, net_info.id)
             attach_info['vni'] = vni
 
+            all_vnis = [
+                assoc.bgpvpn.vni
+                for assoc in port_info.network.associations
+                if (bagpipe_vpn_type(assoc.bgpvpn.type) == bbgp_vpn_type
+                    and assoc.bgpvpn.vni is not None)
+            ]
+            if all_vnis:
+                if len(all_vnis) > 1:
+                    LOG.warning("multiple VNIs for port %s, using %d",
+                                port_info.id, all_vnis[0])
+                attach_info['vni'] = all_vnis[0]
+
         # use the highest local_pref of all associations
         all_local_prefs = [assoc.bgpvpn.local_pref
                            for assoc in port_info.all_associations

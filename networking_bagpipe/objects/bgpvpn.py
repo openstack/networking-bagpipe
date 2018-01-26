@@ -83,6 +83,7 @@ class BGPVPN(base.NeutronDbObject):
         'export_targets': obj_fields.ListOfStringsField(nullable=True),
         'route_distinguishers': obj_fields.ListOfStringsField(nullable=True),
         'local_pref': obj_fields.IntegerField(nullable=True),
+        'vni': obj_fields.IntegerField(nullable=True),
     }
 
     foreign_keys = {'BGPVPNNetAssociation': {'id': 'bgpvpn_id'},

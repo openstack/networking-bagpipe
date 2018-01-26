@@ -1452,6 +1452,48 @@ class TestBgpvpnAgentExtensionMixin(object):
             [mock.call(base.PORT10['id'], [detach_info])]
         )
 
+    def test_net_assoc_l2_bgpvpn_vni(self):
+        if isinstance(self, TestOVSAgentExtension):
+            self.skipTest("not relevant for OVS, because no EVPN driver")
+
+        self.agent_ext.handle_port(None, self._port_data(base.PORT10))
+
+        net_assoc = self._fake_net_assoc(base.NETWORK1,
+                                         bgpvpn.BGPVPN_L2,
+                                         **base.BGPVPN_L2_RT10)
+        net_assoc.bgpvpn.vni = 4242
+
+        def check_build_cb(*args):
+            # Verify build callback attachments
+            local_port = self._get_expected_local_port(bbgp_const.EVPN,
+                                                       base.NETWORK1['id'],
+                                                       base.PORT10['id'])
+            self.assertDictEqual(
+                dict(
+                    network_id=base.NETWORK1['id'],
+                    evpn=[dict(
+                        ip_address=base.PORT10['ip_address'],
+                        mac_address=base.PORT10['mac_address'],
+                        gateway_ip=base.NETWORK1['gateway_ip'],
+                        vni=4242,
+                        **dict(list(local_port.items()) +
+                               list(self._expand_rts(
+                                    base.BGPVPN_L2_RT10).items()))
+                    )]
+                ),
+                self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+            )
+
+        self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb
+
+        self._net_assoc_notif(net_assoc, rpc_events.UPDATED)
+
+        self.mocked_bagpipe_agent.do_port_plug.assert_has_calls(
+            [mock.call(base.PORT10['id'])]
+        )
+
+        self._check_network_info(base.NETWORK1['id'], 1)
+
 
 class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                             TestBgpvpnAgentExtensionMixin):
