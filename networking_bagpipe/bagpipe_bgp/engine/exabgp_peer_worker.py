@@ -196,6 +196,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             bgp_peer_worker.DEFAULT_HOLDTIME)
         neighbor.connect = cfg.CONF.BGP.bgp_port
         neighbor.api = collections.defaultdict(list)
+        neighbor.extended_message = False
 
         for afi_safi in self.enabled_families:
             neighbor.add_family(afi_safi)
