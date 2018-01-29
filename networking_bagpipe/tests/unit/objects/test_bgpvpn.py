@@ -48,6 +48,7 @@ test_base.FIELD_TYPE_VALUE_GENERATOR_MAP[
 CIDR = "10.10.0.0/16"
 GW_IP = "10.10.0.1"
 GW_MAC = "ba:ad:00:00:ca:fe"
+TEST_RT = "64512:42"
 
 
 def _subnet_dict(gw_mac=None):
@@ -64,7 +65,7 @@ class _BPGVPNObjectsTestCommon(object):
 
     def _create_test_bgpvpn(self):
         bgpvpn = bgpvpn_obj.BGPVPN(self.context,
-                                   route_targets=['64512:42'],
+                                   route_targets=[TEST_RT],
                                    name='test-bgpvpn-U',
                                    type='l3')
         bgpvpn.create()
@@ -188,7 +189,8 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
         self.router_id = self._create_test_router_id()
         self.update_obj_fields(
             {'router_id': self.router_id,
-             'bgpvpn_id': self._create_test_bgpvpn_id})
+             'bgpvpn_id': self._create_test_bgpvpn_id,
+             'routes': []})
         self.context = context.get_admin_context()
 
     def test_get_objects_queries_constant(self):
@@ -284,7 +286,10 @@ class BGPVPNPortAssociationTest(test_base.BaseDbObjectTestCase,
         self.port_id = self._create_test_port_id()
         self.update_obj_fields(
             {'port_id': self.port_id,
-             'bgpvpn_id': self._create_test_bgpvpn_id})
+             'bgpvpn_id': self._create_test_bgpvpn_id,
+             'routes': {
+                 'bgpvpn_id': self._create_test_bgpvpn_id,
+                 }})
 
     def test_get_objects_queries_constant(self):
         self.skipTest("test not passing yet, remains to be investigated why")
@@ -295,6 +300,14 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
                                      _BPGVPNObjectsTestCommon):
 
     _test_class = bgpvpn_obj.BGPVPNPortAssociationRoute
+
+    def setUp(self):
+        test_base.BaseDbObjectTestCase.setUp(self)
+        self.project = uuidutils.generate_uuid()
+        self.update_obj_fields(
+            {'port_association_id': self._create_test_port_assoc_id,
+             'bgpvpn_id': self._create_test_bgpvpn_id})
+        self.context = context.get_admin_context()
 
     def _create_test_port_assoc(self):
         bgpvpn_id = self._create_test_bgpvpn_id()
@@ -309,19 +322,22 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
     def _create_test_port_assoc_id(self):
         return self._create_test_port_assoc().id
 
-    def setUp(self):
-        test_base.BaseDbObjectTestCase.setUp(self)
-        self.project = uuidutils.generate_uuid()
-        self.update_obj_fields(
-            {'port_association_id': self._create_test_port_assoc_id})
-
-    def test_eq_hash(self):
+    def test_eq_hash_prefix(self):
         r1 = bgpvpn_obj.BGPVPNPortAssociationRoute(
             type='prefix',
             prefix=netaddr.IPNetwork('1.2.3.4'))
         r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(
             type='prefix',
             prefix=netaddr.IPNetwork('1.2.3.4'))
+        self.assertTrue(r1 == r2)
+        self.assertTrue(hash(r1) == hash(r2))
+
+    def test_eq_hash_bgpvpn(self):
+        bgpvpn = self._create_test_bgpvpn()
+        r1 = bgpvpn_obj.BGPVPNPortAssociationRoute(type='bgpvpn',
+                                                   bgpvpn=bgpvpn)
+        r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(type='bgpvpn',
+                                                   bgpvpn=bgpvpn)
         self.assertTrue(r1 == r2)
         self.assertTrue(hash(r1) == hash(r2))
 
@@ -342,3 +358,29 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
             type='prefix',
             prefix=netaddr.IPNetwork('1.2.3.4'))
         self.assertTrue(r1 != r2)
+
+    def test_neq_bgpvpn(self):
+        bgpvpn1 = self._create_test_bgpvpn()
+        bgpvpn2 = self._create_test_bgpvpn()
+        r1 = bgpvpn_obj.BGPVPNPortAssociationRoute(type='bgpvpn',
+                                                   bgpvpn=bgpvpn1)
+        r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(type='bgpvpn',
+                                                   bgpvpn=bgpvpn2)
+        self.assertTrue(r1 != r2)
+
+    def test_bgpvpn_route_get_object_access_bgpvpn(self):
+        route_id = uuidutils.generate_uuid()
+        route = bgpvpn_obj.BGPVPNPortAssociationRoute(
+            self.context,
+            id=route_id,
+            port_association_id=self._create_test_port_assoc().id,
+            type=bgpvpn_rc_api.BGPVPN_TYPE,
+            bgpvpn_id=self._create_test_bgpvpn_id())
+        route.create()
+
+        route_again = bgpvpn_obj.BGPVPNPortAssociationRoute.get_object(
+            self.context,
+            id=route_id
+            )
+
+        self.assertEqual([TEST_RT], route_again.bgpvpn.route_targets)

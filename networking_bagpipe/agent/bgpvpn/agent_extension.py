@@ -730,8 +730,6 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         attach_info = self._base_attach_info(port_info, bbgp_vpn_type)
         attach_info['gateway_ip'] = net_info.gateway_info.ip
 
-        attach_info.update(format_associations_route_targets(assocs))
-
         if self._is_ovs_extension():
             # Add OVS VLAN information
             vlan = self.vlan_manager.get(net_info.id).vlan
@@ -815,25 +813,48 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         for port_assoc in [
                 pa for pa in port_info.associations
                 if bagpipe_vpn_type(pa.bgpvpn.type) == bbgp_vpn_type]:
-            for route in [r for r in port_assoc.routes
-                          if r['type'] == bgpvpn_rc.PREFIX_TYPE]:
+            for route in port_assoc.routes:
                 attachment = copy.deepcopy(attach_info)
                 attachment['vpn_instance_id'] = (
                     vpn_instance_id_for_port_assoc_route(port_assoc, route))
                 attachment['direction'] = 'to-port'
-                attachment['ip_address'] = str(route.prefix)
-                attachment['instance_description'] = (
-                    'BGPVPN Port association: prefix route %s to BGPVPN %s '
-                    'via port %s' % (
-                        str(route.prefix),
-                        port_assoc.bgpvpn.name or port_assoc.bgpvpn.id,
-                        port_info.id))
                 attachment.update(
                     format_associations_route_targets([port_assoc]))
-                if '/' in str(route.prefix):
-                    attachment['advertise_subnet'] = True
                 attachment['local_pref'] = (
                     route.local_pref or port_assoc.bgpvpn.local_pref)
+
+                bgpvpn_desc = port_assoc.bgpvpn.name or port_assoc.bgpvpn.id
+
+                if route.type == bgpvpn_rc.PREFIX_TYPE:
+                    attachment['ip_address'] = str(route.prefix)
+                    attachment['instance_description'] = (
+                        "BGPVPN Port association: prefix route %s to BGPVPN "
+                        "%s via port %s (%s)" % (str(route.prefix),
+                                                 bgpvpn_desc,
+                                                 port_info.id,
+                                                 port_info.ip_address))
+                    if '/' in str(route.prefix):
+                        attachment['advertise_subnet'] = True
+
+                elif route.type == bgpvpn_rc.BGPVPN_TYPE:
+                    if not port_assoc.advertise_fixed_ips:
+                        LOG.warning("ignoring advertise_fixed_ips False for "
+                                    "assoc %s, route %s", port_assoc, route)
+                    attachment['ip_address'] = port_info.ip_address
+                    attachment['instance_description'] = (
+                        "BGPVPN Port association: route leaking from %s into "
+                        "%s via port %s (%s)" % (route.bgpvpn.name,
+                                                 bgpvpn_desc,
+                                                 port_info.id,
+                                                 port_info.ip_address))
+                    attachment['readvertise'] = {
+                        'from_rt': (set(route.bgpvpn.route_targets) |
+                                    set(route.bgpvpn.import_targets)),
+                        'to_rt': (set(port_assoc.bgpvpn.route_targets) |
+                                  set(port_assoc.bgpvpn.export_targets))
+                    }
+                else:
+                    LOG.error("unknown type: %s", route.type)
 
                 attachments.append(attachment)
 
@@ -851,12 +872,16 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
         routes = [specific_route] if specific_route else assoc.routes
         for route in routes:
-            if route['type'] == bgpvpn_rc.PREFIX_TYPE:
-                detach = copy.deepcopy(base)
-                detach[bbgp_vpn_type]['vpn_instance_id'] = (
-                    vpn_instance_id_for_port_assoc_route(assoc, route))
+            detach = copy.deepcopy(base)
+            detach[bbgp_vpn_type]['vpn_instance_id'] = (
+                vpn_instance_id_for_port_assoc_route(assoc, route))
+            if route.type == bgpvpn_rc.PREFIX_TYPE:
                 detach[bbgp_vpn_type]['ip_address'] = str(route.prefix)
-                detach_infos.append(detach)
+            elif route.type == bgpvpn_rc.BGPVPN_TYPE:
+                detach[bbgp_vpn_type]['ip_address'] = port_info.ip_address
+            else:
+                LOG.error("unknown type: %s", route.type)
+            detach_infos.append(detach)
 
         if specific_route is None:
             if advertise_fixed_ip(port_info):
@@ -899,6 +924,23 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                     detach_infos.extend(
                         self._build_detach_infos_for_port_assoc(port_info,
                                                                 association))
+
+        # detach information for BGPVPN leaks
+        # FIXME: this should only be done this when detaching all endpoints
+        # Need to handle the casse where:
+        # - only one bgpvpn leaking route is removed
+        # - one association is removed
+        for port_assoc in port_info.associations:
+            for route in [route for route in port_assoc.routes
+                          if route['type'] == bgpvpn_rc.BGPVPN_TYPE]:
+                detach_info = {
+                    bbgp_vpn_type: self._base_attach_info(port_info,
+                                                          bbgp_vpn_type)
+                }
+                detach_info[bbgp_vpn_type]['vpn_instance_id'] = (
+                    vpn_instance_id_for_port_assoc_route(port_assoc, route))
+                detach_info[bbgp_vpn_type]['ip_address'] = port_info.ip_address
+                detach_infos.append(detach_info)
 
         LOG.debug("detach_infos: %s", detach_infos)
         return detach_infos

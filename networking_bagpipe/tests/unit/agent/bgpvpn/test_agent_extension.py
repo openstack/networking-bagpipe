@@ -30,6 +30,7 @@ from neutron.api.rpc.callbacks import events as rpc_events
 from neutron.api.rpc.handlers import resources_rpc
 
 from neutron_lib.api.definitions import bgpvpn
+from neutron_lib import context
 
 
 class HashableDict(dict):
@@ -56,11 +57,24 @@ class UnorderedList(list):
         return set(make_list_hashable(self)) == set(make_list_hashable(other))
 
 
+class StringContains(object):
+
+    def __init__(self, *items):
+        self.items = items
+
+    def __eq__(self, other):
+        return all([(item in other) for item in self.items])
+
+    def __repr__(self):
+        return 'StringContains(%s)' % ','.join(self.items)
+
+
 class TestBgpvpnAgentExtensionMixin(object):
 
     def setUp(self):
         self.mocked_rpc_pull = mock.patch.object(
             self.agent_ext.rpc_pull_api, 'bulk_pull').start()
+        self.context = context.get_admin_context()
 
     @mock.patch.object(registry, 'register')
     @mock.patch.object(resources_rpc, 'ResourcesPushRpcCallback')
@@ -96,17 +110,18 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         return vpn_info
 
-    def _fake_bgpvpn(self, bgpvpn_type, **bgpvpn_params):
-        return objects.BGPVPN(None,
-                              id=uuidutils.generate_uuid(),
+    def _fake_bgpvpn(self, bgpvpn_type, id=None, **bgpvpn_params):
+        return objects.BGPVPN(self.context,
+                              id=id or uuidutils.generate_uuid(),
                               type=bgpvpn_type,
                               **bgpvpn_params)
 
     def _fake_net_assoc(self, network, bgpvpn_type, gateway_mac=None,
                         **bgpvpn_params):
-        bgpvpn = self._fake_bgpvpn(bgpvpn_type, **bgpvpn_params)
+        bgpvpn = self._fake_bgpvpn(bgpvpn_type,
+                                   **bgpvpn_params)
         net_assoc = objects.BGPVPNNetAssociation(
-            None,
+            self.context,
             id=uuidutils.generate_uuid(),
             network_id=network['id'],
             bgpvpn_id=bgpvpn.id,
@@ -126,7 +141,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                            **bgpvpn_params):
         bgpvpn = self._fake_bgpvpn(bgpvpn_type, **bgpvpn_params)
         router_assoc = objects.BGPVPNRouterAssociation(
-            None,
+            self.context,
             id=uuidutils.generate_uuid(),
             router_id=router['id'],
             bgpvpn_id=bgpvpn.id,
@@ -144,12 +159,12 @@ class TestBgpvpnAgentExtensionMixin(object):
         return router_assoc
 
     def _fake_port_assoc(self, port, bgpvpn_type, network, gateway_mac=None,
-                         route_prefixes=None, id=None,
+                         route_prefixes=None, id=None, bgpvpn_routes=None,
                          advertise_fixed_ips=True,
                          **bgpvpn_params):
         bgpvpn = self._fake_bgpvpn(bgpvpn_type, **bgpvpn_params)
         port_assoc = objects.BGPVPNPortAssociation(
-            None,
+            self.context,
             id=id or uuidutils.generate_uuid(),
             port_id=port['id'],
             bgpvpn_id=bgpvpn.id,
@@ -165,13 +180,26 @@ class TestBgpvpnAgentExtensionMixin(object):
         }]
 
         route_prefixes = route_prefixes or []
-        port_assoc.routes = [
+        bgpvpn_routes = bgpvpn_routes or []
+
+        prefix_routes = [
             objects.BGPVPNPortAssociationRoute(
-                None,
+                self.context,
                 type='prefix',
                 prefix=netaddr.IPNetwork(prefix),
                 local_pref=local_pref)
             for prefix, local_pref in route_prefixes]
+
+        bgpvpn_routes_objs = [
+            objects.BGPVPNPortAssociationRoute(
+                self.context,
+                type='bgpvpn',
+                bgpvpn=bgpvpn_,
+                bgpvpn_id=bgpvpn_.id,
+                local_pref=local_pref)
+            for bgpvpn_, local_pref in bgpvpn_routes]
+
+        port_assoc.routes = prefix_routes + bgpvpn_routes_objs
 
         return port_assoc
 
@@ -1383,13 +1411,13 @@ class TestBgpvpnAgentExtensionMixin(object):
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
             )
 
+        self.mocked_bagpipe_agent.do_port_plug.reset_mock()
         self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.reset_mock()
 
         self._port_assoc_notif(new_port_assoc, rpc_events.UPDATED)
 
-        self.mocked_bagpipe_agent.do_port_plug.assert_has_calls(
-            [mock.call(base.PORT10['id'])]
-        )
+        self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
 
         # check that a detach is produced for the removed prefix route
 
@@ -1540,6 +1568,237 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
             [mock.call(base.PORT10['id'], [detach_info])]
+        )
+
+    def test_port_assoc_bgpvpn_routes(self):
+        from_bgpvpns = [
+            (self._fake_bgpvpn(bgpvpn.BGPVPN_L3, import_targets=['64512:96']),
+             44),
+            (self._fake_bgpvpn(bgpvpn.BGPVPN_L3, import_targets=['64512:97']),
+             55)
+        ]
+
+        port_assoc = self._fake_port_assoc(
+            base.PORT10,
+            bgpvpn.BGPVPN_L3,
+            base.NETWORK1,
+            bgpvpn_routes=from_bgpvpns,
+            export_targets=['64512:98'],
+            import_targets=['64512:99']
+        )
+
+        self.mocked_rpc_pull.side_effect = [[], [], [port_assoc]]
+
+        def check_build_cb(*args):
+            # Verify build callback attachments
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
+                                                       base.NETWORK1['id'],
+                                                       base.PORT10['id'])
+            self.assertDictEqual(
+                dict(
+                    network_id=base.NETWORK1['id'],
+                    ipvpn=[
+                        dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
+                            ip_address=base.PORT10['ip_address'],
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            export_rt=set(['64512:98']),
+                            import_rt=set(['64512:99']),
+                        ),
+                        dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
+                            vpn_instance_id=StringContains(
+                                "ipvpn_portassoc",
+                                port_assoc.id,
+                                from_bgpvpns[0][0].id),
+                            direction='to-port',
+                            ip_address=base.PORT10['ip_address'],
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            readvertise={
+                                'from_rt': set(['64512:96']),
+                                'to_rt': set(['64512:98'])
+                                },
+                            import_rt=set(['64512:99']),
+                            export_rt=set(['64512:98']),
+                            local_pref=44,
+                        ),
+                        dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
+                            vpn_instance_id=StringContains(
+                                "ipvpn_portassoc",
+                                port_assoc.id,
+                                from_bgpvpns[1][0].id),
+                            direction='to-port',
+                            ip_address=base.PORT10['ip_address'],
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            readvertise={
+                                'from_rt': set(['64512:97']),
+                                'to_rt': set(['64512:98'])
+                                },
+                            import_rt=set(['64512:99']),
+                            export_rt=set(['64512:98']),
+                            local_pref=55,
+                        ),
+                    ]
+                ),
+                self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+            )
+
+        self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb
+
+        self.agent_ext.handle_port(None, self._port_data(base.PORT10))
+
+        self.mocked_bagpipe_agent.do_port_plug.assert_has_calls(
+            [mock.call(base.PORT10['id'])]
+        )
+
+        self._check_network_info(base.NETWORK1['id'], 1)
+
+        # remove one of the BGPVPN leaking routes
+        # (keep only the second one)
+
+        from_bgpvpns_bis = [
+            (self._fake_bgpvpn(bgpvpn.BGPVPN_L3,
+                               id=from_bgpvpns[1][0].id,
+                               import_targets=['64512:97']),
+             55)
+        ]
+
+        new_port_assoc = self._fake_port_assoc(base.PORT10,
+                                               bgpvpn.BGPVPN_L3,
+                                               base.NETWORK1,
+                                               id=port_assoc.id,
+                                               bgpvpn_routes=from_bgpvpns_bis,
+                                               export_targets=['64512:98'],
+                                               import_targets=['64512:99']
+                                               )
+
+        def check_build_cb(*args):
+            # Verify build callback attachments
+            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
+                                                       base.NETWORK1['id'],
+                                                       base.PORT10['id'])
+            self.assertDictEqual(
+                dict(
+                    network_id=base.NETWORK1['id'],
+                    ipvpn=[
+                        dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
+                            ip_address=base.PORT10['ip_address'],
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            export_rt=set(['64512:98']),
+                            import_rt=set(['64512:99']),
+                        ),
+                        dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
+                            vpn_instance_id=StringContains(
+                                "ipvpn_portassoc",
+                                port_assoc.id,
+                                from_bgpvpns[1][0].id),
+                            direction='to-port',
+                            ip_address=base.PORT10['ip_address'],
+                            mac_address=base.PORT10['mac_address'],
+                            gateway_ip=base.NETWORK1['gateway_ip'],
+                            local_port=local_port['local_port'],
+                            readvertise={
+                                'from_rt': set(['64512:97']),
+                                'to_rt': set(['64512:98'])
+                                },
+                            import_rt=set(['64512:99']),
+                            export_rt=set(['64512:98']),
+                            local_pref=55,
+                        ),
+                    ]
+                ),
+                self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+            )
+
+        self.mocked_bagpipe_agent.do_port_plug.reset_mock()
+        self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.reset_mock()
+
+        self._port_assoc_notif(new_port_assoc, rpc_events.UPDATED)
+
+        self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
+
+        # check that a detach is produced for the removed prefix route
+
+        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
+                                                      base.NETWORK1['id'],
+                                                      base.PORT10['id'],
+                                                      detach=True)
+        detach_info = {
+            'network_id': base.NETWORK1['id'],
+            bbgp_const.IPVPN: {
+                'vpn_instance_id': StringContains("ipvpn_portassoc",
+                                                  port_assoc.id,
+                                                  from_bgpvpns[0][0].id),
+                'ip_address': base.PORT10['ip_address'],
+                'mac_address': base.PORT10['mac_address'],
+                'local_port': local_port_l3['local_port']
+            }
+        }
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(base.PORT10['id'], [detach_info])]
+        )
+
+        # now remove the port association
+
+        def check_build_cb(*args):
+            # Verify build callback attachments
+            self.assertDictEqual(
+                {},
+                self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+            )
+
+        self.mocked_bagpipe_agent.do_port_plug.reset_mock()
+        self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.reset_mock()
+
+        self._port_assoc_notif(new_port_assoc, rpc_events.DELETED)
+
+        self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
+
+        expected_vpn_instance_id = (
+            'ipvpn_portassoc_%s_bgpvpn_%s' % (port_assoc.id,
+                                              from_bgpvpns[1][0].id)
+        )
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
+            [mock.call(
+                base.PORT10['id'],
+                UnorderedList([
+                    {'network_id': base.NETWORK1['id'],
+                     bbgp_const.IPVPN: {
+                         'ip_address': base.PORT10['ip_address'],
+                         'mac_address': base.PORT10['mac_address'],
+                         'local_port': local_port_l3['local_port']
+                         }
+                     },
+                    {'network_id': base.NETWORK1['id'],
+                     bbgp_const.IPVPN: {
+                         'vpn_instance_id': expected_vpn_instance_id,
+                         'ip_address': base.PORT10['ip_address'],
+                         'mac_address': base.PORT10['mac_address'],
+                         'local_port': local_port_l3['local_port']
+                         }
+                     },
+                ]))
+             ]
         )
 
     def test_net_assoc_l2_bgpvpn_vni(self):

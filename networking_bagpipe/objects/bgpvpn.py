@@ -80,17 +80,28 @@ class BGPVPN(base.NeutronDbObject):
         'type': BGPVPNTypeField(),
         'name': obj_fields.StringField(nullable=True,
                                        default=None),
-        'route_targets': obj_fields.ListOfStringsField(nullable=True),
-        'import_targets': obj_fields.ListOfStringsField(nullable=True),
-        'export_targets': obj_fields.ListOfStringsField(nullable=True),
-        'route_distinguishers': obj_fields.ListOfStringsField(nullable=True),
+        'route_targets': obj_fields.ListOfStringsField(nullable=True,
+                                                       default=[]),
+        'import_targets': obj_fields.ListOfStringsField(nullable=True,
+                                                        default=[]),
+        'export_targets': obj_fields.ListOfStringsField(nullable=True,
+                                                        default=[]),
+        'route_distinguishers': obj_fields.ListOfStringsField(nullable=True,
+                                                              default=[]),
         'local_pref': obj_fields.IntegerField(nullable=True),
         'vni': obj_fields.IntegerField(nullable=True),
     }
 
+    fields_no_update = ['id',
+                        'project_id',
+                        'type',
+                        'port_id']
+
     foreign_keys = {'BGPVPNNetAssociation': {'id': 'bgpvpn_id'},
                     'BGPVPNRouterAssociation': {'id': 'bgpvpn_id'},
-                    'BGPVPNPortAssociation': {'id': 'bgpvpn_id'}}
+                    'BGPVPNPortAssociation': {'id': 'bgpvpn_id'},
+                    'BGPVPNPortAssociationRoute': {'id': 'bgpvpn_id'},
+                    }
 
     @classmethod
     def modify_fields_from_db(cls, db_obj):
@@ -131,6 +142,11 @@ class BGPVPNNetAssociation(base.NeutronDbObject):
         'network_id': obj_fields.StringField(),
         'subnets': common_types.ListOfDictOfMiscValuesField(nullable=True)
     }
+
+    fields_no_update = ['id',
+                        'project_id',
+                        'bgpvpn_id',
+                        'network_id']
 
     synthetic_fields = ['bgpvpn',
                         'subnets']
@@ -180,6 +196,11 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
         'connected_networks':
             common_types.ListOfDictOfMiscValuesField(nullable=True)
     }
+
+    fields_no_update = ['id',
+                        'project_id',
+                        'bgpvpn_id',
+                        'router_id']
 
     synthetic_fields = ['bgpvpn',
                         'connected_networks']
@@ -287,6 +308,11 @@ class BGPVPNPortAssociation(base.NeutronDbObject):
         'advertise_fixed_ips': obj_fields.BooleanField(default=True)
     }
 
+    fields_no_update = ['id',
+                        'project_id',
+                        'bgpvpn_id',
+                        'port_id']
+
     synthetic_fields = ['bgpvpn',
                         'subnets',
                         'routes']
@@ -336,12 +362,26 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
         'id': common_types.UUIDField(),
         'port_association_id': common_types.UUIDField(),
         'type': BGPVPNPortAssociationRouteTypeField(),
-        'prefix': common_types.IPNetworkField(),
-        'local_pref': obj_fields.IntegerField(nullable=True)
+        'prefix': common_types.IPNetworkField(nullable=True,
+                                              default=None),
+        'local_pref': obj_fields.IntegerField(nullable=True),
+        'bgpvpn_id': obj_fields.StringField(nullable=True,
+                                            default=None),
+        'bgpvpn': obj_fields.ObjectField('BGPVPN',
+                                         nullable=True,
+                                         default=None),
     }
 
-    foreign_keys = {'BGPVPNPortAssociation': {'port_association_id': 'id'}
+    fields_no_update = fields.keys()
+
+    foreign_keys = {'BGPVPNPortAssociation': {'port_association_id': 'id'},
+                    'BGPVPN': {'bgpvpn_id': 'id'},
                     }
+
+    synthetic_fields = ['bgpvpn']
+
+    def __init__(self, *args, **kwargs):
+        super(BGPVPNPortAssociationRoute, self).__init__(*args, **kwargs)
 
     @classmethod
     def modify_fields_from_db(cls, db_obj):
@@ -349,6 +389,7 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
                        cls).modify_fields_from_db(db_obj)
         if 'prefix' in fields and fields['prefix'] is not None:
             fields['prefix'] = utils.AuthenticIPNetwork(fields['prefix'])
+
         return fields
 
     @classmethod
@@ -357,18 +398,19 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
                        cls).modify_fields_to_db(fields)
         if 'prefix' in result and result['prefix'] is not None:
             result['prefix'] = cls.filter_to_str(result['prefix'])
+
         return result
 
     # we use these objects in set() in bgpvpn agent extension
 
     def __eq__(self, other):
         # pylint: disable=no-member
-        return ((self.type, self.prefix) ==
-                (other.type, other.prefix))
+        return ((self.type, self.prefix, self.bgpvpn_id) ==
+                (other.type, other.prefix, other.bgpvpn_id))
 
     def __hash__(self):
         # pylint: disable=no-member
-        return hash((self.type, str(self.prefix)))
+        return hash((self.type, self.prefix, self.bgpvpn_id))
 
 
 resources.register_resource_class(BGPVPN)
