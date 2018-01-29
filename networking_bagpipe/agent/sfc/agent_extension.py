@@ -358,19 +358,25 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
         port_info.mac_address = port['mac_address']
         port_info.ip_address = port['fixed_ips'][0]['ip_address']
 
-        port_hops = self._pull_rpc.pull(context,
-                                        sfc_obj.BaGPipePortHops.obj_name(),
-                                        port_id)
+        port_hops = self._pull_rpc.bulk_pull(
+            context,
+            sfc_obj.BaGPipeChainHop.obj_name(),
+            filter_kwargs=dict(port_id=port_id))
 
-        for ingress_hop in port_hops.ingress_hops:
-            self._add_sfc_chain_hop_helper([port_id],
-                                           ingress_hop.to_dict(),
-                                           sfc_const.INGRESS)
+        for port_hop in port_hops:
+            hop_dict = port_hop.to_dict()
+            ingress_ports = hop_dict.pop('ingress_ports')
+            egress_ports = hop_dict.pop('egress_ports')
 
-        for egress_hop in port_hops.egress_hops:
-            self._add_sfc_chain_hop_helper([port_id],
-                                           egress_hop.to_dict(),
-                                           sfc_const.EGRESS)
+            if port_id in ingress_ports:
+                self._add_sfc_chain_hop_helper([port_id],
+                                               hop_dict,
+                                               sfc_const.INGRESS)
+
+            if port_id in egress_ports:
+                self._add_sfc_chain_hop_helper([port_id],
+                                               hop_dict,
+                                               sfc_const.EGRESS)
 
         if port_info.chain_hops:
             self.bagpipe_bgp_agent.do_port_plug(port_id)

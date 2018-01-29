@@ -39,8 +39,37 @@ RT1 = '64512:7'
 RT2 = '64512:42'
 
 
+class _BaGPipeObjectsTestCommon(object):
+
+    def _create_test_chain_hop(self, rt, ingress_network=None,
+                               egress_network=None):
+        chainhop_obj = sfc_obj.BaGPipeChainHop(
+            self.context,
+            id=uuidutils.generate_uuid(),
+            portchain_id=uuidutils.generate_uuid(),
+            rts=[rt],
+            ingress_network=ingress_network,
+            egress_network=egress_network,
+            ingress_gw=INGRESS_GW_IP,
+            egress_gw=EGRESS_GW_IP)
+
+        chainhop_obj.create()
+
+        return chainhop_obj
+
+    def _create_test_port_chain(self, chain_id=0):
+        portchain_db = sfc_db.PortChain(id=uuidutils.generate_uuid(),
+                                        project_id=self.context.tenant_id,
+                                        chain_id=chain_id)
+
+        self.context.session.add(portchain_db)
+
+        return portchain_db
+
+
 class BaGPipeChainHopDbObjectTestCase(test_base.BaseDbObjectTestCase,
-                                      testlib_api.SqlTestCase):
+                                      testlib_api.SqlTestCase,
+                                      _BaGPipeObjectsTestCommon):
 
     _test_class = sfc_obj.BaGPipeChainHop
 
@@ -102,8 +131,37 @@ class BaGPipeChainHopDbObjectTestCase(test_base.BaseDbObjectTestCase,
     def test_get_objects_queries_constant(self):
         self.skipTest("test not passing yet, remains to be investigated why")
 
+    def test_get_objects_by_port_id(self):
+        ingress_network = self._create_test_network()
+        ingress_port = self._create_test_port(network_id=ingress_network.id)
+        egress_network = self._create_test_network()
 
-class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase):
+        chain_hop1 = self._create_test_chain_hop(RT1,
+                                                 ingress_network.id,
+                                                 egress_network.id)
+
+        chain_hop2 = self._create_test_chain_hop(RT2,
+                                                 egress_network.id,
+                                                 ingress_network.id)
+
+        port_hops = sfc_obj.BaGPipeChainHop.get_objects(
+            self.context,
+            port_id=ingress_port.id)
+
+        self.assertEqual(2, len(port_hops))
+        self.assertDictContainsSubset(chain_hop1.to_dict(),
+                                      port_hops[0].to_dict())
+        self.assertIn(ingress_port.id,
+                      port_hops[0].ingress_ports)
+
+        self.assertDictContainsSubset(chain_hop2.to_dict(),
+                                      port_hops[1].to_dict())
+        self.assertIn(ingress_port.id,
+                      port_hops[1].egress_ports)
+
+
+class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase,
+                                    _BaGPipeObjectsTestCommon):
 
     def setUp(self):
         super(BaGPipePortHopsObjectTestCase, self).setUp()
@@ -152,30 +210,11 @@ class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase):
     def _create_test_port_chain(self):
         portchain_db = sfc_db.PortChain(id=uuidutils.generate_uuid(),
                                         project_id=self.context.tenant_id,
-                                        description='Test port chain',
-                                        name='test_port_chain',
-                                        chain_parameters={},
                                         chain_id=0)
 
         self.context.session.add(portchain_db)
 
         return portchain_db
-
-    def _create_test_chain_hop(self, rt, ingress_network=None,
-                               egress_network=None):
-        chainhop_obj = sfc_obj.BaGPipeChainHop(
-            self.context,
-            id=uuidutils.generate_uuid(),
-            portchain_id=self.port_chain1.id,
-            rts=[rt],
-            ingress_network=ingress_network,
-            egress_network=egress_network,
-            ingress_gw=INGRESS_GW_IP,
-            egress_gw=EGRESS_GW_IP)
-
-        chainhop_obj.create()
-
-        return chainhop_obj
 
     def test_init(self):
         sfc_obj.BaGPipePortHops(
