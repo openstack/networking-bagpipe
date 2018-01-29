@@ -55,6 +55,7 @@ def _get_subnets_info(obj_context, net_id):
     subnets = Subnet.get_objects(obj_context, network_id=net_id)
     return [
         {'ip_version': subnet.ip_version,
+         'id': subnet.id,
          'cidr': subnet.cidr,
          'gateway_ip': subnet.gateway_ip,
          'gateway_mac': _get_gateway_mac_by_subnet(obj_context, subnet)
@@ -204,20 +205,22 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
     @classmethod
     def get_objects(cls, context, _pager=None, validate_filters=True,
                     **kwargs):
-        if 'network_id' in kwargs:
-            # TODO(tmorin): this is very inefficient, on a deployment with a
-            # large number of Router Associations, this method will look at all
-            # of them, even if our network is not connected to any Router.
-            # I believe that starting from the network, finding which are the
-            # routers connected to it, and then finding if there are
-            # RouterAssociations for these routers, would be much more
-            # efficient.
-            network_id = kwargs.pop('network_id')
-            router_assocs = super(BGPVPNRouterAssociation, cls).get_objects(
-                context, _pager=_pager, validate_filters=validate_filters,
-                **kwargs)
-            router_assocs = cls._filter_router_assoc_by_network(router_assocs,
-                                                                network_id)
+        if 'network_id' in kwargs and 'router_id' not in kwargs:
+            ports = Port.get_objects(
+                context,
+                network_id=kwargs.pop('network_id'),
+                device_owner=constants.DEVICE_OWNER_ROUTER_INTF)
+
+            router_assocs = []
+            for port in ports:
+                router_assocs.extend(
+                    super(BGPVPNRouterAssociation, cls).get_objects(
+                        context, _pager=_pager,
+                        validate_filters=validate_filters,
+                        router_id=RouterPort.get_object(
+                            context, port_id=port.id).router_id,
+                        **kwargs)
+                    )
             return router_assocs
 
         return super(BGPVPNRouterAssociation, cls).get_objects(
@@ -256,16 +259,6 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
     def from_db_object(self, obj):
         super(BGPVPNRouterAssociation, self).from_db_object(obj)
         self._load_connected_networks(obj)
-
-    @classmethod
-    def _filter_router_assoc_by_network(self, router_associations, net_id):
-        router_associations_filtered = []
-        for router_association in router_associations:
-            for connected_network in router_association.connected_networks:
-                if connected_network['network_id'] == net_id:
-                    router_associations_filtered.append(router_association)
-                    break
-        return router_associations_filtered
 
     def all_subnets(self, network_id):
         # pylint: disable=no-member

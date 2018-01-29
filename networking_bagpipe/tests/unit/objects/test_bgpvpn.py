@@ -12,6 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import mock
 import random
 
 import netaddr
@@ -20,6 +21,7 @@ from oslo_utils import uuidutils
 from networking_bagpipe.objects import bgpvpn as bgpvpn_obj
 
 from neutron.common import utils
+from neutron.objects import network
 from neutron.objects import ports
 from neutron.objects import router
 from neutron.objects import subnet
@@ -30,6 +32,7 @@ from neutron.tests.unit import testlib_api
 from neutron_lib.api.definitions import bgpvpn as bgpvpn_api
 from neutron_lib.api.definitions import bgpvpn_routes_control as bgpvpn_rc_api
 from neutron_lib import constants
+from neutron_lib import context
 
 
 test_base.FIELD_TYPE_VALUE_GENERATOR_MAP[bgpvpn_obj.BGPVPNTypeField] = (
@@ -49,6 +52,7 @@ GW_MAC = "ba:ad:00:00:ca:fe"
 
 def _subnet_dict(gw_mac=None):
     return {
+        'id': mock.ANY,
         'ip_version': 4,
         'gateway_mac': gw_mac,
         'cidr': utils.AuthenticIPNetwork(CIDR),
@@ -86,7 +90,7 @@ class _BPGVPNObjectsTestCommon(object):
                               GW_MAC,
                               dialect=netaddr.mac_unix_expanded),
                           device_id='test_device_id',
-                          device_owner='router:dummy',
+                          device_owner=constants.DEVICE_OWNER_ROUTER_INTF,
                           status="DUMMY_STATUS",
                           admin_state_up=True)
         if gw_network:
@@ -185,6 +189,7 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
         self.update_obj_fields(
             {'router_id': self.router_id,
              'bgpvpn_id': self._create_test_bgpvpn_id})
+        self.context = context.get_admin_context()
 
     def test_get_objects_queries_constant(self):
         self.skipTest("test not passing yet, remains to be investigated why")
@@ -220,6 +225,51 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
                                   [_subnet_dict(GW_MAC)])
             self.assertItemsEqual(refreshed_obj.all_subnets("dummy-uuid"),
                                   [])
+
+    def test_get_objects_from_network_id(self):
+        router_ = router.Router(self.context)
+        router_.create()
+
+        self.project = uuidutils.generate_uuid()
+
+        # put a network behind a router
+        network_ = network.Network(self.context)
+        network_.create()
+
+        subnet_ = self._make_subnet(network_.id)
+
+        self._connect_router_network(router_.id,
+                                     network_.id)
+
+        bgpvpn_ = self._create_test_bgpvpn()
+
+        router_assoc_ = bgpvpn_obj.BGPVPNRouterAssociation(
+            self.context,
+            project_id=self.project,
+            router_id=router_.id,
+            bgpvpn_id=bgpvpn_.id)
+        router_assoc_.create()
+
+        # unrelated router and BGPVPN
+        router_2 = router.Router(self.context)
+        router_2.create()
+        router_assoc_2 = bgpvpn_obj.BGPVPNRouterAssociation(
+            self.context,
+            project_id=self.project,
+            router_id=router_2.id,
+            bgpvpn_id=self._create_test_bgpvpn_id())
+        router_assoc_2.create()
+
+        # test get_objects
+        get_assocs = bgpvpn_obj.BGPVPNRouterAssociation.get_objects(
+            self.context,
+            network_id=network_.id)
+
+        self.assertEqual(1, len(get_assocs))
+        self.assertEqual(get_assocs[0].bgpvpn.id, bgpvpn_.id)
+        self.assertIn(
+            subnet_.id,
+            [s['id'] for s in get_assocs[0].all_subnets(network_.id)])
 
 
 class BGPVPNPortAssociationTest(test_base.BaseDbObjectTestCase,
