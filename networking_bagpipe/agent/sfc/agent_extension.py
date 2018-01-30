@@ -117,9 +117,7 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
 
             port_info.add_chain_hop({side: orig_info})
 
-    def _remove_sfc_chain_hop_helper(self, port_id, chain_hop, side):
-        port_info = self.ports_info[port_id]
-
+    def _remove_sfc_chain_hop_helper(self, port_info, chain_hop, side):
         sfc_info = port_info.chain_hops
         if side in sfc_info:
             if side == sfc_const.EGRESS:
@@ -127,7 +125,7 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
 
             if chain_hop != sfc_info[side]:
                 LOG.warning("%s service inconsistent %s informations for "
-                            "port %s", SFC_SERVICE, side, port_id)
+                            "port %s", SFC_SERVICE, side, port_info.id)
                 return
 
             sfc_info.pop(side)
@@ -209,8 +207,7 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
 
         return attachment
 
-    def _build_sfc_detach_info(self, port_id):
-        port_info = self.ports_info[port_id]
+    def _build_sfc_detach_info(self, port_info):
         linuxbr = LinuxBridgeManager.get_bridge_name(port_info.network.id)
 
         detach_info = {
@@ -221,16 +218,6 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
                 'local_port': {'linuxif': linuxbr}
             }
         }
-
-        egress_info = port_info.chain_hops.get(sfc_const.EGRESS)
-        if egress_info:
-            if egress_info.get('readv_to_rt'):
-                detach_info[bbgp_const.IPVPN].update({
-                    'readvertise': dict(
-                        from_rt=egress_info.get('readv_from_rts', []),
-                        to_rt=[egress_info['readv_to_rt']]
-                    )
-                })
 
         return detach_info
 
@@ -245,7 +232,7 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
             self.sfc_ports_detach(chain_hops)
 
     @log_helpers.log_method_call
-    @lockutils.synchronized('bagpipe-bgp-agent')
+    @lockutils.synchronized('bagpipe-sfc')
     def sfc_ports_attach(self, chain_hops):
         attach_ids = set()
 
@@ -269,28 +256,45 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
         for port_id in port_ids:
             self.bagpipe_bgp_agent.do_port_plug(port_id)
 
+    def _remove_sfc_info_for_port(self, port_id, side, chain_hop,
+                                  ports_to_detach):
+        port_info = self.ports_info.get(port_id)
+        if not port_info:
+            LOG.warning("%s service inconsistent for port %s",
+                        SFC_SERVICE, port_id)
+            return
+
+        if port_id not in ports_to_detach:
+            detach_info = self._build_sfc_detach_info(port_info)
+
+            ports_to_detach[port_id] = detach_info
+
+        self._remove_sfc_chain_hop_helper(port_info, chain_hop, side)
+
     @log_helpers.log_method_call
-    @lockutils.synchronized('bagpipe-bgp-agent')
+    @lockutils.synchronized('bagpipe-sfc')
     def sfc_ports_detach(self, chain_hops):
         ports_to_detach = dict()
 
         for hop in chain_hops:
             hop_dict = hop.to_dict()
 
-            port_ids = (hop_dict.pop('ingress_ports') +
-                        hop_dict.pop('egress_ports'))
+            ingress_ids = hop_dict.pop('ingress_ports')
+            egress_ids = hop_dict.pop('egress_ports')
 
-            for port_id in port_ids:
-                if port_id not in self.ports_info:
-                    LOG.warning("%s service inconsistent for port %s",
-                                SFC_SERVICE, port_id)
-                    continue
+            if ingress_ids:
+                for port_id in ingress_ids:
+                    self._remove_sfc_info_for_port(port_id,
+                                                   sfc_const.INGRESS,
+                                                   hop_dict,
+                                                   ports_to_detach)
 
-                if port_id not in ports_to_detach:
-                    detach_info = self._build_sfc_detach_info(port_id)
-                    self.ports_info[port_id].chain_hops = {}
-
-                    ports_to_detach[port_id] = detach_info
+            if egress_ids:
+                for port_id in egress_ids:
+                    self._remove_sfc_info_for_port(port_id,
+                                                   sfc_const.EGRESS,
+                                                   hop_dict,
+                                                   ports_to_detach)
 
         for port_id, detach_info in ports_to_detach.items():
             self.bagpipe_bgp_agent.do_port_plug_refresh(port_id, detach_info)
@@ -306,7 +310,7 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
             self.sfc_remove_port_hops(port_hops)
 
     @log_helpers.log_method_call
-    @lockutils.synchronized('bagpipe-bgp-agent')
+    @lockutils.synchronized('bagpipe-sfc')
     def sfc_add_port_hops(self, port_hops):
         for port_hop in port_hops:
             port_id = port_hop.port_id
@@ -323,21 +327,24 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
             self.bagpipe_bgp_agent.do_port_plug(port_id)
 
     @log_helpers.log_method_call
-    @lockutils.synchronized('bagpipe-bgp-agent')
+    @lockutils.synchronized('bagpipe-sfc')
     def sfc_remove_port_hops(self, port_hops):
         for port_hop in port_hops:
             port_id = port_hop.port_id
+            port_info = self.ports_info.get(port_id)
 
-            if port_id not in self.ports_info:
+            if not port_info:
                 LOG.warning("%s service inconsistent for port %s",
                             SFC_SERVICE, port_id)
                 continue
 
-            detach_info = self._build_sfc_detach_info(port_id)
+            detach_info = self._build_sfc_detach_info(port_info)
             self.ports_info[port_id].chain_hops = {}
 
             self.bagpipe_bgp_agent.do_port_plug_refresh(port_id, detach_info)
 
+    @log_helpers.log_method_call
+    @lockutils.synchronized('bagpipe-sfc')
     def handle_port(self, context, port):
         port_id = port['port_id']
         net_id = port['network_id']
@@ -349,7 +356,7 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
         )
 
         port_info.mac_address = port['mac_address']
-        port_info.ip_address = port['fixed_ips'][0]['ip_address'] + '/32'
+        port_info.ip_address = port['fixed_ips'][0]['ip_address']
 
         port_hops = self._pull_rpc.pull(context,
                                         chain_hop.BaGPipePortHops.obj_name(),
@@ -368,9 +375,17 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
         if port_info.chain_hops:
             self.bagpipe_bgp_agent.do_port_plug(port_id)
 
+    @log_helpers.log_method_call
+    @lockutils.synchronized('bagpipe-sfc')
     def delete_port(self, context, port):
         port_id = port['port_id']
-        net_id = port['network_id']
+        port_info = self.ports_info.get(port_id)
 
-        self._remove_network_port_infos(net_id, port_id)
-        self.ports.remove(port_id)
+        if port_info and port_info.chain_hops:
+            detach_info = self._build_sfc_detach_info(port_info)
+
+            self._remove_network_port_infos(port_info.network.id, port_id)
+            self.ports.remove(port_id)
+
+            self.bagpipe_bgp_agent.do_port_plug_refresh(port_id,
+                                                        detach_info)

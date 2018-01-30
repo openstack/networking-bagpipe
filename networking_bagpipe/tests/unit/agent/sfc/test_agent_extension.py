@@ -20,6 +20,7 @@ from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
 
 from networking_bagpipe.agent.sfc import agent_extension as bagpipe_agt_ext
+from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 from networking_bagpipe.objects.sfc import chain_hop as objects
 from networking_bagpipe.tests.unit.agent import base
 
@@ -125,9 +126,9 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
         return objects.BaGPipePortHops(**port_hops)
 
     def _port_hops_notif(self, port_hops, event_type):
-        self.agent_ext.handle_sfc_port_hops()(
+        self.agent_ext.handle_sfc_port_hops(
             None, objects.BaGPipePortHops.obj_name(),
-            [port_hops], event_type)
+            port_hops, event_type)
 
     def test_chain_hop_before_port_up_ingress_only(self):
         ingress_hop = self._fake_chain_hop(
@@ -153,7 +154,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             dict(
                 network_id=base.NETWORK1['id'],
                 ipvpn=[dict(
-                    ip_address=base.PORT10['ip_address'] + '/32',
+                    ip_address=base.PORT10['ip_address'],
                     mac_address=base.PORT10['mac_address'],
                     gateway_ip=base.NETWORK1['gateway_ip'],
                     local_port=dict(linuxif=linuxbr1),
@@ -194,7 +195,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             dict(
                 network_id=base.NETWORK1['id'],
                 ipvpn=[dict(
-                    ip_address=base.PORT10['ip_address'] + '/32',
+                    ip_address=base.PORT10['ip_address'],
                     mac_address=base.PORT10['mac_address'],
                     gateway_ip=base.NETWORK1['gateway_ip'],
                     local_port=dict(linuxif=linuxbr1),
@@ -251,7 +252,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             dict(
                 network_id=base.NETWORK1['id'],
                 ipvpn=[dict(
-                    ip_address=base.PORT10['ip_address'] + '/32',
+                    ip_address=base.PORT10['ip_address'],
                     mac_address=base.PORT10['mac_address'],
                     gateway_ip=base.NETWORK1['gateway_ip'],
                     local_port=dict(linuxif=linuxbr1),
@@ -270,6 +271,44 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             ),
             self.agent_ext.build_sfc_attach_info(base.PORT10['id'])
         )
+
+    def test_chain_hop_before_port_delete(self):
+        self.agent_ext.handle_port(None, self._port_data(base.PORT10))
+
+        chain_hop = self._fake_chain_hop(
+            portchain_id=uuidutils.generate_uuid(),
+            rts=CHAIN_HOP_RT1000,
+            ingress_network=base.NETWORK1,
+            egress_network=base.NETWORK2)
+
+        self._chain_hops_notif([chain_hop], rpc_events.CREATED)
+
+        self.agent_ext.delete_port(None, self._port_data(base.PORT10,
+                                                         delete=True))
+
+        local_port = self._get_expected_local_port(bbgp_const.IPVPN,
+                                                   base.NETWORK1['id'],
+                                                   base.PORT10['id'],
+                                                   detach=True)
+        detach_info = {
+            'network_id': base.NETWORK1['id'],
+            bbgp_const.IPVPN: {
+                'ip_address': base.PORT10['ip_address'],
+                'mac_address': base.PORT10['mac_address'],
+                'local_port': local_port['local_port']
+            }
+        }
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
+            [mock.call(base.PORT10['id'], detach_info)]
+        )
+
+        # Verify attachments list consistency
+        self._check_network_info(base.NETWORK1['id'], 0)
+
+        self.assertEqual(0, len(self.agent_ext.networks_info),
+                         "Registered attachments list must be empty: %s" %
+                         self.agent_ext.networks_info)
 
     def test_chain_hop_created_no_plugged_ports(self):
         chain_hop = self._fake_chain_hop(
@@ -305,7 +344,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                     dict(
                         network_id=base.NETWORK1['id'],
                         ipvpn=[dict(
-                            ip_address=port['ip_address'] + '/32',
+                            ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
                             local_port=dict(linuxif=linuxbr1),
@@ -359,7 +398,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                     dict(
                         network_id=base.NETWORK2['id'],
                         ipvpn=[dict(
-                            ip_address=port['ip_address'] + '/32',
+                            ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK2['gateway_ip'],
                             local_port=dict(linuxif=linuxbr2),
@@ -424,7 +463,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                     dict(
                         network_id=base.NETWORK2['id'],
                         ipvpn=[dict(
-                            ip_address=port['ip_address'] + '/32',
+                            ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK2['gateway_ip'],
                             local_port=dict(linuxif=linuxbr2),
@@ -489,7 +528,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                     dict(
                         network_id=base.NETWORK2['id'],
                         ipvpn=[dict(
-                            ip_address=port['ip_address'] + '/32',
+                            ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK2['gateway_ip'],
                             local_port=dict(linuxif=linuxbr2),
@@ -552,7 +591,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                     dict(
                         network_id=base.NETWORK1['id'],
                         ipvpn=[dict(
-                            ip_address=port['ip_address'] + '/32',
+                            ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
                             local_port=dict(linuxif=linuxbr1),
@@ -572,7 +611,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                     dict(
                         network_id=base.NETWORK2['id'],
                         ipvpn=[dict(
-                            ip_address=port['ip_address'] + '/32',
+                            ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK2['gateway_ip'],
                             local_port=dict(linuxif=linuxbr2),
@@ -641,7 +680,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
-                        ip_address=base.PORT10['ip_address'] + '/32',
+                        ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
                         local_port=dict(linuxif=linuxbr1),
@@ -695,7 +734,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
-                        ip_address=base.PORT10['ip_address'] + '/32',
+                        ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
                         local_port=dict(linuxif=linuxbr1),
@@ -737,7 +776,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
-                        ip_address=base.PORT10['ip_address'] + '/32',
+                        ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
                         local_port=dict(linuxif=linuxbr1),
@@ -808,7 +847,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
         detach_info10 = dict(
             network_id=base.NETWORK1['id'],
             ipvpn=dict(
-                ip_address=base.PORT10['ip_address'] + '/32',
+                ip_address=base.PORT10['ip_address'],
                 mac_address=base.PORT10['mac_address'],
                 local_port=dict(linuxif=linuxbr1)
             )
@@ -817,8 +856,259 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
         detach_info11 = dict(
             network_id=base.NETWORK1['id'],
             ipvpn=dict(
-                ip_address=base.PORT11['ip_address'] + '/32',
+                ip_address=base.PORT11['ip_address'],
                 mac_address=base.PORT11['mac_address'],
+                local_port=dict(linuxif=linuxbr1)
+            )
+        )
+
+        def check_build_cb(port_id, detach_info):
+            self.assertDictEqual(
+                {},
+                self.agent_ext.build_sfc_attach_info(port_id)
+                )
+
+        # we need to check that build_sfc_attach_info contains the expected
+        # content precisely at the time when do_port_plug_refresh is called
+        self.mocked_bagpipe_agent.do_port_plug_refresh.side_effect = (
+            check_build_cb
+        )
+
+        # Delete chain hop
+        self._chain_hops_notif([chain_hop], rpc_events.DELETED)
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
+            [mock.call(base.PORT10['id'], detach_info10),
+             mock.call(base.PORT11['id'], detach_info11)],
+            any_order=True
+        )
+
+        # Verify attachments list consistency
+        self._check_network_info(base.NETWORK1['id'], 2)
+
+    def test_one_by_one_chain_hops_deleted_same_port(self):
+        self.agent_ext.handle_port(None, self._port_data(base.PORT10))
+        self.agent_ext.handle_port(None, self._port_data(base.PORT11))
+        self.agent_ext.handle_port(None, self._port_data(base.PORT20))
+        self.agent_ext.handle_port(None, self._port_data(base.PORT21))
+
+        egress_params_1 = copy.copy(CHAIN_HOP_EGRESS_PARAMS1)
+        egress_params_1.update(
+            dict(classifiers=jsonutils.dumps([CHAIN_HOP_CLASSIFIER]))
+        )
+
+        chain_hop_1 = self._fake_chain_hop(
+            portchain_id=uuidutils.generate_uuid(),
+            rts=CHAIN_HOP_RT1000,
+            ingress_network=base.NETWORK1,
+            egress_network=base.NETWORK2,
+            **egress_params_1)
+
+        egress_params_2 = copy.copy(CHAIN_HOP_EGRESS_PARAMS2)
+        egress_params_2.update(
+            dict(classifiers=jsonutils.dumps([CHAIN_HOP_REVERSE_CLASSIFIER]))
+        )
+
+        chain_hop_2 = self._fake_chain_hop(
+            portchain_id=uuidutils.generate_uuid(),
+            rts=CHAIN_HOP_RT2000,
+            ingress_network=base.NETWORK2,
+            egress_network=base.NETWORK1,
+            **egress_params_2)
+
+        self._chain_hops_notif([chain_hop_1, chain_hop_2], rpc_events.CREATED)
+
+        self.mocked_bagpipe_agent.do_port_plug.assert_has_calls(
+            [mock.call(base.PORT10['id'])]
+        )
+
+        self.mocked_bagpipe_agent.reset_mock()
+
+        self._check_network_info(base.NETWORK1['id'], 2)
+
+        # Prepare expected information for DELETE
+        linuxbr1 = LinuxBridgeManager.get_bridge_name(base.NETWORK1['id'])
+
+        detach_info10 = dict(
+            network_id=base.NETWORK1['id'],
+            ipvpn=dict(
+                ip_address=base.PORT10['ip_address'],
+                mac_address=base.PORT10['mac_address'],
+                local_port=dict(linuxif=linuxbr1)
+            )
+        )
+
+        detach_info11 = dict(
+            network_id=base.NETWORK1['id'],
+            ipvpn=dict(
+                ip_address=base.PORT11['ip_address'],
+                mac_address=base.PORT11['mac_address'],
+                local_port=dict(linuxif=linuxbr1)
+            )
+        )
+
+        linuxbr2 = LinuxBridgeManager.get_bridge_name(base.NETWORK2['id'])
+
+        detach_info20 = dict(
+            network_id=base.NETWORK2['id'],
+            ipvpn=dict(
+                ip_address=base.PORT20['ip_address'],
+                mac_address=base.PORT20['mac_address'],
+                local_port=dict(linuxif=linuxbr2)
+            )
+        )
+
+        detach_info21 = dict(
+            network_id=base.NETWORK2['id'],
+            ipvpn=dict(
+                ip_address=base.PORT21['ip_address'],
+                mac_address=base.PORT21['mac_address'],
+                local_port=dict(linuxif=linuxbr2)
+            )
+        )
+
+        self.port2build_attach = {
+            base.PORT10['id']: dict(
+                network_id=base.NETWORK1['id'],
+                ipvpn=[dict(
+                    ip_address=base.PORT10['ip_address'],
+                    mac_address=base.PORT10['mac_address'],
+                    gateway_ip=base.NETWORK1['gateway_ip'],
+                    local_port=dict(linuxif=linuxbr1),
+                    import_rt=CHAIN_HOP_RT1000,
+                    export_rt=[]
+                )]
+            ),
+            base.PORT11['id']: dict(
+                network_id=base.NETWORK1['id'],
+                ipvpn=[dict(
+                    ip_address=base.PORT11['ip_address'],
+                    mac_address=base.PORT11['mac_address'],
+                    gateway_ip=base.NETWORK1['gateway_ip'],
+                    local_port=dict(linuxif=linuxbr1),
+                    import_rt=CHAIN_HOP_RT1000,
+                    export_rt=[]
+                )]
+            ),
+            base.PORT20['id']: dict(
+                network_id=base.NETWORK2['id'],
+                ipvpn=[dict(
+                    ip_address=base.PORT20['ip_address'],
+                    mac_address=base.PORT20['mac_address'],
+                    gateway_ip=base.NETWORK2['gateway_ip'],
+                    local_port=dict(linuxif=linuxbr2),
+                    import_rt=[],
+                    export_rt=CHAIN_HOP_RT1000,
+                    readvertise=dict(
+                        from_rt=egress_params_1['readv_from_rts'],
+                        to_rt=[egress_params_1['readv_to_rt']]
+                    ),
+                    attract_traffic=dict(
+                        redirect_rts=egress_params_1['redirect_rts'],
+                        classifier=CHAIN_HOP_CLASSIFIER
+                    ),
+                    lb_consistent_hash_order=0
+                )]
+            ),
+            base.PORT21['id']: dict(
+                network_id=base.NETWORK2['id'],
+                ipvpn=[dict(
+                    ip_address=base.PORT21['ip_address'],
+                    mac_address=base.PORT21['mac_address'],
+                    gateway_ip=base.NETWORK2['gateway_ip'],
+                    local_port=dict(linuxif=linuxbr2),
+                    import_rt=[],
+                    export_rt=CHAIN_HOP_RT1000,
+                    readvertise=dict(
+                        from_rt=egress_params_1['readv_from_rts'],
+                        to_rt=[egress_params_1['readv_to_rt']]
+                    ),
+                    attract_traffic=dict(
+                        redirect_rts=egress_params_1['redirect_rts'],
+                        classifier=CHAIN_HOP_CLASSIFIER
+                    ),
+                    lb_consistent_hash_order=1
+                )]
+            )
+        }
+
+        def check_build_cb_1(port_id, detach_info):
+            self.assertDictEqual(
+                self.port2build_attach[port_id],
+                self.agent_ext.build_sfc_attach_info(port_id)
+            )
+
+        # we need to check that build_sfc_attach_info contains the expected
+        # content precisely at the time when do_port_plug_refresh is called
+        self.mocked_bagpipe_agent.do_port_plug_refresh.side_effect = (
+            check_build_cb_1
+        )
+
+        self._chain_hops_notif([chain_hop_2], rpc_events.DELETED)
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
+            [mock.call(base.PORT20['id'], detach_info20),
+             mock.call(base.PORT21['id'], detach_info21),
+             mock.call(base.PORT10['id'], detach_info10),
+             mock.call(base.PORT11['id'], detach_info11)],
+            any_order=True
+        )
+
+        self.mocked_bagpipe_agent.reset_mock()
+
+        def check_build_cb_2(port_id, detach_info):
+            self.assertDictEqual(
+                {},
+                self.agent_ext.build_sfc_attach_info(port_id)
+                )
+
+        # we need to check that build_sfc_attach_info contains the expected
+        # content precisely at the time when do_port_plug_refresh is called
+        self.mocked_bagpipe_agent.do_port_plug_refresh.side_effect = (
+            check_build_cb_2
+        )
+
+        # Delete port hop
+        self._chain_hops_notif([chain_hop_1], rpc_events.DELETED)
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
+            [mock.call(base.PORT20['id'], detach_info20),
+             mock.call(base.PORT21['id'], detach_info21),
+             mock.call(base.PORT10['id'], detach_info10),
+             mock.call(base.PORT11['id'], detach_info11)],
+            any_order=True
+        )
+
+    def test_port_hop_deleted_remaining_ingress_ports(self):
+        self.agent_ext.handle_port(None, self._port_data(base.PORT10))
+        self.agent_ext.handle_port(None, self._port_data(base.PORT11))
+
+        chain_hop = self._fake_chain_hop(
+            portchain_id=uuidutils.generate_uuid(),
+            rts=CHAIN_HOP_RT1000,
+            ingress_network=base.NETWORK1,
+            egress_network=base.NETWORK2)
+
+        self._chain_hops_notif([chain_hop], rpc_events.CREATED)
+
+        self.mocked_bagpipe_agent.do_port_plug.assert_has_calls(
+            [mock.call(base.PORT10['id']), mock.call(base.PORT11['id'])],
+            any_order=True
+        )
+
+        # Verify attachment list consistency
+        self._check_network_info(base.NETWORK1['id'], 2)
+
+        self.mocked_bagpipe_agent.reset_mock()
+
+        # Prepare expected information for DELETE
+        linuxbr1 = LinuxBridgeManager.get_bridge_name(base.NETWORK1['id'])
+
+        detach_info10 = dict(
+            network_id=base.NETWORK1['id'],
+            ipvpn=dict(
+                ip_address=base.PORT10['ip_address'],
+                mac_address=base.PORT10['mac_address'],
                 local_port=dict(linuxif=linuxbr1)
             )
         )
@@ -835,13 +1125,13 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             check_build_cb
         )
 
-        # Delete chain hop
-        self._chain_hops_notif([chain_hop], rpc_events.DELETED)
+        # Delete port hop
+        port10_hops = self._fake_port_hops(base.PORT10['id'],
+                                           ingress_hops=[chain_hop])
+        self._port_hops_notif([port10_hops], rpc_events.DELETED)
 
         self.mocked_bagpipe_agent.do_port_plug_refresh.assert_has_calls(
-            [mock.call(base.PORT10['id'], detach_info10),
-             mock.call(base.PORT11['id'], detach_info11)],
-            any_order=True
+            [mock.call(base.PORT10['id'], detach_info10)]
         )
 
         # Verify attachments list consistency
