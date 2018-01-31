@@ -140,7 +140,8 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
         self.flush_routes()
 
     @log_decorator.log_info
-    def vif_plugged(self, mac_address, ip_address, localport, label):
+    def vif_plugged(self, mac_address, ip_address, localport, label,
+                    direction):
 
         interface = localport['linuxif']
 
@@ -206,7 +207,7 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     @log_decorator.log_info
     def vif_unplugged(self, mac_address, ip_address, localport, label,
-                      last_endpoint=True):
+                      direction, last_endpoint=True):
         interface = localport['linuxif']
 
         if interface not in self.ip.interfaces:

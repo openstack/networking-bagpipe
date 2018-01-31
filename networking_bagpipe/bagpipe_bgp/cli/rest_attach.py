@@ -146,7 +146,11 @@ def main():
                       "'netns[:if]' to have an interface to a local network "
                       "namespace attached/detached "
                       "[with 'if' as the name of the interface to the netns]")
-
+    parser.add_option("--direction", dest="direction",
+                      choices=[const.TO_PORT, const.FROM_PORT, const.BOTH],
+                      default=const.BOTH,
+                      help=("local port direction (to-port|from-port|both) "
+                            "in VPN (default: %default)"))
     parser.add_option("--rt", dest="route_targets",
                       help="route target [default: 64512:0] (can be "
                       "specified multiple times)", default=[], action="append")
@@ -390,6 +394,9 @@ def main():
 
     if options.local_pref:
         data['local_pref'] = options.local_pref
+
+    if options.direction:
+        data['direction'] = options.direction
 
     json_data = jsonutils.dumps(data)
 

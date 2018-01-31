@@ -258,6 +258,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         self.readvertised.remove(route)
 
+    @log_decorator.log_info
     def vif_plugged(self, mac_address, ip_address_prefix, localport,
                     advertise_subnet=False, lb_consistent_hash_order=0,
                     local_pref=None, **kwargs):
@@ -266,44 +267,45 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                                      lb_consistent_hash_order, local_pref,
                                      **kwargs)
 
+        if vpn_instance.forward_to_port(kwargs.get('direction')):
+            endpoint = (mac_address, ip_address_prefix)
+            label = self.mac_2_localport_data[mac_address]['label']
+            rd = self.endpoint_2_rd[endpoint]
+            for route in itertools.chain(
+                    self.readvertised,
+                    self._route_for_attract_static_dest_prefixes(label, rd)):
+                self.log.debug("Re-advertising %s with this port as next hop",
+                               route.nlri)
+                self._advertise_route_or_default(route, label, rd,
+                                                 lb_consistent_hash_order)
+
+                if self.attract_traffic:
+                    flow_route = self._route_for_redirect_prefix(
+                        route.nlri.cidr.prefix())
+                    self._advertise_route(flow_route)
+
+    @log_decorator.log_info
+    def vif_unplugged(self, mac_address, ip_address_prefix):
         endpoint = (mac_address, ip_address_prefix)
-        label = self.mac_2_localport_data[mac_address]['label']
-        rd = self.endpoint_2_rd[endpoint]
-        for route in itertools.chain(
-                self.readvertised,
-                self._route_for_attract_static_dest_prefixes(label, rd)):
-            self.log.debug("Re-advertising %s with this port as next hop",
-                           route.nlri)
-            self._advertise_route_or_default(route, label, rd,
-                                             lb_consistent_hash_order)
+        direction = self.endpoint_2_direction[endpoint]
+        if vpn_instance.forward_to_port(direction):
+            label = self.mac_2_localport_data[mac_address]['label']
+            lb_consistent_hash_order = (self.mac_2_localport_data[mac_address]
+                                        ["lb_consistent_hash_order"])
+            rd = self.endpoint_2_rd[endpoint]
+            for route in itertools.chain(
+                    self.readvertised,
+                    self._route_for_attract_static_dest_prefixes(label, rd)):
+                self.log.debug("Stop re-advertising %s", route.nlri)
+                self._withdraw_route_or_default(route, label, rd,
+                                                lb_consistent_hash_order)
 
-            if self.attract_traffic:
-                flow_route = self._route_for_redirect_prefix(
-                    route.nlri.cidr.prefix())
-                self._advertise_route(flow_route)
+                if self.attract_traffic and self.has_only_one_endpoint():
+                    flow_route = self._route_for_redirect_prefix(
+                        route.nlri.cidr.prefix())
+                    self._withdraw_route(flow_route)
 
-    def vif_unplugged(self, mac_address, ip_address_prefix,
-                      lb_consistent_hash_order=0):
-        endpoint = (mac_address, ip_address_prefix)
-        label = self.mac_2_localport_data[mac_address]['label']
-        lb_consistent_hash_order = (self.mac_2_localport_data[mac_address]
-                                    ["lb_consistent_hash_order"])
-        rd = self.endpoint_2_rd[endpoint]
-        for route in itertools.chain(
-                self.readvertised,
-                self._route_for_attract_static_dest_prefixes(label, rd)):
-            self.log.debug("Stop re-advertising %s with this port as next hop",
-                           route.nlri)
-            self._withdraw_route_or_default(route, label, rd,
-                                            lb_consistent_hash_order)
-
-            if self.attract_traffic and self.has_only_one_endpoint():
-                flow_route = self._route_for_redirect_prefix(
-                    route.nlri.cidr.prefix())
-                self._withdraw_route(flow_route)
-
-        super(VRF, self).vif_unplugged(mac_address, ip_address_prefix,
-                                       lb_consistent_hash_order)
+        super(VRF, self).vif_unplugged(mac_address, ip_address_prefix)
 
     # Callbacks for BGP route updates (TrackerWorker) ########################
 

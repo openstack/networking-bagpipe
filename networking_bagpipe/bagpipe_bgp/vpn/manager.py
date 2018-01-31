@@ -352,6 +352,7 @@ class VPNManager(lg.LookingGlassMixin):
 
         plug_kwargs = {}
         plug_kwargs['description'] = params.get('description')
+        plug_kwargs['direction'] = params.get('direction')
 
         # Plug VIF to VPN instance
         vpn_instance.vif_plugged(mac_address, ip_address_prefix, localport,

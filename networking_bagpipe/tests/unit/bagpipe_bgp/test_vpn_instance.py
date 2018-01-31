@@ -193,6 +193,32 @@ class TestVPNInstanceAPIChecks(testtools.TestCase):
             'gateway_ip',
             params)
 
+    def test_direction(self):
+        params = api_params()
+        vpn_instance.VPNInstance.validate_convert_attach_params(params)
+
+    def test_direction_none(self):
+        params = api_params()
+        params['direction'] = None
+        vpn_instance.VPNInstance.validate_convert_attach_params(params)
+
+    def test_direction_ok(self):
+        params = api_params()
+        params['direction'] = 'to-port'
+        vpn_instance.VPNInstance.validate_convert_attach_params(params)
+
+        params = api_params()
+        params['direction'] = 'from-port'
+        vpn_instance.VPNInstance.validate_convert_attach_params(params)
+
+    def test_direction_bogus(self):
+        params = api_params()
+        params['direction'] = 'floop'
+        self.assertRaises(
+            exc.APIException,
+            vpn_instance.VPNInstance.validate_convert_attach_params,
+            params)
+
 
 class TestInitVPNInstance(testtools.TestCase):
 
@@ -488,7 +514,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         self.vpn.dataplane.vif_unplugged.assert_called_once()
         self.vpn.dataplane.vif_unplugged.assert_called_with(
-            MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, True)
+            MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, None, True)
         self.vpn._advertise_route.assert_called_once()
         self.vpn._withdraw_route.assert_called_once()
 
@@ -544,7 +570,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         self.vpn.dataplane.vif_unplugged.assert_called_once()
         self.vpn.dataplane.vif_unplugged.assert_called_with(
-            MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, False)
+            MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, None, False)
         self.assertEqual(2, self.vpn._advertise_route.call_count,
                          "Routes for all port endpoints must be first "
                          "advertised and only one withdrawn")
@@ -570,10 +596,12 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         self.assertEqual(2, self.vpn.dataplane.vif_unplugged.call_count,
                          "All port endpoints must be unplugged from dataplane")
-        self.assertEqual(
-            [((MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, False),),
-             ((MAC2, self._get_ip_address(IP2), LOCAL_PORT1, label2, True),)],
-            self.vpn.dataplane.vif_unplugged.call_args_list)
+        self.vpn.dataplane.vif_unplugged.assert_has_calls([
+            mock.call(MAC1, self._get_ip_address(IP1),
+                      LOCAL_PORT1, label1, None, False),
+            mock.call(MAC2, self._get_ip_address(IP2),
+                      LOCAL_PORT1, label2, None, True)
+        ])
         self.assertEqual(2, self.vpn._advertise_route.call_count,
                          "Routes for all port endpoints must be first "
                          "advertised and after withdrawn")
@@ -601,10 +629,13 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.assertEqual(2, self.vpn.dataplane.vif_unplugged.call_count,
                          "All different ports endpoints must be unplugged "
                          "from dataplane")
-        self.assertEqual(
-            [((MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, True),),
-             ((MAC2, self._get_ip_address(IP2), LOCAL_PORT2, label2, True),)],
-            self.vpn.dataplane.vif_unplugged.call_args_list)
+
+        self.vpn.dataplane.vif_unplugged.assert_has_calls([
+            mock.call(MAC1, self._get_ip_address(IP1),
+                      LOCAL_PORT1, label1, None, True),
+            mock.call(MAC2, self._get_ip_address(IP2),
+                      LOCAL_PORT2, label2, None, True)
+        ])
         self.assertEqual(2, self.vpn._advertise_route.call_count,
                          "Routes for all different ports endpoints must be "
                          "first advertised and after withdrawn")
@@ -664,14 +695,16 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.assertEqual(4, self.vpn.dataplane.vif_unplugged.call_count,
                          "All different ports endpoints must be unplugged "
                          "from dataplane")
-        self.assertEqual(
-            [((MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, False),),
-             ((MAC2, self._get_ip_address(
-               IP2), LOCAL_PORT1, label2, True),),
-             ((MAC3, self._get_ip_address(
-               IP3), LOCAL_PORT2, label3, False),),
-             ((MAC4, self._get_ip_address(IP4), LOCAL_PORT2, label4, True),)],
-            self.vpn.dataplane.vif_unplugged.call_args_list)
+        self.vpn.dataplane.vif_unplugged.assert_has_calls([
+            mock.call(MAC1, self._get_ip_address(IP1),
+                      LOCAL_PORT1, label1, None, False),
+            mock.call(MAC2, self._get_ip_address(IP2),
+                      LOCAL_PORT1, label2, None, True),
+            mock.call(MAC3, self._get_ip_address(IP3),
+                      LOCAL_PORT2, label3, None, False),
+            mock.call(MAC4, self._get_ip_address(IP4),
+                      LOCAL_PORT2, label4, None, True)
+        ])
         self.assertEqual(4, self.vpn._withdraw_route.call_count,
                          "Routes for all different ports endpoints must be "
                          "first advertised and after withdrawn")
@@ -756,6 +789,18 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         with mock.patch.object(self.vpn, 'best_route_removed') as mock_brr:
             self.vpn.stop()
             mock_brr.assert_called_once()
+
+    def test_plug_endpoint_direction_to_port(self):
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, direction='to-port')
+
+        self.vpn.dataplane.vif_plugged.assert_called_once()
+        self.vpn._advertise_route.assert_called_once()
+
+    def test_plug_endpoint_direction_from_port(self):
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, direction='from-port')
+
+        self.vpn.dataplane.vif_plugged.assert_called_once()
+        self.vpn._advertise_route.assert_not_called()
 
 
 LOCAL_ADDRESS = '4.5.6.7'

@@ -30,6 +30,7 @@ from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp.common import utils
+from networking_bagpipe.bagpipe_bgp import constants
 from networking_bagpipe.bagpipe_bgp import engine
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.engine import flowspec
@@ -38,6 +39,14 @@ from networking_bagpipe.bagpipe_bgp.engine import tracker_worker
 LOG = logging.getLogger(__name__)
 
 DEFAULT_LOCAL_PREF = 100
+
+
+def forward_to_port(direction):
+    return direction in (None, constants.BOTH, constants.TO_PORT)
+
+
+def forward_from_port(direction):
+    return direction in (None, constants.BOTH, constants.FROM_PORT)
 
 
 class TrafficClassifier(object):
@@ -312,6 +321,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         # endpoint (MAC and IP addresses tuple) -> description
         self.endpoint_2_desc = dict()
+
+        # endpoint (MAC and IP addresses tuple) -> direction
+        self.endpoint_2_direction = dict()
 
         # Redirected instances list from which traffic is attracted (based on
         # FlowSpec 5-tuple classification)
@@ -641,6 +653,11 @@ class VPNInstance(tracker_worker.TrackerWorker,
             'lb_consistent_hash_order', 0)
         params['vni'] = params.get('vni', 0)
 
+        params['direction'] = params.get('direction') or constants.BOTH
+        if params['direction'] not in constants.ALL_DIRECTIONS:
+            raise exc.APIException("direction should be one of: %s" %
+                                   ', '.join(constants.ALL_DIRECTIONS))
+
         cls.translate_api_internal(params)
 
     @classmethod
@@ -714,34 +731,40 @@ class VPNInstance(tracker_worker.TrackerWorker,
                 pdata["port_info"] = localport
                 pdata["lb_consistent_hash_order"] = lb_consistent_hash_order
 
-            endpoint_rd = self._rd_for_endpoint(
-                endpoint,
-                "Route distinguisher for %s %d, interface %s, "
-                "endpoint %s/%s" % (self.instance_type, self.instance_id,
-                                    linuxif, mac_address,
-                                    ip_address_prefix)
-            )
-
-            rd = self.instance_rd if plen == 32 else endpoint_rd
+            direction = kwargs.get('direction')
 
             if not refresh_only:
+                self.dp_driver.validate_directions(direction)
                 # Call driver to setup the dataplane for incoming traffic
                 self.dataplane.vif_plugged(mac_address, ip_prefix,
-                                           localport, pdata['label'])
+                                           localport, pdata['label'],
+                                           direction)
 
-            self.log.info("Synthesizing and advertising BGP route for VIF %s "
-                          "endpoint (%s, %s/%d)", linuxif,
-                          mac_address, ip_prefix, plen)
-            route_entry = self.synthesize_vif_bgp_route(
-                mac_address, ip_prefix, plen,
-                pdata['label'], lb_consistent_hash_order, rd, local_pref)
+            if forward_to_port(direction):
+                endpoint_rd = self._rd_for_endpoint(
+                    endpoint,
+                    "Route distinguisher for %s %d, interface %s, "
+                    "endpoint %s/%s" % (self.instance_type, self.instance_id,
+                                        linuxif, mac_address,
+                                        ip_address_prefix)
+                )
 
-            self._advertise_route(route_entry)
+                rd = self.instance_rd if plen == 32 else endpoint_rd
 
-            self.endpoint_2_route[endpoint] = route_entry
-            self.endpoint_2_rd[endpoint] = endpoint_rd
+                self.log.info("Synthesizing and advertising BGP route for VIF "
+                              "%s endpoint (%s, %s/%d)", linuxif,
+                              mac_address, ip_prefix, plen)
+                route_entry = self.synthesize_vif_bgp_route(
+                    mac_address, ip_prefix, plen,
+                    pdata['label'], lb_consistent_hash_order, rd, local_pref)
+
+                self._advertise_route(route_entry)
+                self.endpoint_2_route[endpoint] = route_entry
+                self.endpoint_2_rd[endpoint] = endpoint_rd
+
             self.localport_2_endpoints[linuxif].add(endpoint)
             self.endpoint_2_lp[endpoint] = local_pref
+            self.endpoint_2_direction[endpoint] = direction
             self.mac_2_localport_data[mac_address] = pdata
 
             self.ip_address_2_mac[ip_address_prefix].add(mac_address)
@@ -766,8 +789,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
     @utils.synchronized
     @log_decorator.log_info
-    def vif_unplugged(self, mac_address, ip_address_prefix,
-                      lb_consistent_hash_order=0):
+    def vif_unplugged(self, mac_address, ip_address_prefix):
         # NOTE(tmorin): move this as a vif_unplugged_precheck, so that
         # in ipvpn.VRF this is done before readvertised route withdrawal
         endpoint = (mac_address, ip_address_prefix)
@@ -788,6 +810,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         label = pdata.get('label')
         localport = pdata.get('port_info')
         linuxif = localport['linuxif']
+        direction = self.endpoint_2_direction[endpoint]
         if not label or not localport:
             self.log.error("vif_unplugged called for endpoint (%s, %s), but "
                            "port data (%s, %s) is incomplete",
@@ -798,16 +821,18 @@ class VPNInstance(tracker_worker.TrackerWorker,
             # Parse address/mask
             (ip_prefix, _) = self._parse_ipaddress_prefix(ip_address_prefix)
 
-            last_endpoint = len(self.localport_2_endpoints[linuxif]) <= 1
-
             self.log.info("Withdrawing BGP route for VIF %s endpoint "
                           "(%s, %s)", linuxif, mac_address, ip_address_prefix)
 
             self._withdraw_route(self.endpoint_2_route.pop(endpoint))
 
-            # Unplug endpoint from data plane
-            self.dataplane.vif_unplugged(
-                mac_address, ip_prefix, localport, label, last_endpoint)
+            last_endpoint = len(self.localport_2_endpoints[linuxif]) <= 1
+
+            if forward_to_port(direction):
+                # Unplug endpoint from data plane
+                self.dataplane.vif_unplugged(
+                    mac_address, ip_prefix, localport, label, direction,
+                    last_endpoint)
 
             # Forget data for this port if last endpoint
             if last_endpoint:
@@ -820,7 +845,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
                 self.localport_2_endpoints[linuxif].remove(endpoint)
 
             # Free route distinguisher to the allocator
-            self.manager.rd_allocator.release(self.endpoint_2_rd.pop(endpoint))
+            if forward_to_port(direction):
+                self.manager.rd_allocator.release(
+                    self.endpoint_2_rd.pop(endpoint))
 
             if not last_endpoint:
                 if not any([ep[0] == mac_address
@@ -1008,7 +1035,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
                     'ip_address': ip,
                     'local_pref': self.endpoint_2_lp.get(endpoint),
                     'rd': repr(self.endpoint_2_rd[endpoint]),
-                    'description': self.endpoint_2_desc.get(endpoint)
+                    'description': self.endpoint_2_desc.get(endpoint),
+                    'direction': self.endpoint_2_direction.get(endpoint)
                 })
 
             r[port] = {

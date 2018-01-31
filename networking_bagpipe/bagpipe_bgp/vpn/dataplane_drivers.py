@@ -25,6 +25,7 @@ import six
 import stevedore
 
 from networking_bagpipe.bagpipe_bgp.common import config
+from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp.common import run_command
@@ -234,6 +235,18 @@ class DataplaneDriver(lg.LookingGlassLocalLogger):
         '''
         return False
 
+    def validate_directions(self, direction):
+        # by default, assume a driver only supports plugging in both directions
+        # if a driver does not support forwarding only the traffic to the port,
+        # (and hence omit forwarding traffic from the port), it should raise an
+        # exception if directions is TO_PORT
+        # if a driver does not support forwarding only the traffic from the
+        # port (and hence omit forwarding traffic to the port), it should raise
+        # an exception if directions is FROM_PORT
+        if (direction is not None) and (direction != constants.BOTH):
+            self.log.warning("Unsupported direction: %s", direction)
+            raise exc.APIException("Unsupported direction: %s" % direction)
+
     def _run_command(self, command, run_as_root=False, *args, **kwargs):
         return run_command.run_command(self.log, command, run_as_root,
                                        *args, **kwargs)
@@ -271,12 +284,13 @@ class VPNInstanceDataplane(lg.LookingGlassLocalLogger):
         pass
 
     @abc.abstractmethod
-    def vif_plugged(self, mac_address, ip_address_prefix, localport, label):
+    def vif_plugged(self, mac_address, ip_address_prefix, localport, label,
+                    direction):
         pass
 
     @abc.abstractmethod
     def vif_unplugged(self, mac_address, ip_address_prefix, localport, label,
-                      last_endpoint=True):
+                      direction, last_endpoint=True):
         pass
 
     def update_fallback(self, fallback):

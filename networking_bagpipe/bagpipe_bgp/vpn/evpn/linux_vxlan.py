@@ -202,7 +202,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self.bridge_name = linuxbr
 
     @log_decorator.log_info
-    def vif_plugged(self, mac_address, ip_address, localport, dpid):
+    def vif_plugged(self, mac_address, ip_address, localport, dpid, direction):
         # Plug localport only if bridge was created by us
         if BRIDGE_NAME_PREFIX in self.bridge_name:
             self.log.debug("Plugging localport %s into EVPN bridge %s",
@@ -220,7 +220,7 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
     @log_decorator.log_info
     def vif_unplugged(self, mac_address, ip_address, localport, dpid,
-                      last_endpoint=True):
+                      direction, last_endpoint=True):
 
         # remove local fdb entry, but only if tap interface is still here
         if self._is_if_on_bridge(localport['linuxif']):

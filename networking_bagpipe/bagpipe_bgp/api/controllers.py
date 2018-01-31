@@ -92,6 +92,11 @@ class AttachController(VPNManagerController):
     'linuxbr': Name of a linux bridge to which the linuxif is already
              plugged-in (optional)
     'local_pref': BGP LOCAL_PREF for the route to this vif (optional)
+    'direction': 'to-port' | 'from-port' | 'both'
+        # specify local port traffic direction in VPN instance
+        # (route advertisements are not done with from-port only)
+        # to-port: only forward traffic to the VIF
+        # from-port: only forward traffic to the VIF
     'local_port': local port to plug to the VPN instance
         should be a dict containing any of the following key,value pairs
         {
@@ -119,7 +124,7 @@ class AttachController(VPNManagerController):
                 'to_vm_port_number'
                 'to_vm_port_name'
                },
-            'evpn': {  # for an ipvpn attachement...
+            'evpn': {  # for an ipvpn attachment...
                  'id': 'xyz'  # specifies the vpn_instance_id of an evpn
                               # that will be attached to the ipvpn
                  'ovs_port_name': 'qvb456abc' # optional, if provided,

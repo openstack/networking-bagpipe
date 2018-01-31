@@ -30,6 +30,7 @@ from networking_bagpipe.bagpipe_bgp.common import net_utils
 from networking_bagpipe.bagpipe_bgp import constants as consts
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
+from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
 
 # man ovs-ofctl /32768
 DEFAULT_OVS_FLOW_PRIORITY = 0x8000
@@ -336,7 +337,8 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             return (push_vlan_action, "strip_vlan,")
 
     @log_decorator.log
-    def vif_plugged(self, mac_address, ip_address, localport, label):
+    def vif_plugged(self, mac_address, ip_address, localport, label,
+                    direction):
 
         (ovs_port, localport_match, push_vlan_action, port_unplug_action) = (
             self._get_ovs_port_specifics(localport)
@@ -354,46 +356,48 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         # Please consider this obsolete until it gets clean'd up
         self._mtu_fixup(localport)
 
-        # Map traffic from plugged port to VRF
+        if vpn_instance.forward_from_port(direction):
+            # Map traffic from plugged port to VRF
 
-        # Note that we first reset the in_port so that OVS will allow the
-        # packet to eventually go back to this port after a VRF lookup
-        # (the case where that happens is where in port is a patch-port on
-        # which different VLANs are used to reach different networks):
-        # patch port vlan X -- VRFX --- VRF Y -- patch-port vlan Y
-        #
-        # ( see http://docs.openvswitch.org/en/latest/faq/openflow/
-        # "Q: I added a flow to send packets out the ingress port..." )
-        actions = ('%s'
-                   'load:0->NXM_OF_IN_PORT[],'
-                   'set_field:%d->reg%d,'
-                   'resubmit(,%d)') % (
-            strip_vlan_action_str, self.instance_id, VRF_REGISTER,
-            self.driver.vrf_table
-        )
-        for proto in ('ip', 'arp'):
-            self._ovs_flow_add(join_s(localport_match, proto),
-                               actions,
-                               self.driver.input_table)
+            # Note that we first reset the in_port so that OVS will allow the
+            # packet to eventually go back to this port after a VRF lookup
+            # (the case where that happens is where in port is a patch-port on
+            # which different VLANs are used to reach different networks):
+            # patch port vlan X -- VRFX --- VRF Y -- patch-port vlan Y
+            #
+            # ( see http://docs.openvswitch.org/en/latest/faq/openflow/
+            # "Q: I added a flow to send packets out the ingress port..." )
+            actions = ('%s'
+                       'load:0->NXM_OF_IN_PORT[],'
+                       'set_field:%d->reg%d,'
+                       'resubmit(,%d)') % (
+                strip_vlan_action_str, self.instance_id, VRF_REGISTER,
+                self.driver.vrf_table
+            )
+            for proto in ('ip', 'arp'):
+                self._ovs_flow_add(join_s(localport_match, proto),
+                                   actions,
+                                   self.driver.input_table)
 
         # Map ARP responder if necessary
         if not self._ovs_port_info:
             self.setup_arp_responder(ovs_port)
 
-        # Map incoming MPLS traffic going to the VM port
-        incoming_actions = ("%smod_dl_src:%s,mod_dl_dst:%s,output:%s" %
-                            (push_vlan_action_str, GATEWAY_MAC,
-                             mac_address, ovs_port))
+        if vpn_instance.forward_to_port(direction):
+            # Map incoming MPLS traffic going to the VM port
+            incoming_actions = ("%smod_dl_src:%s,mod_dl_dst:%s,output:%s" %
+                                (push_vlan_action_str, GATEWAY_MAC,
+                                 mac_address, ovs_port))
 
-        self._ovs_flow_add(self._match_mpls_in(label),
-                           "pop_mpls:0x0800,%s" % incoming_actions,
-                           self.driver.encap_in_table)
-
-        # additional incoming traffic rule for VXLAN
-        if self.driver.vxlan_encap:
-            self._ovs_flow_add(self._match_vxlan_in(label),
-                               incoming_actions,
+            self._ovs_flow_add(self._match_mpls_in(label),
+                               "pop_mpls:0x0800,%s" % incoming_actions,
                                self.driver.encap_in_table)
+
+            # additional incoming traffic rule for VXLAN
+            if self.driver.vxlan_encap:
+                self._ovs_flow_add(self._match_vxlan_in(label),
+                                   incoming_actions,
+                                   self.driver.encap_in_table)
 
         # Add OVS port number in list for local port plugged in VRF
         # FIXME: check check check, is linuxif the right key??
@@ -414,25 +418,27 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     @log_decorator.log
     def vif_unplugged(self, mac_address, ip_address, localport, label,
-                      last_endpoint=True):
+                      direction, last_endpoint=True):
 
         localport_match = self._ovs_port_info[
             localport['linuxif']]['localport_match']
         port_unplug_action = self._ovs_port_info[
             localport['linuxif']]['port_unplug_action']
 
-        # Unmap incoming MPLS traffic going to the VM port
-        self._ovs_flow_del(self._match_mpls_in(label),
-                           self.driver.encap_in_table)
-
-        # Unmap incoming VXLAN traffic...
-        if self.driver.vxlan_encap:
-            self._ovs_flow_del(self._match_vxlan_in(label),
+        if vpn_instance.forward_to_port(direction):
+            # Unmap incoming MPLS traffic going to the VM port
+            self._ovs_flow_del(self._match_mpls_in(label),
                                self.driver.encap_in_table)
 
+            # Unmap incoming VXLAN traffic...
+            if self.driver.vxlan_encap:
+                self._ovs_flow_del(self._match_vxlan_in(label),
+                                   self.driver.encap_in_table)
+
         if last_endpoint:
-            # Unmap all traffic from plugged port
-            self._ovs_flow_del(localport_match, self.driver.input_table)
+            if vpn_instance.forward_from_port(direction):
+                # Unmap all traffic from plugged port
+                self._ovs_flow_del(localport_match, self.driver.input_table)
 
             # Unmap ARP responder
             self.remove_arp_responder()
@@ -1048,6 +1054,10 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
             self._ovs_flow_add("in_port=%d" % self.vxlan_tunnel_port_number,
                                "resubmit(,%d)" % self.encap_in_table,
                                self.input_table)
+
+    def validate_directions(self, direction):
+        # this driver supports all combinations of directions
+        pass
 
     def find_ovs_port(self, dev_name):
         """Find OVS port number from port name"""

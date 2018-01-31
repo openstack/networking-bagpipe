@@ -24,6 +24,12 @@ RT_IMPORT = 'import_rt'
 RT_EXPORT = 'export_rt'
 RT_TYPES = [RT_IMPORT, RT_EXPORT]
 
+# port directions
+TO_PORT = 'to-port'
+FROM_PORT = 'from-port'
+BOTH = 'both'
+ALL_DIRECTIONS = (BOTH, TO_PORT, FROM_PORT)
+
 
 def config_group(vpn_type):
     return "DATAPLANE_DRIVER_%s" % vpn_type.upper()
