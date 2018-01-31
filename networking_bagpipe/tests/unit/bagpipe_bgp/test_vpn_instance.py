@@ -723,7 +723,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn._advertise_route.reset_mock()
 
         route = engine.RouteEntry(t.NLRI1, [t.RT1])
-        self.vpn._rtm_route_entries = set([route])
+        self.vpn.endpoint_2_route = {None: route}
 
     def test_update_rts_1(self):
         self._test_update_rts_init()
