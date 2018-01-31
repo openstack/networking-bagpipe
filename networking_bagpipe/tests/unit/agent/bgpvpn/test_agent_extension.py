@@ -235,6 +235,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                     dict(
                         network_id=base.NETWORK1['id'],
                         ipvpn=[dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
@@ -280,6 +282,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                     dict(
                         network_id=base.NETWORK1['id'],
                         ipvpn=[dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
@@ -428,6 +432,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -554,6 +560,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                     dict(
                         network_id=base.NETWORK1['id'],
                         ipvpn=[dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
@@ -676,6 +684,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                     dict(
                         network_id=base.NETWORK1['id'],
                         ipvpn=[dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
@@ -834,6 +844,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -873,6 +885,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                 dict(
                     network_id=base.NETWORK1['id'],
                     evpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -919,6 +933,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -963,6 +979,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                     dict(
                         network_id=network['id'],
                         ipvpn=[dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address=port['ip_address'],
                             mac_address=port['mac_address'],
                             gateway_ip=network['gateway_ip'],
@@ -1054,6 +1072,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -1091,6 +1111,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -1160,6 +1182,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                     network_id=base.NETWORK1['id'],
                     ipvpn=[
                         dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address=base.PORT10['ip_address'],
                             mac_address=base.PORT10['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
@@ -1168,6 +1192,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                             **self._expand_rts(base.BGPVPN_L3_RT100)
                         ),
                         dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address='40.0.0.0/24',
                             advertise_subnet=True,
                             mac_address=base.PORT10['mac_address'],
@@ -1177,6 +1203,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                             **self._expand_rts(base.BGPVPN_L3_RT100)
                         ),
                         dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address='60.0.0.0/24',
                             advertise_subnet=True,
                             mac_address=base.PORT10['mac_address'],
@@ -1220,6 +1248,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                     network_id=base.NETWORK1['id'],
                     ipvpn=[
                         dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address=base.PORT10['ip_address'],
                             mac_address=base.PORT10['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
@@ -1227,6 +1257,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                             **self._expand_rts(base.BGPVPN_L3_RT100)
                         ),
                         dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address='40.0.0.0/24',
                             advertise_subnet=True,
                             local_pref=77,
@@ -1313,6 +1345,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -1412,6 +1446,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address="40.0.0.0/24",
                         advertise_subnet=True,
                         mac_address=base.PORT10['mac_address'],
@@ -1476,6 +1512,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                 dict(
                     network_id=base.NETWORK1['id'],
                     evpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -1532,6 +1570,8 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                     dict(
                         network_id=base.NETWORK1['id'],
                         ipvpn=[dict(
+                            description=mock.ANY,
+                            instance_description=mock.ANY,
                             ip_address=base.PORT10['ip_address'],
                             mac_address=base.PORT10['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
@@ -1694,6 +1734,8 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -1794,6 +1836,8 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                 dict(
                     network_id=base.NETWORK1['id'],
                     ipvpn=[dict(
+                        description=mock.ANY,
+                        instance_description=mock.ANY,
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
