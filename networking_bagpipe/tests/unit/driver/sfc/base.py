@@ -34,21 +34,11 @@ class NeutronDbPluginV2TestCase(test_db_plugin.NeutronDbPluginV2TestCase):
         if not plugin:
             plugin = 'neutron.plugins.ml2.plugin.Ml2Plugin'
 
-#         cfg.CONF.set_override(
-#             'mechanism_drivers', ['bagpipe'], group='ml2')
-#         cfg.CONF.set_override(
-#             'type_drivers', ['route_target'], group='ml2')
-#         cfg.CONF.set_override('tenant_network_types',
-#                               ['route_target'],
-#                               group='ml2')
-#         cfg.CONF.register_group(cfg.OptGroup(name='ml2_type_route_target'))
-#         cfg.CONF.register_opt(
-#             cfg.ListOpt('ml2_type_route_target', default=['1:1000']))
         cfg.CONF.set_override('tenant_network_types', ['vxlan'], group='ml2')
         cfg.CONF.set_override(
             'vni_ranges', ['1:1000'], group='ml2_type_vxlan')
         cfg.CONF.set_override(
-            'mechanism_drivers', ['openvswitch'], group='ml2')
+            'mechanism_drivers', ['linuxbridge'], group='ml2')
 
         super(NeutronDbPluginV2TestCase, self).setUp(
             ext_mgr=ext_mgr,

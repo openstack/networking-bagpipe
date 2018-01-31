@@ -31,8 +31,8 @@ from neutron_lib import constants as n_const
 from networking_bagpipe.agent import agent_base_info
 from networking_bagpipe.agent import bagpipe_bgp_agent
 from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
-from networking_bagpipe.driver.sfc.common import constants as sfc_const
-from networking_bagpipe.objects.sfc import chain_hop
+from networking_bagpipe.driver import constants as sfc_const
+from networking_bagpipe.objects import sfc as sfc_obj
 
 from neutron.api.rpc.callbacks.consumer import registry as cons_registry
 from neutron.api.rpc.callbacks import events as rpc_events
@@ -81,16 +81,16 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
 
         # Consume BaGPipeChainHop OVO RPC
         cons_registry.register(self.handle_sfc_chain_hops,
-                               chain_hop.BaGPipeChainHop.obj_name())
+                               sfc_obj.BaGPipeChainHop.obj_name())
         topic_chain_hop = resources_rpc.resource_type_versioned_topic(
-            chain_hop.BaGPipeChainHop.obj_name())
+            sfc_obj.BaGPipeChainHop.obj_name())
         connection.create_consumer(topic_chain_hop, endpoints, fanout=True)
 
         # Consume BaGPipePortHops OVO RPC
         cons_registry.register(self.handle_sfc_port_hops,
-                               chain_hop.BaGPipePortHops.obj_name())
+                               sfc_obj.BaGPipePortHops.obj_name())
         topic_port_hops = resources_rpc.resource_type_versioned_topic(
-            chain_hop.BaGPipePortHops.obj_name())
+            sfc_obj.BaGPipePortHops.obj_name())
         connection.create_consumer(topic_port_hops, endpoints, fanout=True)
 
     def _add_sfc_chain_hop_helper(self, port_ids, chain_hop, side):
@@ -359,7 +359,7 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
         port_info.ip_address = port['fixed_ips'][0]['ip_address']
 
         port_hops = self._pull_rpc.pull(context,
-                                        chain_hop.BaGPipePortHops.obj_name(),
+                                        sfc_obj.BaGPipePortHops.obj_name(),
                                         port_id)
 
         for ingress_hop in port_hops.ingress_hops:

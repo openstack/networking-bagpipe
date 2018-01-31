@@ -24,8 +24,8 @@ from neutron.api import extensions as api_ext
 from neutron.api.rpc.callbacks import events as rpc_events
 from neutron.common import config
 
-from networking_bagpipe.driver.sfc import sfc as driver
-from networking_bagpipe.objects.sfc import chain_hop
+from networking_bagpipe.driver import sfc as driver
+from networking_bagpipe.objects import sfc as sfc_obj
 from networking_bagpipe.tests.unit.driver.sfc import base as sfc_base
 
 from networking_sfc.db import flowclassifier_db as fc_db
@@ -119,7 +119,7 @@ class BaGPipeSfcDriverTestCase(
 
         if rpc_event == rpc_events.CREATED:
             self.assertIsInstance(rpc_call_args[1][0].egress_hops[0],
-                                  chain_hop.BaGPipeChainHop)
+                                  sfc_obj.BaGPipeChainHop)
 
         self.assertEqual(egress_port, rpc_call_args[1][1].port_id)
         self.assertEqual(len(rpc_call_args[1][1].ingress_hops),
@@ -128,7 +128,7 @@ class BaGPipeSfcDriverTestCase(
 
         if rpc_event == rpc_events.CREATED:
             self.assertIsInstance(rpc_call_args[1][1].ingress_hops[0],
-                                  chain_hop.BaGPipeChainHop)
+                                  sfc_obj.BaGPipeChainHop)
 
     def test_create_port_chain(self):
         with self.port_pair_group(
