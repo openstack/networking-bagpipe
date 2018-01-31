@@ -247,6 +247,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
         self.instance_type = self.__class__.__name__
         self.instance_id = instance_id
 
+        self.description = None
+
         threading.Thread.__init__(self)
         self.setDaemon(True)
 
@@ -307,6 +309,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         # One endpoint (MAC and IP addresses tuple) -> BGP local_pref
         self.endpoint_2_lp = dict()
+
+        # endpoint (MAC and IP addresses tuple) -> description
+        self.endpoint_2_desc = dict()
 
         # Redirected instances list from which traffic is attracted (based on
         # FlowSpec 5-tuple classification)
@@ -656,7 +661,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
     @log_decorator.log_info
     def vif_plugged(self, mac_address, ip_address_prefix, localport,
                     advertise_subnet=False,
-                    lb_consistent_hash_order=0, local_pref=None):
+                    lb_consistent_hash_order=0, local_pref=None, **kwargs):
         linuxif = localport['linuxif']
         endpoint = (mac_address, ip_address_prefix)
         # Check if this port has already been plugged
@@ -675,6 +680,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
                                         localport))
 
         try:
+            self.endpoint_2_desc[endpoint] = kwargs.get('description')
+
             # Parse address/mask
             (ip_prefix, plen) = self._parse_ipaddress_prefix(ip_address_prefix)
 
@@ -829,6 +836,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
             if not self.ip_address_2_mac[ip_address_prefix]:
                 del self.ip_address_2_mac[ip_address_prefix]
+
+            del self.endpoint_2_desc[endpoint]
         else:
             self.log.error("vif_unplugged called for endpoint {%s, %s}, but"
                            " port data is incomplete", mac_address,
@@ -976,6 +985,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         return {
             "instance_type":         (lg.VALUE, self.instance_type),
             "external_instance_id":  (lg.VALUE, self.external_instance_id),
+            "description":           (lg.VALUE, self.description),
             "dataplane":             (lg.DELEGATE, self.dataplane),
             "route_targets":         (lg.SUBITEM, self.get_rts),
             "gateway_ip":            (lg.VALUE, self.gateway_ip),
@@ -998,7 +1008,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
                     'mac_address': mac,
                     'ip_address': ip,
                     'local_pref': self.endpoint_2_lp.get(endpoint),
-                    'rd': repr(self.endpoint_2_rd[endpoint])
+                    'rd': repr(self.endpoint_2_rd[endpoint]),
+                    'description': self.endpoint_2_desc.get(endpoint)
                 })
 
             r[port] = {
@@ -1039,3 +1050,11 @@ class VPNInstance(tracker_worker.TrackerWorker,
             })
 
         return r
+
+    def get_lg_summary(self):
+        # used from VPNManager looking glass
+        entry = {"id": self.external_instance_id,
+                 "name": self.name}
+        if self.description:
+            entry['description'] = self.description
+        return entry

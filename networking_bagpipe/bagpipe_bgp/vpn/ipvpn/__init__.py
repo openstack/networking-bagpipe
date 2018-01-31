@@ -233,10 +233,11 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     def vif_plugged(self, mac_address, ip_address_prefix, localport,
                     advertise_subnet=False, lb_consistent_hash_order=0,
-                    local_pref=None):
+                    local_pref=None, **kwargs):
         super(VRF, self).vif_plugged(mac_address, ip_address_prefix,
                                      localport, advertise_subnet,
-                                     lb_consistent_hash_order, local_pref)
+                                     lb_consistent_hash_order, local_pref,
+                                     **kwargs)
 
         endpoint = (mac_address, ip_address_prefix)
         label = self.mac_2_localport_data[mac_address]['label']

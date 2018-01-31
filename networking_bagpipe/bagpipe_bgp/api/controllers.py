@@ -75,9 +75,11 @@ class VPNManagerController(object):
 class AttachController(VPNManagerController):
     """attach_localport parameters:
 
-    'vpn_instance_id: external VPN instance identifier (all ports with same
+    'vpn_instance_id': external VPN instance identifier (all ports with same
                      vpn_instance_id will be plugged in the same VPN
                      instance
+    'instance_description': free form description of VPN instance
+    'description': free form description of attachment
     'vpn_type': type of the VPN instance ('ipvpn' or 'evpn')
     'import_rt': list of import Route Targets (or comma-separated string)
     'export_rt': list of export Route Targets (or comma-separated string)

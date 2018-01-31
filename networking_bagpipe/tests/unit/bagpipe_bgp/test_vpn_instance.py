@@ -948,7 +948,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
     def test_re_advertisement_1(self):
         self._reset_mocks()
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
@@ -990,7 +990,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # new interface plugged in
         # route vpn_nlri_2 should be re-advertized with this new next hop as
         #  next-hop
-        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT2, False, 0)
+        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT2)
         # advertised route count should increment by 2:
         # - vif route itself
         # - re-adv of NLRI1 with this new port as next-hop
@@ -1029,7 +1029,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         # vif unplugged, routes VPN NLRI2 with next-hop
         # corresponding to this ports should now be withdrawn
-        self.vpn.vif_unplugged(MAC2, IP2, False)
+        self.vpn.vif_unplugged(MAC2, IP2)
         self.assertEqual(2, self.vpn._withdraw_route.call_count)
         route_entry = self.vpn._withdraw_route.call_args_list[0][0][0]
         self.assertEqual(vpn_nlri_2.cidr.prefix(),
@@ -1113,7 +1113,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(1, self.vpn._advertise_route.call_count)
@@ -1135,7 +1135,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(1, self.vpn._advertise_route.call_count)
@@ -1164,7 +1164,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(1, self.vpn._advertise_route.call_count)
@@ -1191,7 +1191,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(1, self.vpn._advertise_route.call_count)
@@ -1230,7 +1230,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self._config_vrf_with_attract_traffic(ATTRACT_STATIC_1,
                                               no_readvertise=True)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         self._check_attract_traffic('_advertise_route',
                                     ATTRACT_STATIC_1['redirect_rts'],
@@ -1252,7 +1252,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # target
         self._config_vrf_with_attract_traffic(ATTRACT_STATIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         self._check_attract_traffic('_advertise_route',
                                     ATTRACT_STATIC_1['redirect_rts'],
@@ -1276,7 +1276,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # route target
         self._config_vrf_with_attract_traffic(ATTRACT_STATIC_2)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         self._check_attract_traffic('_advertise_route',
                                     ATTRACT_STATIC_1['redirect_rts'],
@@ -1297,7 +1297,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
     def test_redirected_vrf_single_flow_advertised(self):
         self._mock_vpnmanager_for_attract_traffic()
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(1, self.vpn._advertise_route.call_count)
@@ -1319,7 +1319,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
     def test_redirected_vrf_multiple_flow_advertised(self):
         self._mock_vpnmanager_for_attract_traffic()
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(1, self.vpn._advertise_route.call_count)
@@ -1346,7 +1346,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
     def test_redirected_vrf_multiple_flow_withdrawn(self):
         self._mock_vpnmanager_for_attract_traffic()
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(1, self.vpn._advertise_route.call_count)
@@ -1385,8 +1385,8 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
-        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1, False, 1)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(2, self.vpn._advertise_route.call_count)
@@ -1408,8 +1408,8 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
-        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1, False, 1)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(2, self.vpn._advertise_route.call_count)
@@ -1438,8 +1438,8 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
-        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1, False, 1)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(2, self.vpn._advertise_route.call_count)
@@ -1466,8 +1466,8 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
-        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1, False, 1)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(2, self.vpn._advertise_route.call_count)
@@ -1503,8 +1503,8 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
-        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1, False, 1)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(2, self.vpn._advertise_route.call_count)
@@ -1521,7 +1521,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         self._reset_mocks()
 
-        self.vpn.vif_plugged(MAC3, IP3, LOCAL_PORT1, False, 2)
+        self.vpn.vif_plugged(MAC3, IP3, LOCAL_PORT1)
 
         self._check_attract_traffic(
             '_advertise_route',
@@ -1533,8 +1533,8 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # classifier, to a specific route target
         self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
 
-        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1, False, 0)
-        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1, False, 1)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+        self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
         self.assertEqual(2, self.vpn._advertise_route.call_count)
@@ -1551,7 +1551,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         self._reset_mocks()
 
-        self.vpn.vif_unplugged(MAC1, IP1, False)
+        self.vpn.vif_unplugged(MAC1, IP1)
 
         self._check_attract_traffic(
             '_withdraw_route',
@@ -1560,7 +1560,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         self._reset_mocks()
 
-        self.vpn.vif_unplugged(MAC2, IP2, False)
+        self.vpn.vif_unplugged(MAC2, IP2)
 
         self._check_attract_traffic(
             '_withdraw_route',
