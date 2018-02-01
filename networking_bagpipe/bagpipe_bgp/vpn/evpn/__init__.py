@@ -61,7 +61,7 @@ class VPNInstanceDataplane(dp_drivers.VPNInstanceDataplane):
 
 
 class DummyVPNInstanceDataplane(dp_drivers.DummyVPNInstanceDataplane,
-                                dp_drivers.VPNInstanceDataplane):
+                                VPNInstanceDataplane):
     '''Dummy, do-nothing dataplane driver'''
 
     @log_decorator.log_info
