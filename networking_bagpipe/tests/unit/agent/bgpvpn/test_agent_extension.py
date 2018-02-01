@@ -46,7 +46,7 @@ class HashableDict(dict):
 
 
 def make_list_hashable(list_):
-    if isinstance(list_[0], dict):
+    if isinstance(list_[0], dict) and len(list_):
         return [HashableDict(d) for d in list_]
 
 
@@ -1149,7 +1149,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                                  export_targets=[]
                                  )
         ]
-        result = self.agent_ext._format_associations_route_targets(assocs)
+        result = bagpipe_agt_ext.format_associations_route_targets(assocs)
         expected = {
             'import_rt': ['12345:1', '12345:2', '12345:3', '12345:5',
                           '12345:6'],
@@ -1171,6 +1171,8 @@ class TestBgpvpnAgentExtensionMixin(object):
         )
 
         self.mocked_rpc_pull.side_effect = [[], [], [port_assoc]]
+
+        instance_id_base = 'ipvpn_portassoc_%s_prefix_' % port_assoc.id
 
         def check_build_cb(*args):
             # Verify build callback attachments
@@ -1194,6 +1196,9 @@ class TestBgpvpnAgentExtensionMixin(object):
                         dict(
                             description=mock.ANY,
                             instance_description=mock.ANY,
+                            vpn_instance_id=(instance_id_base +
+                                             '40_0_0_0_24'),
+                            direction='to-port',
                             ip_address='40.0.0.0/24',
                             advertise_subnet=True,
                             mac_address=base.PORT10['mac_address'],
@@ -1205,6 +1210,9 @@ class TestBgpvpnAgentExtensionMixin(object):
                         dict(
                             description=mock.ANY,
                             instance_description=mock.ANY,
+                            vpn_instance_id=(instance_id_base +
+                                             '60_0_0_0_24'),
+                            direction='to-port',
                             ip_address='60.0.0.0/24',
                             advertise_subnet=True,
                             mac_address=base.PORT10['mac_address'],
@@ -1238,6 +1246,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                                                             77)],
                                            **base.BGPVPN_L3_RT100)
 
+        instance_id_base = 'ipvpn_portassoc_%s_prefix_' % port_assoc.id
+
         def check_build_cb(*args):
             # Verify build callback attachments
             local_port = self._get_expected_local_port(bbgp_const.IPVPN,
@@ -1259,6 +1269,9 @@ class TestBgpvpnAgentExtensionMixin(object):
                         dict(
                             description=mock.ANY,
                             instance_description=mock.ANY,
+                            vpn_instance_id=(instance_id_base +
+                                             '40_0_0_0_24'),
+                            direction='to-port',
                             ip_address='40.0.0.0/24',
                             advertise_subnet=True,
                             local_pref=77,
@@ -1306,12 +1319,21 @@ class TestBgpvpnAgentExtensionMixin(object):
                        UnorderedList([
                            {'network_id': base.NETWORK1['id'],
                             bbgp_const.IPVPN: {
-                                'ip_address': ip_address,
+                                'ip_address': base.PORT10['ip_address'],
                                 'mac_address': base.PORT10['mac_address'],
                                 'local_port': local_port_l3['local_port']
                                 }
-                            } for ip_address in (base.PORT10['ip_address'],
-                                                 "40.0.0.0/24")]))
+                            },
+                           {'network_id': base.NETWORK1['id'],
+                            bbgp_const.IPVPN: {
+                                'ip_address': "40.0.0.0/24",
+                                'vpn_instance_id': (instance_id_base +
+                                                    '40_0_0_0_24'),
+                                'mac_address': base.PORT10['mac_address'],
+                                'local_port': local_port_l3['local_port']
+                                }
+                            }
+                       ]))
              ]
         )
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
@@ -1336,6 +1358,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                                                id=port_assoc.id,
                                                **base.BGPVPN_L3_RT100)
 
+        instance_id_base = 'ipvpn_portassoc_%s_prefix_' % port_assoc.id
+
         def check_build_cb(*args):
             # Verify build callback attachments
             local_port = self._get_expected_local_port(bbgp_const.IPVPN,
@@ -1347,6 +1371,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                     ipvpn=[dict(
                         description=mock.ANY,
                         instance_description=mock.ANY,
+                        vpn_instance_id=(instance_id_base + '40_0_0_0_24'),
+                        direction='to-port',
                         ip_address=base.PORT10['ip_address'],
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
@@ -1375,6 +1401,7 @@ class TestBgpvpnAgentExtensionMixin(object):
         detach_info = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
+                'vpn_instance_id': (instance_id_base + '40_0_0_0_24'),
                 'ip_address': "40.0.0.0/24",
                 'mac_address': base.PORT10['mac_address'],
                 'local_port': local_port_l3['local_port']
@@ -1396,6 +1423,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                             ("60.0.0.0/16", None)],
             **base.BGPVPN_L3_RT100)
 
+        instance_id_base = 'ipvpn_portassoc_%s_prefix_' % port_assoc.id
+
         self._port_assoc_notif(port_assoc, rpc_events.CREATED)
 
         # check that detach are produced for the deleted port
@@ -1406,17 +1435,33 @@ class TestBgpvpnAgentExtensionMixin(object):
                                                       detach=True)
         calls = [
             mock.call(base.PORT10['id'],
-                      UnorderedList(
-                          [{'network_id': base.NETWORK1['id'],
-                            bbgp_const.IPVPN: {
-                                'ip_address': ip_address,
-                                'mac_address': base.PORT10['mac_address'],
-                                'local_port': local_port_l3['local_port']
-                                }
-                            } for ip_address in (base.PORT10['ip_address'],
-                                                 "40.0.0.0/24",
-                                                 "60.0.0.0/16")
-                           ]))
+                      UnorderedList([
+                          {'network_id': base.NETWORK1['id'],
+                           bbgp_const.IPVPN: {
+                               'ip_address': base.PORT10['ip_address'],
+                               'mac_address': base.PORT10['mac_address'],
+                               'local_port': local_port_l3['local_port']
+                               }
+                           },
+                          {'network_id': base.NETWORK1['id'],
+                           bbgp_const.IPVPN: {
+                               'ip_address': "40.0.0.0/24",
+                               'vpn_instance_id': (instance_id_base +
+                                                   '40_0_0_0_24'),
+                               'mac_address': base.PORT10['mac_address'],
+                               'local_port': local_port_l3['local_port']
+                               }
+                           },
+                          {'network_id': base.NETWORK1['id'],
+                           bbgp_const.IPVPN: {
+                               'ip_address': "60.0.0.0/16",
+                               'vpn_instance_id': (instance_id_base +
+                                                   '60_0_0_0_16'),
+                               'mac_address': base.PORT10['mac_address'],
+                               'local_port': local_port_l3['local_port']
+                               }
+                           }
+                      ]))
         ]
 
         self.agent_ext.delete_port(None, self._port_data(base.PORT10))
@@ -1437,6 +1482,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                                            advertise_fixed_ips=False,
                                            **base.BGPVPN_L3_RT100)
 
+        instance_id_base = 'ipvpn_portassoc_%s_prefix_' % port_assoc.id
+
         def check_build_cb(*args):
             # Verify build callback attachments
             local_port = self._get_expected_local_port(bbgp_const.IPVPN,
@@ -1448,8 +1495,11 @@ class TestBgpvpnAgentExtensionMixin(object):
                     ipvpn=[dict(
                         description=mock.ANY,
                         instance_description=mock.ANY,
+                        vpn_instance_id=(instance_id_base + '40_0_0_0_24'),
+                        direction='to-port',
                         ip_address="40.0.0.0/24",
                         advertise_subnet=True,
+                        local_pref=None,
                         mac_address=base.PORT10['mac_address'],
                         gateway_ip=base.NETWORK1['gateway_ip'],
                         local_port=local_port['local_port'],
@@ -1478,10 +1528,10 @@ class TestBgpvpnAgentExtensionMixin(object):
                                                       base.NETWORK1['id'],
                                                       base.PORT10['id'],
                                                       detach=True)
-
         detach_info = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
+                'vpn_instance_id': (instance_id_base + '40_0_0_0_24'),
                 'ip_address': "40.0.0.0/24",
                 'mac_address': base.PORT10['mac_address'],
                 'local_port': local_port_l3['local_port']

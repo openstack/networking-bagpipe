@@ -314,3 +314,31 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
         self.project = uuidutils.generate_uuid()
         self.update_obj_fields(
             {'port_association_id': self._create_test_port_assoc_id})
+
+    def test_eq_hash(self):
+        r1 = bgpvpn_obj.BGPVPNPortAssociationRoute(
+            type='prefix',
+            prefix=netaddr.IPNetwork('1.2.3.4'))
+        r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(
+            type='prefix',
+            prefix=netaddr.IPNetwork('1.2.3.4'))
+        self.assertTrue(r1 == r2)
+        self.assertTrue(hash(r1) == hash(r2))
+
+    def test_neq_type(self):
+        r1 = bgpvpn_obj.BGPVPNPortAssociationRoute(
+            type='bgpvpn',
+            bgpvpn_id='12345')
+        r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(
+            type='prefix',
+            prefix=netaddr.IPNetwork('1.2.3.4'))
+        self.assertTrue(r1 != r2)
+
+    def test_neq_prefix(self):
+        r1 = bgpvpn_obj.BGPVPNPortAssociationRoute(
+            type='prefix',
+            prefix=netaddr.IPNetwork('11.22.33.44'))
+        r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(
+            type='prefix',
+            prefix=netaddr.IPNetwork('1.2.3.4'))
+        self.assertTrue(r1 != r2)

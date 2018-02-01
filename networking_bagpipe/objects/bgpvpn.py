@@ -78,7 +78,8 @@ class BGPVPN(base.NeutronDbObject):
         'id': common_types.UUIDField(),
         'project_id': obj_fields.StringField(),
         'type': BGPVPNTypeField(),
-        'name': obj_fields.StringField(),
+        'name': obj_fields.StringField(nullable=True,
+                                       default=None),
         'route_targets': obj_fields.ListOfStringsField(nullable=True),
         'import_targets': obj_fields.ListOfStringsField(nullable=True),
         'export_targets': obj_fields.ListOfStringsField(nullable=True),
@@ -357,6 +358,17 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
         if 'prefix' in result and result['prefix'] is not None:
             result['prefix'] = cls.filter_to_str(result['prefix'])
         return result
+
+    # we use these objects in set() in bgpvpn agent extension
+
+    def __eq__(self, other):
+        # pylint: disable=no-member
+        return ((self.type, self.prefix) ==
+                (other.type, other.prefix))
+
+    def __hash__(self):
+        # pylint: disable=no-member
+        return hash((self.type, str(self.prefix)))
 
 
 resources.register_resource_class(BGPVPN)
