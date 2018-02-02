@@ -456,25 +456,24 @@ class VPNInstance(tracker_worker.TrackerWorker,
         if frozenset(new_export_rts) != frozenset(self.export_rts):
             self.log.debug("Will re-export routes with new RTs")
             self.export_rts = new_export_rts
-            # FIXME: we should only update the routes that
-            # are routes of ports plugged to the VPN instance,
-            # not all routes which would wrongly include
-            # routes that we re-advertise between RTs
-            for route_entry in self.get_route_entries():
-                self.log.info("Re-advertising route %s with updated RTs (%s)",
-                              route_entry.nlri, new_export_rts)
+            for route_entry in self.endpoint_2_route.values():
+                if new_export_rts:
+                    self.log.info("Re-advertising route %s with updated RTs "
+                                  "(%s)", route_entry.nlri, new_export_rts)
 
-                updated_route_entry = engine.RouteEntry(
-                    route_entry.nlri,
-                    None,
-                    copy.copy(route_entry.attributes))
-                # reset the route_targets
-                # will RTs originally present in route_entry.attributes
-                updated_route_entry.set_route_targets(self.export_rts)
+                    updated_route_entry = engine.RouteEntry(
+                        route_entry.nlri,
+                        None,
+                        copy.copy(route_entry.attributes))
+                    # reset the route_targets, overwriting RTs originally
+                    # present in route_entry.attributes
+                    updated_route_entry.set_route_targets(self.export_rts)
 
-                self.log.debug("   updated route: %s", updated_route_entry)
+                    self.log.debug("   updated route: %s", updated_route_entry)
 
-                self._advertise_route(updated_route_entry)
+                    self._advertise_route(updated_route_entry)
+                else:
+                    self._withdraw_route(route_entry)
 
     def update_fallback(self, fallback):
         if self.fallback != fallback and fallback is not None:
