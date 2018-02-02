@@ -16,7 +16,7 @@
 from neutron.db.migration.models import head
 
 # pylint: disable=unused-import
-import networking_bagpipe.db.sfc.sfc_db  # noqa
+import networking_bagpipe.db.sfc_db  # noqa
 
 
 def get_metadata():

@@ -29,8 +29,8 @@ from neutron.objects import base
 from neutron.objects import common_types
 from neutron.objects.ports import Port
 
-from networking_bagpipe.db.sfc import sfc_db as bagpipe_db
-from networking_bagpipe.driver.sfc.common import constants as sfc_const
+from networking_bagpipe.db import sfc_db as bagpipe_db
+from networking_bagpipe.driver import constants
 
 from networking_sfc.db import sfc_db
 
@@ -97,7 +97,7 @@ class BaGPipeChainHop(base.NeutronDbObject):
         if getattr(self, side + '_ppg'):
             # pylint: disable=no-member
             reverse_side = (side if self.reverse_hop
-                            else sfc_const.REVERSE_PORT_SIDE[side])
+                            else constants.REVERSE_PORT_SIDE[side])
 
             ports = (
                 [getattr(pp, reverse_side)
@@ -119,10 +119,10 @@ class BaGPipeChainHop(base.NeutronDbObject):
         self.obj_reset_changes([side + '_ports'])
 
     def _load_ingress_ports(self, db_obj=None):
-        self._load_ports_by_side(sfc_const.INGRESS)
+        self._load_ports_by_side(constants.INGRESS)
 
     def _load_egress_ports(self, db_obj=None):
-        self._load_ports_by_side(sfc_const.EGRESS)
+        self._load_ports_by_side(constants.EGRESS)
 
     @staticmethod
     def _is_port_in_pp(context, port_id):
@@ -138,7 +138,7 @@ class BaGPipeChainHop(base.NeutronDbObject):
 
     @staticmethod
     def _get_chain_hops_for_port_by_ppg_side(context, port_id, side):
-        reverse_side = sfc_const.REVERSE_PORT_SIDE[side]
+        reverse_side = constants.REVERSE_PORT_SIDE[side]
 
         query = context.session.query(bagpipe_db.BaGPipeChainHop)
         query = query.join(
@@ -180,19 +180,19 @@ class BaGPipeChainHop(base.NeutronDbObject):
             db_objs = (
                 cls._get_chain_hops_for_port_by_ppg_side(context,
                                                          port_id,
-                                                         sfc_const.INGRESS)
+                                                         constants.INGRESS)
             )
         else:
             db_objs = (
                 cls._get_chain_hops_for_port_by_network_side(context,
                                                              port_id,
-                                                             sfc_const.INGRESS)
+                                                             constants.INGRESS)
             )
 
             db_objs += (
                 cls._get_chain_hops_for_port_by_network_side(context,
                                                              port_id,
-                                                             sfc_const.EGRESS,
+                                                             constants.EGRESS,
                                                              reverse=True)
             )
 
@@ -204,19 +204,19 @@ class BaGPipeChainHop(base.NeutronDbObject):
             db_objs = (
                 cls._get_chain_hops_for_port_by_ppg_side(context,
                                                          port_id,
-                                                         sfc_const.EGRESS)
+                                                         constants.EGRESS)
             )
         else:
             db_objs = (
                 cls._get_chain_hops_for_port_by_network_side(context,
                                                              port_id,
-                                                             sfc_const.EGRESS)
+                                                             constants.EGRESS)
             )
 
             db_objs += (
                 cls._get_chain_hops_for_port_by_network_side(context,
                                                              port_id,
-                                                             sfc_const.INGRESS,
+                                                             constants.INGRESS,
                                                              reverse=True)
             )
 

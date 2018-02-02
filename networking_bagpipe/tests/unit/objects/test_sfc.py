@@ -22,7 +22,7 @@ from neutron_lib import context
 from neutron.objects import network
 from neutron.objects import ports
 
-from networking_bagpipe.objects.sfc import chain_hop
+from networking_bagpipe.objects import sfc as sfc_obj
 
 from networking_sfc.db import sfc_db
 
@@ -42,7 +42,7 @@ RT2 = '64512:42'
 class BaGPipeChainHopDbObjectTestCase(test_base.BaseDbObjectTestCase,
                                       testlib_api.SqlTestCase):
 
-    _test_class = chain_hop.BaGPipeChainHop
+    _test_class = sfc_obj.BaGPipeChainHop
 
     def setUp(self):
         test_base.BaseDbObjectTestCase.setUp(self)
@@ -163,7 +163,7 @@ class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase):
 
     def _create_test_chain_hop(self, rt, ingress_network=None,
                                egress_network=None):
-        chainhop_obj = chain_hop.BaGPipeChainHop(
+        chainhop_obj = sfc_obj.BaGPipeChainHop(
             self.context,
             id=uuidutils.generate_uuid(),
             portchain_id=self.port_chain1.id,
@@ -178,13 +178,13 @@ class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase):
         return chainhop_obj
 
     def test_init(self):
-        chain_hop.BaGPipePortHops(
+        sfc_obj.BaGPipePortHops(
             port_id=self.ingress_port.id,
             ingress_hops=[self.chain_hop1],
             egress_hops=[self.chain_hop2])
 
     def test_get_object_ingress_chain_hop(self):
-        port_hops = chain_hop.BaGPipePortHops.get_object(
+        port_hops = sfc_obj.BaGPipePortHops.get_object(
             self.context,
             port_id=self.ingress_port.id
         )
@@ -197,7 +197,7 @@ class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase):
                          port_hops.port_id)
 
     def test_get_object_egress_chain_hop(self):
-        port_hops = chain_hop.BaGPipePortHops.get_object(
+        port_hops = sfc_obj.BaGPipePortHops.get_object(
             self.context,
             port_id=self.egress_port.id
         )

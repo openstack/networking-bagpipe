@@ -32,9 +32,9 @@ from neutron.api.rpc.handlers import resources_rpc
 
 from neutron.db import models_v2
 
-from networking_bagpipe.db.sfc import sfc_db
-from networking_bagpipe.driver.sfc.common import constants
-from networking_bagpipe.objects.sfc import chain_hop as sfc_object
+from networking_bagpipe.db import sfc_db
+from networking_bagpipe.driver import constants
+from networking_bagpipe.objects import sfc as sfc_obj
 
 from networking_sfc.extensions import flowclassifier
 from networking_sfc.services.sfc.common import exceptions as exc
@@ -64,8 +64,8 @@ def _get_chain_hops_by_port(resource, port_id, **kwargs):
             {'resource': resource, 'port_id': port_id})
         return
 
-    return sfc_object.BaGPipePortHops.get_object(context,
-                                                 port_id=port_id)
+    return sfc_obj.BaGPipePortHops.get_object(context,
+                                              port_id=port_id)
 
 
 class BaGPipeSfcDriver(driver_base.SfcDriverBase,
@@ -81,7 +81,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
         self._push_rpc = resources_rpc.ResourcesPushRpcApi()
 
         rpc_registry.provide(_get_chain_hops_by_port,
-                             sfc_object.BaGPipePortHops.obj_name())
+                             sfc_obj.BaGPipePortHops.obj_name())
 
     def _parse_ipaddress_prefix(self, cidr):
         try:
@@ -378,7 +378,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
                 last_subnet = self._get_subnet_by_port(last_eports[0])
 
-                hop_detail_obj = sfc_object.BaGPipeChainHop(
+                hop_detail_obj = sfc_obj.BaGPipeChainHop(
                     context._plugin_context,
                     id=uuidutils.generate_uuid(),
                     project_id=project_id,
@@ -434,7 +434,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                 prev_attract_to_rt = (prev_redirect_rt
                                       if not egress_bgpvpns else None)
 
-                hop_detail_obj = sfc_object.BaGPipeChainHop(
+                hop_detail_obj = sfc_obj.BaGPipeChainHop(
                     context._plugin_context,
                     id=uuidutils.generate_uuid(),
                     project_id=project_id,
@@ -485,7 +485,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                 first_rts = ((dest_rts if reverse else src_rts)
                              if ingress_bgpvpns else [first_ppg_rt])
 
-                hop_detail_obj = sfc_object.BaGPipeChainHop(
+                hop_detail_obj = sfc_obj.BaGPipeChainHop(
                     context._plugin_context,
                     id=uuidutils.generate_uuid(),
                     project_id=project_id,
@@ -544,7 +544,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                 for rtnn in ppg_rtnns:
                     self.rt_allocator.release_rt(rtnn)
 
-        hop_objs = sfc_object.BaGPipeChainHop.get_objects(
+        hop_objs = sfc_obj.BaGPipeChainHop.get_objects(
             context._plugin_context,
             portchain_id=port_chain['id'])
 
@@ -575,7 +575,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
         # Create BaGPipeChainHop objects
         if (not original['flow_classifiers'] or
             (original['port_pair_groups'] == current['port_pair_groups'] and
-             not sfc_object.BaGPipeChainHop.get_objects(
+             not sfc_obj.BaGPipeChainHop.get_objects(
                 context._plugin_context,
                 portchain_id=current['id']))):
             self._create_portchain_hops(context, current)
@@ -663,7 +663,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
                 for side in [constants.INGRESS, constants.EGRESS]:
                     port_objs.append(
-                        sfc_object.BaGPipePortHops.get_object(
+                        sfc_obj.BaGPipePortHops.get_object(
                             context._plugin_context,
                             port_id=getattr(pp, side)
                         )
@@ -683,7 +683,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
                 for side in [constants.INGRESS, constants.EGRESS]:
                     port_objs.append(
-                        sfc_object.BaGPipePortHops.get_object(
+                        sfc_obj.BaGPipePortHops.get_object(
                             context._plugin_context,
                             port_id=getattr(pp, side)
                         )

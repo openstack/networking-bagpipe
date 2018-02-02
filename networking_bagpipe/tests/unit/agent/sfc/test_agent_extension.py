@@ -21,7 +21,7 @@ from oslo_utils import uuidutils
 
 from networking_bagpipe.agent.sfc import agent_extension as bagpipe_agt_ext
 from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
-from networking_bagpipe.objects.sfc import chain_hop as objects
+from networking_bagpipe.objects import sfc as sfc_obj
 from networking_bagpipe.tests.unit.agent import base
 
 from neutron.api.rpc.callbacks.consumer import registry
@@ -81,14 +81,14 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
                 [rpc_mock()],
                 fanout=True)
              for resource_type in (
-                 objects.BaGPipeChainHop.obj_name(),
-                 objects.BaGPipePortHops.obj_name())],
+                 sfc_obj.BaGPipeChainHop.obj_name(),
+                 sfc_obj.BaGPipePortHops.obj_name())],
             any_order=True
         )
         subscribe_mock.assert_has_calls(
             [
-                mock.call(mock.ANY, objects.BaGPipeChainHop.obj_name()),
-                mock.call(mock.ANY, objects.BaGPipePortHops.obj_name())
+                mock.call(mock.ANY, sfc_obj.BaGPipeChainHop.obj_name()),
+                mock.call(mock.ANY, sfc_obj.BaGPipePortHops.obj_name())
             ],
             any_order=True
         )
@@ -109,11 +109,11 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             **chain_hop_params
         )
 
-        return objects.BaGPipeChainHop(**chain_hop)
+        return sfc_obj.BaGPipeChainHop(**chain_hop)
 
     def _chain_hops_notif(self, chain_hops, event_type):
         self.agent_ext.handle_sfc_chain_hops(
-            None, objects.BaGPipeChainHop.obj_name(),
+            None, sfc_obj.BaGPipeChainHop.obj_name(),
             chain_hops, event_type)
 
     def _fake_port_hops(self, port_id, ingress_hops=None, egress_hops=None):
@@ -123,11 +123,11 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             egress_hops=egress_hops if egress_hops else []
         )
 
-        return objects.BaGPipePortHops(**port_hops)
+        return sfc_obj.BaGPipePortHops(**port_hops)
 
     def _port_hops_notif(self, port_hops, event_type):
         self.agent_ext.handle_sfc_port_hops(
-            None, objects.BaGPipePortHops.obj_name(),
+            None, sfc_obj.BaGPipePortHops.obj_name(),
             port_hops, event_type)
 
     def test_chain_hop_before_port_up_ingress_only(self):
