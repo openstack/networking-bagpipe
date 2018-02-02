@@ -810,6 +810,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         if all_local_prefs:
             attach_info['local_pref'] = max(all_local_prefs)
 
+        attach_info['description'] = {'port': port_info.id}
+
         # produce attachments
         attachments = []
 
@@ -819,12 +821,18 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         if advertise_fixed_ip(port_info):
             attachment = copy.deepcopy(attach_info)
             attachment['ip_address'] = port_info.ip_address
+            attachment['instance_description'] = (
+                'BGPVPN associations for net %s (%s)' % (
+                    net_info.id, net_info.gateway_info.ip))
             attachments.append(attachment)
 
         # produce one attachment per prefix route address
         for ip_address, local_pref in self._port_prefixes_lp(port_info):
             attachment = copy.deepcopy(attach_info)
             attachment['ip_address'] = ip_address
+            attachment['instance_description'] = (
+                'BGPVPN associations for net %s (%s)' % (
+                    net_info.id, net_info.gateway_info.ip))
             if '/' in ip_address:
                 attachment['advertise_subnet'] = True
             if local_pref:
