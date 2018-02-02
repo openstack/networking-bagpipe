@@ -291,6 +291,9 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     @log_decorator.log_info
     def setup_arp_responder(self, ovs_port):
+        if not self.driver.config.arp_responder:
+            return
+
         actions = ARP_RESPONDER_ACTIONS % {
             'mac': netaddr.EUI(GATEWAY_MAC, dialect=netaddr.mac_unix),
             'vlan_action': self.get_vlan_action(),
@@ -302,7 +305,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         )
         # Respond to all IP addresses if proxy ARP is enabled, otherwise only
         # for gateway
-        if not self.driver.proxy_arp:
+        if not self.driver.config.proxy_arp:
             vrf_match += ',arp_tpa=%s' % self.gateway_ip
 
         self._ovs_flow_add(vrf_match, actions, self.driver.vrf_table)
@@ -794,8 +797,11 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                          "mpls_interface specified")),
         cfg.BoolOpt("proxy_arp", default=False,
                     advanced=True,
-                    help=("Activate ARP responder per VRF for all IP "
-                          "addresses (only for gateway IP by default)")),
+                    help=("Activate ARP responder per VRF for any IP "
+                          "address")),
+        cfg.BoolOpt("arp_responder", default=False,
+                    advanced=True,
+                    help=("ARP responder per VRF")),
         cfg.BoolOpt("vxlan_encap", default=False,
                     advanced=True,
                     help=("Be ready to receive VPN traffic as VXLAN, and to "
@@ -898,8 +904,6 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         # unless useGRE is enabled, check that fping is installed
         if not self.use_gre:
             self._run_command("fping -v", raise_on_error=True)
-
-        self.proxy_arp = self.config.proxy_arp
 
         # Check if OVS bridge exist
         (_, exit_code) = self._run_command("ovs-vsctl br-exists %s" %
