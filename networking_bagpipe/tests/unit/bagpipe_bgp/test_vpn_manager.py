@@ -70,7 +70,7 @@ class MockVPNInstance(object):
     def update_fallback(self, *args):
         pass
 
-    def vif_plugged(self, *args):
+    def vif_plugged(self, *args, **kwargs):
         pass
 
     def vif_unplugged(self, *args):

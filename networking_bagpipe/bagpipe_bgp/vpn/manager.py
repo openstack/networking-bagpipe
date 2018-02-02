@@ -335,6 +335,8 @@ class VPNManager(lg.LookingGlassMixin):
             external_instance_id, instance_type, import_rts, export_rts,
             gateway_ip, mask, readvertise, attract_traffic, fallback, **kwargs)
 
+        vpn_instance.description = params.get('instance_description')
+
         # Check if new route target import/export must be updated
         if not ((set(vpn_instance.import_rts) == set(import_rts)) and
                 (set(vpn_instance.export_rts) == set(export_rts))):
@@ -348,10 +350,13 @@ class VPNManager(lg.LookingGlassMixin):
             # to create, connected to an existing evpn instance
             self._attach_evpn_2_ipvpn(localport, vpn_instance)
 
+        plug_kwargs = {}
+        plug_kwargs['description'] = params.get('description')
+
         # Plug VIF to VPN instance
         vpn_instance.vif_plugged(mac_address, ip_address_prefix, localport,
                                  advertise_subnet, lb_consistent_hash_order,
-                                 local_pref)
+                                 local_pref, **plug_kwargs)
 
     @log_decorator.log_info
     def unplug_vif_from_vpn(self, **params):
@@ -364,8 +369,6 @@ class VPNManager(lg.LookingGlassMixin):
         external_instance_id = params.get('external_instance_id')
         mac_address = params.get('mac_address')
         localport = params.get('localport')
-        readvertise = params.get('readvertise')
-
         ip_address_prefix = params.get('ip_address_prefix')
 
         # Retrieve VPN instance or raise exception if does not exist
@@ -377,8 +380,7 @@ class VPNManager(lg.LookingGlassMixin):
             raise exc.VPNNotFound(external_instance_id)
 
         # Unplug VIF from VPN instance
-        # NOTE(tmorin): this readvertise parameter seems buggy
-        vpn_instance.vif_unplugged(mac_address, ip_address_prefix, readvertise)
+        vpn_instance.vif_unplugged(mac_address, ip_address_prefix)
 
         if vpn_instance.type == constants.IPVPN and 'evpn' in localport:
             self._detach_evpn_2_ipvpn(vpn_instance)
@@ -488,10 +490,8 @@ class VPNManager(lg.LookingGlassMixin):
         }
 
     def get_lg_vpn_list(self):
-        return [{"id": id,
-                 "name": instance.name}
-                for (id, instance)
-                in six.iteritems(self.vpn_instances)]
+        return [instance.get_lg_summary()
+                for instance in list(self.vpn_instances.values())]
 
     def get_lg_vpn_from_path_item(self, path_item):
         return self.vpn_instances[path_item]
