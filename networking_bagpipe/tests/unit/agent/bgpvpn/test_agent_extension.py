@@ -21,6 +21,7 @@ import netaddr
 from oslo_utils import uuidutils
 
 from networking_bagpipe.agent.bgpvpn import agent_extension as bagpipe_agt_ext
+from networking_bagpipe.agent.bgpvpn import constants as bgpvpn_const
 from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 from networking_bagpipe.objects import bgpvpn as objects
 from networking_bagpipe.tests.unit.agent import base
@@ -28,6 +29,8 @@ from networking_bagpipe.tests.unit.agent import base
 from neutron.api.rpc.callbacks.consumer import registry
 from neutron.api.rpc.callbacks import events as rpc_events
 from neutron.api.rpc.handlers import resources_rpc
+from neutron.plugins.ml2.drivers.openvswitch.agent.common \
+    import constants as ovs_agt_constants
 
 from neutron_lib.api.definitions import bgpvpn
 from neutron_lib import context
@@ -117,12 +120,12 @@ class TestBgpvpnAgentExtensionMixin(object):
                               **bgpvpn_params)
 
     def _fake_net_assoc(self, network, bgpvpn_type, gateway_mac=None,
-                        **bgpvpn_params):
+                        id=None, **bgpvpn_params):
         bgpvpn = self._fake_bgpvpn(bgpvpn_type,
                                    **bgpvpn_params)
         net_assoc = objects.BGPVPNNetAssociation(
             self.context,
-            id=uuidutils.generate_uuid(),
+            id=id or uuidutils.generate_uuid(),
             network_id=network['id'],
             bgpvpn_id=bgpvpn.id,
             bgpvpn=bgpvpn
@@ -288,6 +291,8 @@ class TestBgpvpnAgentExtensionMixin(object):
             [mock.call(base.PORT10['id']), mock.call(base.PORT11['id'])],
             any_order=True
         )
+
+        return net_assoc
 
     def test_router_assoc_already_plugged_ports(self):
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
@@ -1843,6 +1848,40 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
         base.BaseTestOVSAgentExtension.setUp(self)
         TestBgpvpnAgentExtensionMixin.setUp(self)
 
+        # test what happened during initialize()
+
+        self.tun_br.add_patch_port.assert_called_once()
+        self.int_br.add_patch_port.assert_called_once()
+        self.assertEqual(self.agent_ext.mpls_br.add_patch_port.call_count,
+                         2)
+
+        self.tun_br.add_flow.assert_has_calls([
+            mock.call(table=ovs_agt_constants.PATCH_LV_TO_TUN,
+                      priority=2,
+                      dl_src=bgpvpn_const.FALLBACK_SRC_MAC,
+                      dl_dst=mock.ANY,
+                      actions=mock.ANY),
+            mock.call(table=ovs_agt_constants.PATCH_LV_TO_TUN,
+                      priority=2,
+                      dl_src=bgpvpn_const.FALLBACK_SRC_MAC,
+                      dl_dst=mock.ANY,
+                      actions=mock.ANY),
+            mock.call(in_port=base.PATCH_TUN_TO_MPLS,
+                      actions="output:%d" % base.PATCH_TUN_TO_INT)
+            ],
+            any_order=True,
+        )
+
+        self.int_br.add_flow.assert_called_once_with(
+            table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_TABLE,
+            priority=3,
+            dl_src="00:00:5e:2a:10:00",
+            actions="NORMAL",
+        )
+
+        self.int_br.add_flow.reset_mock()
+        self.tun_br.add_flow.reset_mock()
+
     # Test fallback and ARP gateway voodoo
     def test_fallback(self):
         GW_MAC = 'aa:bb:cc:dd:ee:ff'
@@ -1874,7 +1913,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                             gateway_ip=base.NETWORK1['gateway_ip'],
                             fallback={'dst_mac': GW_MAC,
                                       'ovs_port_number':
-                                      base.PATCH_MPLS_TO_INT_OFPORT,
+                                          base.PATCH_MPLS_TO_INT,
                                       'src_mac': '00:00:5e:2a:10:00'},
                             local_port=local_port['local_port'],
                             **self._expand_rts(base.BGPVPN_L3_RT100)
@@ -1887,291 +1926,136 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
 
             self._net_assoc_notif(net_assoc, rpc_events.UPDATED)
 
-    def test_gateway_arp_voodoo(self):
+    def test_gateway_redirection(self):
         GW_MAC = 'aa:bb:cc:dd:ee:ff'
+        vlan = base.LOCAL_VLAN_MAP[base.NETWORK1['id']]
 
         with mock.patch.object(self.agent_ext.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]), \
                 mock.patch.object(self.agent_ext.int_br,
-                                  'add_flow') as add_flow, \
+                                  'add_flow') as int_add_flow, \
+                mock.patch.object(self.agent_ext.tun_br,
+                                  'add_flow') as tun_add_flow, \
                 mock.patch.object(self.agent_ext.tun_br,
                                   'delete_flows') as tun_delete_flows,\
                 mock.patch.object(self.agent_ext.int_br,
                                   'delete_flows') as int_delete_flows:
-            super(TestOVSAgentExtension,
-                  self).test_net_assoc_already_plugged_ports()
+            net_assoc_0 = super(TestOVSAgentExtension,
+                                self).test_net_assoc_already_plugged_ports()
+
+            int_add_flow.assert_not_called()
+
+            tun_add_flow.assert_has_calls([
+                mock.call(
+                    table=ovs_agt_constants.ARP_RESPONDER,
+                    priority=2,
+                    dl_vlan=vlan,
+                    proto='arp',
+                    arp_op=0x01,
+                    arp_tpa=base.NETWORK1['gateway_ip'],
+                    actions=StringContains("5e004364"),
+                ),
+                mock.call(
+                    in_port=base.PATCH_TUN_TO_INT,
+                    dl_dst="00:00:5e:00:43:64",
+                    actions="output:%s" % base.PATCH_TUN_TO_MPLS,
+                    dl_vlan=vlan,
+                    priority=mock.ANY,
+                    table=mock.ANY
+                )],
+                any_order=True,
+            )
+
+            int_add_flow.reset_mock()
+            tun_add_flow.reset_mock()
+            tun_delete_flows.reset_mock()
+            int_delete_flows.reset_mock()
 
             net_assoc = self._fake_net_assoc(base.NETWORK1,
                                              bgpvpn.BGPVPN_L3,
+                                             id=net_assoc_0.id,
                                              gateway_mac=GW_MAC,
                                              **base.BGPVPN_L3_RT100)
+
+            vlan = base.LOCAL_VLAN_MAP[base.NETWORK1['id']]
 
             self.mocked_bagpipe_agent.do_port_plug.side_effect = None
 
             self._net_assoc_notif(net_assoc, rpc_events.UPDATED)
 
-            self.assertEqual(2, add_flow.call_count)
+            # we now have a router will a real GW MAC
 
-            add_flow.assert_has_calls([
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          proto='arp',
-                          arp_op=0x2,
-                          dl_src=GW_MAC,
-                          arp_sha=GW_MAC,
-                          arp_spa='10.0.0.1',
-                          actions="drop"),
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          proto='arp',
-                          arp_op=0x01,
-                          dl_src=GW_MAC,
-                          arp_spa='10.0.0.1',
-                          arp_sha=GW_MAC,
-                          actions="load:0x0->NXM_OF_ARP_SPA[],NORMAL"
-                          )
-            ])
+            tun_delete_flows.assert_called_with(
+                strict=True,
+                table=ovs_agt_constants.ARP_RESPONDER,
+                priority=2,
+                dl_vlan=vlan,
+                proto='arp',
+                arp_op=0x01,
+                arp_tpa=base.NETWORK1['gateway_ip'])
 
-            self.agent_ext.delete_port(None, self._port_data(base.PORT10,
-                                                             delete=True))
-
-            self.assertEqual(0, tun_delete_flows.call_count)
-            self.assertEqual(0, int_delete_flows.call_count)
-
-            self.agent_ext.delete_port(None, self._port_data(base.PORT11,
-                                                             delete=True))
-
-            self.assertEqual(1, tun_delete_flows.call_count)
-            self.assertEqual(1, int_delete_flows.call_count)
-
-            tun_delete_flows.assert_has_calls([
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          strict=True,
-                          proto='arp',
-                          arp_op=0x01,
-                          arp_tpa='10.0.0.1',
-                          dl_vlan=mock.ANY,
-                          )])
-            int_delete_flows.assert_has_calls([
-                mock.call(table=mock.ANY,
-                          proto='arp',
-                          dl_src=GW_MAC,
-                          arp_sha=GW_MAC),
-            ])
-
-    def test_gateway_arp_voodoo_update_net_assoc_after_plug(self):
-        GW_MAC = 'aa:bb:cc:dd:ee:ff'
-
-        with mock.patch.object(self.agent_ext.int_br, 'get_vif_port_by_id',
-                               side_effect=[self.DUMMY_VIF10,
-                                            self.DUMMY_VIF11]), \
-                mock.patch.object(self.agent_ext.int_br,
-                                  'add_flow') as add_flow:
-
-            net_assoc = self._fake_net_assoc(base.NETWORK1,
-                                             bgpvpn.BGPVPN_L3,
-                                             **base.BGPVPN_L3_RT100)
-
-            self.mocked_rpc_pull.side_effect = [[net_assoc], [], []]
-
-            self.agent_ext.handle_port(None, self._port_data(base.PORT10))
-
-            net_assoc_updated = self._fake_net_assoc(base.NETWORK1,
-                                                     bgpvpn.BGPVPN_L3,
-                                                     gateway_mac=GW_MAC,
-                                                     **base.BGPVPN_L3_RT100)
-            self._net_assoc_notif(net_assoc_updated, rpc_events.UPDATED)
-
-            self.assertEqual(2, add_flow.call_count)
-
-            add_flow.assert_has_calls([
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          proto='arp',
-                          arp_op=0x2,
-                          dl_src=GW_MAC,
-                          arp_sha=GW_MAC,
-                          arp_spa='10.0.0.1',
-                          actions="drop"),
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          proto='arp',
-                          arp_op=0x01,
-                          dl_src=GW_MAC,
-                          arp_spa='10.0.0.1',
-                          arp_sha=GW_MAC,
-                          actions="load:0x0->NXM_OF_ARP_SPA[],NORMAL"
-                          )
-            ])
-
-            fallback = {'dst_mac': GW_MAC,
-                        'ovs_port_number': base.PATCH_MPLS_TO_INT_OFPORT,
-                        'src_mac': '00:00:5e:2a:10:00'}
-
-            self.mocked_bagpipe_agent.do_port_plug.assert_has_calls(
-                [mock.call(base.PORT10['id'])]
+            # check that traffic to gw is sent to br-mpls
+            tun_add_flow.assert_has_calls([
+                mock.call(in_port=base.PATCH_TUN_TO_INT,
+                          dl_dst=GW_MAC,
+                          actions="output:%s" % base.PATCH_TUN_TO_MPLS,
+                          dl_vlan=vlan,
+                          priority=mock.ANY,
+                          table=mock.ANY),
+                mock.call(in_port=base.PATCH_TUN_TO_INT,
+                          dl_dst="00:00:5e:00:43:64",
+                          actions="output:%s" % base.PATCH_TUN_TO_MPLS,
+                          dl_vlan=vlan,
+                          priority=mock.ANY,
+                          table=mock.ANY)
+                ],
+                any_order=True
             )
 
-            self._net_assoc_notif(net_assoc_updated, rpc_events.DELETED)
-
-            add_flow.reset_mock()
-            self.assertEqual(0, add_flow.call_count)
-
-            self._net_assoc_notif(net_assoc_updated, rpc_events.UPDATED)
-
-            self.assertEqual(2, add_flow.call_count)
-
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
-
-            self.assertDictEqual(
-                dict(
-                    network_id=base.NETWORK1['id'],
-                    ipvpn=[dict(
-                        description=mock.ANY,
-                        instance_description=mock.ANY,
-                        ip_address=base.PORT10['ip_address'],
-                        mac_address=base.PORT10['mac_address'],
-                        gateway_ip=base.NETWORK1['gateway_ip'],
-                        fallback=fallback,
-                        local_port=local_port['local_port'],
-                        **self._expand_rts(base.BGPVPN_L3_RT100)
-                    )]
-                ),
-                self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+            int_add_flow.assert_called_once_with(
+                table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_TABLE,
+                priority=2,
+                reg6=vlan,
+                dl_dst=GW_MAC,
+                actions="push_vlan:0x8100,mod_vlan_vid:%d,output:%s" % (
+                        vlan, base.PATCH_INT_TO_TUN)
             )
 
-    def test_gateway_plug_before_update(self):
-        GW_MAC = 'aa:bb:cc:dd:ee:ff'
-
-        with mock.patch.object(self.agent_ext.int_br, 'get_vif_port_by_id',
-                               side_effect=[self.DUMMY_VIF10]), \
-                mock.patch.object(self.agent_ext.int_br,
-                                  'add_flow') as add_flow, \
-                mock.patch.object(self.agent_ext.int_br,
-                                  'delete_flows') as int_delete_flows, \
-                mock.patch.object(self.agent_ext.tun_br,
-                                  'delete_flows') as tun_delete_flows:
-            self.agent_ext.handle_port(None, self._port_data(base.PORT10))
-            net_assoc = self._fake_net_assoc(base.NETWORK1,
-                                             bgpvpn.BGPVPN_L3,
-                                             gateway_mac=GW_MAC,
-                                             **base.BGPVPN_L3_RT100)
-            self._net_assoc_notif(net_assoc, rpc_events.UPDATED)
-
-            self.assertEqual(2, add_flow.call_count)
-
-            add_flow.assert_has_calls([
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          proto='arp',
-                          arp_op=0x2,
-                          dl_src=GW_MAC,
-                          arp_sha=GW_MAC,
-                          arp_spa='10.0.0.1',
-                          actions="drop"),
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          proto='arp',
-                          arp_op=0x01,
-                          dl_src=GW_MAC,
-                          arp_spa='10.0.0.1',
-                          arp_sha=GW_MAC,
-                          actions="load:0x0->NXM_OF_ARP_SPA[],NORMAL"
-                          )
-            ])
-
-            fallback = {'dst_mac': GW_MAC,
-                        'ovs_port_number': base.PATCH_MPLS_TO_INT_OFPORT,
-                        'src_mac': '00:00:5e:2a:10:00'}
-
-            self.mocked_bagpipe_agent.do_port_plug.assert_has_calls(
-                [mock.call(base.PORT10['id'])]
-            )
-
-            add_flow.reset_mock()
-            int_delete_flows.reset_mock()
+            int_add_flow.reset_mock()
+            tun_add_flow.reset_mock()
             tun_delete_flows.reset_mock()
+            int_delete_flows.reset_mock()
 
+            # stop the redirection when association is cleared
             self._net_assoc_notif(net_assoc, rpc_events.DELETED)
 
-            self.assertEqual(1, tun_delete_flows.call_count)
-            self.assertEqual(1, int_delete_flows.call_count)
-
+            # ARP responder deletion
             tun_delete_flows.assert_has_calls([
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          strict=True,
-                          proto='arp',
-                          arp_op=0x01,
-                          arp_tpa='10.0.0.1',
-                          dl_vlan=mock.ANY,
-                          )])
-            int_delete_flows.assert_has_calls([
-                mock.call(table=mock.ANY,
-                          proto='arp',
-                          dl_src=GW_MAC,
-                          arp_sha=GW_MAC),
-            ])
-
-            self.assertEqual(0, add_flow.call_count)
-
-            add_flow.reset_mock()
-
-            self._net_assoc_notif(net_assoc, rpc_events.UPDATED)
-
-            self.assertEqual(2, add_flow.call_count)
-
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
-
-            self.assertDictEqual(
-                dict(
-                    network_id=base.NETWORK1['id'],
-                    ipvpn=[dict(
-                        description=mock.ANY,
-                        instance_description=mock.ANY,
-                        ip_address=base.PORT10['ip_address'],
-                        mac_address=base.PORT10['mac_address'],
-                        gateway_ip=base.NETWORK1['gateway_ip'],
-                        fallback=fallback,
-                        local_port=local_port['local_port'],
-                        **self._expand_rts(base.BGPVPN_L3_RT100)
-                    )]
+                mock.call(
+                    strict=True,
+                    table=ovs_agt_constants.PATCH_LV_TO_TUN,
+                    priority=1,
+                    in_port=base.PATCH_TUN_TO_INT,
+                    dl_vlan=vlan
                 ),
-                self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+                mock.call(
+                    strict=True,
+                    table=ovs_agt_constants.ARP_RESPONDER,
+                    priority=2,
+                    dl_vlan=vlan,
+                    proto='arp',
+                    arp_op=0x01,
+                    arp_tpa=base.NETWORK1['gateway_ip'],
+                    )
+                ],
+                any_order=True
             )
+            int_delete_flows.assert_called_once_with(
+                table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_TABLE,
+                reg6=vlan)
 
-    def test_evpn_no_gateway_arp_voodoo(self):
-        GW_MAC = 'aa:bb:cc:dd:ee:ff'
-
-        with mock.patch.object(self.agent_ext.int_br, 'get_vif_port_by_id',
-                               side_effect=[self.DUMMY_VIF10,
-                                            self.DUMMY_VIF11]), \
-                mock.patch.object(self.agent_ext.int_br,
-                                  'add_flow') as add_flow, \
-                mock.patch.object(self.agent_ext.int_br,
-                                  'delete_flows') as delete_flows:
-
-            self.agent_ext.handle_port(None, self._port_data(base.PORT10))
-            net_assoc = self._fake_net_assoc(base.NETWORK1,
-                                             bgpvpn.BGPVPN_L2,
-                                             gateway_mac=GW_MAC,
-                                             **base.BGPVPN_L2_RT10)
-            self._net_assoc_notif(net_assoc, rpc_events.UPDATED)
-
-            self.assertEqual(0, add_flow.call_count)
-
-            self.agent_ext.delete_port(None, self._port_data(base.PORT10,
-                                                             delete=True))
-
-            self.assertEqual(0, delete_flows.call_count)
-
-    def test_gateway_arp_voodoo_ovs_restart(self):
+    def test_gateway_redirection_ovs_restart(self):
         GW_MAC = 'aa:bb:cc:dd:ee:ff'
 
         with mock.patch.object(self.agent_ext.int_br, 'get_vif_port_by_id',
@@ -2187,37 +2071,16 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                                              **base.BGPVPN_L3_RT100)
             self._net_assoc_notif(net_assoc, rpc_events.UPDATED)
 
-            self.assertEqual(2, add_flow.call_count)
-
-            expected_calls = [
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          proto='arp',
-                          arp_op=0x2,
-                          dl_src=GW_MAC,
-                          arp_sha=GW_MAC,
-                          arp_spa='10.0.0.1',
-                          actions="drop"),
-                mock.call(table=mock.ANY,
-                          priority=2,
-                          proto='arp',
-                          arp_op=0x01,
-                          dl_src=GW_MAC,
-                          arp_spa='10.0.0.1',
-                          arp_sha=GW_MAC,
-                          actions="load:0x0->NXM_OF_ARP_SPA[],NORMAL"
-                          )
-            ]
-            add_flow.assert_has_calls(expected_calls)
+            add_flow.assert_called()
 
             add_flow.reset_mock()
 
-            with mock.patch.object(self.agent_ext, '_setup_mpls_br') as \
+            with mock.patch.object(self.agent_ext, '_setup_ovs_bridge') as \
                     mock_setup_mpls_br:
                 self.agent_ext.ovs_restarted(None, None, None)
                 mock_setup_mpls_br.assert_called()
 
-            add_flow.assert_has_calls(expected_calls)
+            add_flow.assert_called()
 
 
 class TestLinuxBridgeAgentExtension(base.BaseTestLinuxBridgeAgentExtension,
