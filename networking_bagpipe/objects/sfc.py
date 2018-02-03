@@ -158,15 +158,24 @@ class BaGPipeChainHop(base.NeutronDbObject):
         return query.all()
 
     @staticmethod
-    def _get_chain_hops_for_port_by_network_side(context, port_id, side,
-                                                 reverse=False):
+    def _get_chain_hops_for_port_by_network_side(context, port_id, side):
+        reverse_side = constants.REVERSE_PORT_SIDE[side]
+
         query = context.session.query(bagpipe_db.BaGPipeChainHop)
         query = query.join(
             models_v2.Network,
-            sa.and_(
-                models_v2.Network.id ==
-                getattr(bagpipe_db.BaGPipeChainHop, side + '_network'),
-                bagpipe_db.BaGPipeChainHop.reverse_hop == reverse))
+            sa.or_(
+                sa.and_(
+                    models_v2.Network.id ==
+                    getattr(bagpipe_db.BaGPipeChainHop,
+                            side + '_network'),
+                    bagpipe_db.BaGPipeChainHop.reverse_hop == false()),
+                sa.and_(
+                    models_v2.Network.id ==
+                    getattr(bagpipe_db.BaGPipeChainHop,
+                            reverse_side + '_network'),
+                    bagpipe_db.BaGPipeChainHop.reverse_hop == true()))
+            )
         query = query.join(
             models_v2.Port,
             models_v2.Port.network_id == models_v2.Network.id)
@@ -175,52 +184,40 @@ class BaGPipeChainHop(base.NeutronDbObject):
         return query.all()
 
     @classmethod
-    def get_ingress_hops_for_port(cls, context, port_id):
+    def get_chain_hops_for_port_by_side(cls, context, port_id, side):
+        db_objs = []
         if cls._is_port_in_pp(context, port_id):
-            db_objs = (
+            db_objs += (
                 cls._get_chain_hops_for_port_by_ppg_side(context,
                                                          port_id,
-                                                         constants.INGRESS)
+                                                         side)
             )
         else:
-            db_objs = (
-                cls._get_chain_hops_for_port_by_network_side(context,
-                                                             port_id,
-                                                             constants.INGRESS)
-            )
-
             db_objs += (
                 cls._get_chain_hops_for_port_by_network_side(context,
                                                              port_id,
-                                                             constants.EGRESS,
-                                                             reverse=True)
+                                                             side)
             )
 
         return [cls._load_object(context, db_obj) for db_obj in db_objs]
 
     @classmethod
-    def get_egress_hops_for_port(cls, context, port_id):
-        if cls._is_port_in_pp(context, port_id):
-            db_objs = (
-                cls._get_chain_hops_for_port_by_ppg_side(context,
-                                                         port_id,
-                                                         constants.EGRESS)
-            )
-        else:
-            db_objs = (
-                cls._get_chain_hops_for_port_by_network_side(context,
-                                                             port_id,
-                                                             constants.EGRESS)
-            )
+    def get_objects(cls, context, _pager=None, validate_filters=True,
+                    **kwargs):
+        if 'port_id' in kwargs:
+            port_id = kwargs.pop('port_id')
+            chain_hops = []
 
-            db_objs += (
-                cls._get_chain_hops_for_port_by_network_side(context,
-                                                             port_id,
-                                                             constants.INGRESS,
-                                                             reverse=True)
-            )
+            for side in [constants.INGRESS, constants.EGRESS]:
+                chain_hops += cls.get_chain_hops_for_port_by_side(context,
+                                                                  port_id,
+                                                                  side)
 
-        return [cls._load_object(context, db_obj) for db_obj in db_objs]
+            return chain_hops
+
+        return super(BaGPipeChainHop, cls).get_objects(
+            context, _pager=_pager, validate_filters=validate_filters,
+            **kwargs)
 
     @classmethod
     def modify_fields_from_db(cls, db_obj):
@@ -271,47 +268,22 @@ class BaGPipePortHops(base.NeutronObject):
     synthetic_fields = {'ingress_hops',
                         'egress_hops'}
 
-    def __init__(self, context=None, **kwargs):
-        super(BaGPipePortHops, self).__init__(context, **kwargs)
-
-    def create(self):
-        self.obj_load_attr('ingress_hops')
-        self.obj_load_attr('egress_hops')
-
-    def update(self):
-        if 'ingress_hops' in self.obj_what_changed():
-            self.obj_load_attr('ingress_hops')
-        if 'egress_hops' in self.obj_what_changed():
-            self.obj_load_attr('egress_hops')
-
-    def _load_ingress_hops(self, db_obj=None):
-        # pylint: disable=no-member
-        ingress_hops = (
-            BaGPipeChainHop.get_ingress_hops_for_port(self.obj_context,
-                                                      self.port_id)
-        )
-        setattr(self, 'ingress_hops', ingress_hops)
-        self.obj_reset_changes(['ingress_hops'])
-
-    def _load_egress_hops(self, db_obj=None):
-        # pylint: disable=no-member
-        egress_hops = (
-            BaGPipeChainHop.get_egress_hops_for_port(self.obj_context,
-                                                     self.port_id)
-        )
-        setattr(self, 'egress_hops', egress_hops)
-        self.obj_reset_changes(['egress_hops'])
-
     @classmethod
     def get_object(cls, context, **kwargs):
         port_id = kwargs['port_id']
-        ingress_hops = BaGPipeChainHop.get_ingress_hops_for_port(context,
-                                                                 port_id)
-        egress_hops = BaGPipeChainHop.get_egress_hops_for_port(context,
-                                                               port_id)
-        return BaGPipePortHops(port_id=port_id,
-                               ingress_hops=ingress_hops,
-                               egress_hops=egress_hops)
+        ingress_hops = (
+            BaGPipeChainHop.get_chain_hops_for_port_by_side(context,
+                                                            port_id,
+                                                            constants.INGRESS)
+        )
+        egress_hops = (
+            BaGPipeChainHop.get_chain_hops_for_port_by_side(context,
+                                                            port_id,
+                                                            constants.EGRESS)
+        )
+        return cls(port_id=port_id,
+                   ingress_hops=ingress_hops,
+                   egress_hops=egress_hops)
 
     @classmethod
     def get_objects(cls, context, **kwargs):

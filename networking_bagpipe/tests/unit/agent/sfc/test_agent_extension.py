@@ -67,8 +67,8 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
 
     def setUp(self):
         super(TestSfcAgentExtension, self).setUp()
-        self.mocked_pull_rpc = mock.patch.object(
-            self.agent_ext._pull_rpc, 'pull').start()
+        self.mocked_bulk_rpc = mock.patch.object(
+            self.agent_ext._pull_rpc, 'bulk_pull').start()
 
     @mock.patch.object(registry, 'register')
     @mock.patch.object(resources_rpc, 'ResourcesPushRpcCallback')
@@ -137,9 +137,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             ingress_network=base.NETWORK1,
             egress_network=base.NETWORK2)
 
-        self.mocked_pull_rpc.return_value = self._fake_port_hops(
-            base.PORT10['id'],
-            ingress_hops=[ingress_hop])
+        self.mocked_bulk_rpc.return_value = [ingress_hop]
 
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 
@@ -178,9 +176,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             egress_network=base.NETWORK1,
             **egress_params)
 
-        self.mocked_pull_rpc.return_value = self._fake_port_hops(
-            base.PORT10['id'],
-            egress_hops=[egress_hop])
+        self.mocked_bulk_rpc.return_value = [egress_hop]
 
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 
@@ -234,10 +230,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             egress_network=base.NETWORK1,
             **egress_params)
 
-        self.mocked_pull_rpc.return_value = self._fake_port_hops(
-            base.PORT10['id'],
-            ingress_hops=[ingress_hop],
-            egress_hops=[egress_hop])
+        self.mocked_bulk_rpc.return_value = [ingress_hop, egress_hop]
 
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 

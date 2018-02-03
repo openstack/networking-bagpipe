@@ -27,7 +27,6 @@ from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
 
 from neutron.api.rpc.callbacks import events as rpc_events
-from neutron.api.rpc.callbacks.producer import registry as rpc_registry
 from neutron.api.rpc.handlers import resources_rpc
 
 from neutron.db import models_v2
@@ -55,19 +54,6 @@ sfc_bagpipe_opts = [
 cfg.CONF.register_opts(sfc_bagpipe_opts, "sfc_bagpipe")
 
 
-@log_helpers.log_method_call
-def _get_chain_hops_by_port(resource, port_id, **kwargs):
-    context = kwargs.get('context')
-    if context is None:
-        LOG.warning(
-            'Received pull for %(resource)s %(port_id)s without context',
-            {'resource': resource, 'port_id': port_id})
-        return
-
-    return sfc_obj.BaGPipePortHops.get_object(context,
-                                              port_id=port_id)
-
-
 class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                        sfc_db.BaGPipeSfcDriverDB):
     """BaGPipe Sfc Driver Base Class."""
@@ -75,13 +61,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
     def initialize(self):
         super(BaGPipeSfcDriver, self).initialize()
         self.rt_allocator = sfc_db.RTAllocator(cfg.CONF.sfc_bagpipe)
-        self._setup_rpc()
-
-    def _setup_rpc(self):
         self._push_rpc = resources_rpc.ResourcesPushRpcApi()
-
-        rpc_registry.provide(_get_chain_hops_by_port,
-                             sfc_obj.BaGPipePortHops.obj_name())
 
     def _parse_ipaddress_prefix(self, cidr):
         try:
