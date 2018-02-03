@@ -47,6 +47,7 @@ from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.engine import flowspec
 from networking_bagpipe.bagpipe_bgp.engine import ipvpn as ipvpn_routes
 from networking_bagpipe.bagpipe_bgp.engine import worker
+from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers
 from networking_bagpipe.bagpipe_bgp.vpn import ipvpn
 from networking_bagpipe.bagpipe_bgp.vpn import label_allocator
 from networking_bagpipe.bagpipe_bgp.vpn import rd_allocator
@@ -219,8 +220,7 @@ class TestInitVPNInstance(testtools.TestCase):
 
         # Stop the VPNInstance to check that label release is not called
         vpn.stop()
-        self.assertEqual(0, vpn.manager.label_allocator.release.call_count,
-                         "label allocator release should not be called")
+        vpn.manager.label_allocator.release.assert_not_called()
 
     def test_init_stop_VPNInstance_without_forced_vni(self):
         # Initialize a VPNInstance with no vni
@@ -245,11 +245,11 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
     def setUp(self):
         super(TestVPNInstance, self).setUp()
 
-        self.mock_dataplane = mock.mock.Mock()
-        self.mock_dataplane.vif_plugged = mock.mock.Mock()
-        self.mock_dataplane.vif_unplugged = mock.mock.Mock()
+        self.mock_dataplane = mock.mock.Mock(
+            spec=dataplane_drivers.VPNInstanceDataplane)
 
-        mock_dp_driver = mock.Mock()
+        mock_dp_driver = mock.Mock(
+            spec=dataplane_drivers.DataplaneDriver)
         mock_dp_driver.initialize_dataplane_instance.return_value = (
             self.mock_dataplane
         )
@@ -328,10 +328,8 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
-        self.assertEqual(1, self.vpn.dataplane.vif_plugged.call_count,
-                         "Port must be plugged only once on dataplane")
-        self.assertEqual(1, self.vpn._advertise_route.call_count,
-                         "Route for port must be advertised only once")
+        self.vpn.dataplane.vif_plugged.assert_called_once()
+        self.vpn._advertise_route.assert_called_once()
 
         self._validate_ip_address_2_mac_address_consistency(MAC1, IP1)
         self._chk_mac_2_localport_data_consistency(MAC1, LOCAL_PORT1)
@@ -349,10 +347,8 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.assertRaises(exc.APIException,
                           self.vpn.vif_plugged,
                           MAC2, IP1, LOCAL_PORT1)
-        self.assertEqual(1, self.vpn.dataplane.vif_plugged.call_count,
-                         "Only first port must be plugged on dataplane")
-        self.assertEqual(1, self.vpn._advertise_route.call_count,
-                         "Only route for first port must be advertised")
+        self.vpn.dataplane.vif_plugged.assert_called_once()
+        self.vpn._advertise_route.assert_called_once()
 
         self._validate_ip_address_2_mac_address_consistency(MAC1, IP1)
         self._chk_mac_2_localport_data_consistency(MAC1, LOCAL_PORT1)
@@ -407,10 +403,8 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.assertRaises(exc.APIException,
                           self.vpn.vif_plugged,
                           MAC1, IP1, LOCAL_PORT2)
-        self.assertEqual(1, self.vpn.dataplane.vif_plugged.call_count,
-                         "Only first port must be plugged on dataplane")
-        self.assertEqual(1, self.vpn._advertise_route.call_count,
-                         "Only route for first port must be advertised")
+        self.vpn.dataplane.vif_plugged.assert_called_once()
+        self.vpn._advertise_route.assert_called_once()
 
         self._validate_ip_address_2_mac_address_consistency(MAC1, IP1)
         self._chk_mac_2_localport_data_consistency(MAC1, LOCAL_PORT1)
@@ -430,10 +424,8 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.assertRaises(exc.APIException,
                           self.vpn.vif_plugged,
                           MAC2, IP1, LOCAL_PORT2)
-        self.assertEqual(1, self.vpn.dataplane.vif_plugged.call_count,
-                         "Only first port must be plugged on dataplane")
-        self.assertEqual(1, self.vpn._advertise_route.call_count,
-                         "Only route for first port must be advertised")
+        self.vpn.dataplane.vif_plugged.assert_called_once()
+        self.vpn._advertise_route.assert_called_once()
 
         self._validate_ip_address_2_mac_address_consistency(MAC1, IP1)
         self._chk_mac_2_localport_data_consistency(MAC1, LOCAL_PORT1)
@@ -452,10 +444,8 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.assertRaises(exc.APIException,
                           self.vpn.vif_plugged,
                           MAC1, IP2, LOCAL_PORT2)
-        self.assertEqual(1, self.vpn.dataplane.vif_plugged.call_count,
-                         "Only first port must be plugged on dataplane")
-        self.assertEqual(1, self.vpn._advertise_route.call_count,
-                         "Only route for first port must be advertised")
+        self.vpn.dataplane.vif_plugged.assert_called_once()
+        self.vpn._advertise_route.assert_called_once()
 
         self._validate_ip_address_2_mac_address_consistency(MAC1, IP1)
         self._chk_mac_2_localport_data_consistency(MAC1, LOCAL_PORT1)
@@ -496,15 +486,11 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         self.vpn.vif_unplugged(MAC1, IP1)
 
-        self.assertEqual(1, self.vpn.dataplane.vif_unplugged.call_count,
-                         "Endpoint could be unplugged from dataplane")
-        self.assertEqual(
-            [((MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, True),)],
-            self.vpn.dataplane.vif_unplugged.call_args_list)
-        self.assertEqual(1, self.vpn._advertise_route.call_count,
-                         "Route must be first advertised and after withdrawn")
-        self.assertEqual(1, self.vpn._withdraw_route.call_count,
-                         "Route must be first advertised and after withdrawn")
+        self.vpn.dataplane.vif_unplugged.assert_called_once()
+        self.vpn.dataplane.vif_unplugged.assert_called_with(
+            MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, True)
+        self.vpn._advertise_route.assert_called_once()
+        self.vpn._withdraw_route.assert_called_once()
 
         self.assertEqual({}, self.vpn.mac_2_localport_data)
         self.assertEqual({}, self.vpn.ip_address_2_mac)
@@ -520,15 +506,12 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
                           self.vpn.vif_unplugged,
                           MAC2, IP1)
 
-        self.assertEqual(0, self.vpn.dataplane.vif_unplugged.call_count,
-                         "Endpoint could not be unplugged from dataplane")
-        self.assertEqual(1, self.vpn._advertise_route.call_count,
-                         "only one Route must be advertised")
+        self.vpn.dataplane.vif_unplugged.assert_not_called()
+        self.vpn._advertise_route.assert_called_once()
 
         self.assertIn(MAC1, self.vpn.mac_2_localport_data)
         self.assertIn(IP1, self.vpn.ip_address_2_mac)
-        self.assertIn(
-            LOCAL_PORT1['linuxif'], self.vpn.localport_2_endpoints)
+        self.assertIn(LOCAL_PORT1['linuxif'], self.vpn.localport_2_endpoints)
 
     def test_c3_unplug_unique_endpoint_with_same_mac_same_port(self):
         # Unplug one endpoint with same MAC address and different IP addresses
@@ -540,17 +523,13 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
                           self.vpn.vif_unplugged,
                           MAC1, IP2)
 
-        self.assertEqual(0, self.vpn.dataplane.vif_unplugged.call_count,
-                         "Endpoint could not be unplugged from dataplane")
-        self.assertEqual(1, self.vpn._advertise_route.call_count,
-                         "Route must only be advertised once")
-        self.assertEqual(0, self.vpn._withdraw_route.call_count,
-                         "Route must not be withdrawn")
+        self.vpn.dataplane.vif_unplugged.assert_not_called()
+        self.vpn._advertise_route.assert_called_once()
+        self.vpn._withdraw_route.assert_not_called()
 
         self.assertIn(MAC1, self.vpn.mac_2_localport_data)
         self.assertIn(IP1, self.vpn.ip_address_2_mac)
-        self.assertIn(
-            LOCAL_PORT1['linuxif'], self.vpn.localport_2_endpoints)
+        self.assertIn(LOCAL_PORT1['linuxif'], self.vpn.localport_2_endpoints)
 
     def test_c4_unplug_one_endpoint_same_port(self):
         # Unplug only one endpoint with same MAC and IP addresses
@@ -563,17 +542,13 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         self.vpn.vif_unplugged(MAC1, IP1)
 
-        self.assertEqual(1, self.vpn.dataplane.vif_unplugged.call_count,
-                         "Endpoint must be unplugged from dataplane")
-        self.assertEqual(
-            [((MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, False),)],
-            self.vpn.dataplane.vif_unplugged.call_args_list)
+        self.vpn.dataplane.vif_unplugged.assert_called_once()
+        self.vpn.dataplane.vif_unplugged.assert_called_with(
+            MAC1, self._get_ip_address(IP1), LOCAL_PORT1, label1, False)
         self.assertEqual(2, self.vpn._advertise_route.call_count,
                          "Routes for all port endpoints must be first "
                          "advertised and only one withdrawn")
-        self.assertEqual(1, self.vpn._withdraw_route.call_count,
-                         "Routes for all port endpoints must be first "
-                         "advertised and only one withdrawn")
+        self.vpn._withdraw_route.assert_called_once()
 
         self._validate_ip_address_2_mac_address_consistency(MAC2, IP2)
         self._chk_mac_2_localport_data_consistency(MAC2, LOCAL_PORT1)
@@ -652,8 +627,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
                           self.vpn.vif_unplugged,
                           MAC1, IP2)
 
-        self.assertEqual(0, self.vpn.dataplane.vif_unplugged.call_count,
-                         "Endpoint could not be unplugged from dataplane")
+        self.vpn.dataplane.vif_unplugged.assert_not_called()
         self.assertEqual(2, self.vpn._advertise_route.call_count,
                          "Routes for all different ports endpoints must only "
                          "be advertised")
@@ -731,7 +705,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         # no change -> no route update
         self.vpn.update_route_targets([t.RT1], [t.RT1])
 
-        self.assertEqual(0, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_not_called()
 
     def test_update_rts_2(self):
         self._test_update_rts_init()
@@ -739,7 +713,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         # change imports -> no route update
         self.vpn.update_route_targets([t.RT2], [t.RT1])
 
-        self.assertEqual(0, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_not_called()
 
     def test_update_rts_3(self):
         self._test_update_rts_init()
@@ -748,7 +722,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         # check that previously advertised routes are readvertised
         self.vpn.update_route_targets([t.RT1], [t.RT2])
 
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
 
         self.assertIn(t.RT2, _extract_rt_from_call(self.vpn,
                                                    '_advertise_route'))
@@ -762,7 +736,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         # check that previously advertised routes are readvertised
         self.vpn.update_route_targets([t.RT1], [t.RT1, t.RT2])
 
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
         self.assertIn(t.RT2, _extract_rt_from_call(self.vpn,
                                                    '_advertise_route'))
         self.assertIn(t.RT1, _extract_rt_from_call(self.vpn,
@@ -845,12 +819,12 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
     def setUp(self):
         super(TestVRF, self).setUp()
 
-        self.mock_dp = mock.Mock()
-        self.mock_dp.vif_plugged = mock.Mock()
-        self.mock_dp.vif_unplugged = mock.Mock()
-        self.mock_dp.setup_dataplane_for_remote_endpoint = mock.Mock()
+        self.mock_dp = mock.mock.Mock(
+            spec=ipvpn.DummyVPNInstanceDataplane)
 
-        mock_dp_driver = mock.Mock()
+        mock_dp_driver = mock.Mock(
+            spec=ipvpn.DummyDataplaneDriver)
+
         mock_dp_driver.initialize_dataplane_instance.return_value = \
             self.mock_dp
         mock_dp_driver.get_local_address.return_value = LOCAL_ADDRESS
@@ -911,7 +885,8 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
             )
 
     def _mock_vpnmanager_for_attract_traffic(self):
-        self.manager.redirect_traffic_to_vpn = mock.Mock()
+        self.manager.redirect_traffic_to_vpn = mock.Mock(
+            spec=ipvpn.VPNInstanceDataplane)
         self.manager.stop_redirect_to_vpn = mock.Mock()
 
     def _reset_mocks_vpnmanager(self):
@@ -956,11 +931,9 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri_1,
                               [t.RT1, t.RT2], worker_a, t.NH1, 200)
         # no re-advertisement supposed to happen
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
         # dataplane supposed to be updated for this route
-        self.assertEqual(
-            1,
-            self.mock_dp.setup_dataplane_for_remote_endpoint.call_count)
+        self.mock_dp.setup_dataplane_for_remote_endpoint.assert_called_once()
 
         self._reset_mocks()
 
@@ -969,7 +942,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
                                        [t.RT3], worker_a, t.NH1, 200,
                                        rtrecords=[RTRecord1])
         # re-advertisement of VPN NLRI2 supposed to happen, to RT4
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
         self.assertIn(t.RT4, _extract_rt_from_call(self.vpn,
                                                    '_advertise_route'))
         self.assertNotIn(t.RT2, _extract_rt_from_call(self.vpn,
@@ -981,9 +954,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.assertIn(RTRecord1, _extract_rtrec_from_call(self.vpn,
                                                           '_advertise_route'))
         # dataplane *not* supposed to be updated for this route
-        self.assertEqual(
-            0,
-            self.mock_dp.setup_dataplane_for_remote_endpoint.call_count)
+        self.mock_dp.setup_dataplane_for_remote_endpoint.assert_not_called()
 
         self._reset_mocks()
 
@@ -995,7 +966,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # - vif route itself
         # - re-adv of NLRI1 with this new port as next-hop
         self.assertEqual(2, self.vpn._advertise_route.call_count)
-        self.assertEqual(0, self.vpn._withdraw_route.call_count)
+        self.vpn._withdraw_route.assert_not_called()
         self.assertIn(t.RT1, _extract_rt_from_call(self.vpn,
                                                    '_advertise_route', 0))
         self.assertNotIn(t.RT4, _extract_rt_from_call(self.vpn,
@@ -1021,8 +992,8 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         event3 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri3,
                                        [t.RT3], worker_a, t.NH1, 200,
                                        rtrecords=[RTRecord4])
-        self.assertEqual(0, self.vpn._advertise_route.call_count)
-        self.assertEqual(0, self.vpn._withdraw_route.call_count)
+        self.vpn._advertise_route.assert_not_called()
+        self.vpn._withdraw_route.assert_not_called()
         self._revert_event(event3)
 
         self._reset_mocks()
@@ -1043,24 +1014,20 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri_1,
                               [t.RT1, t.RT2, t.RT3],
                               worker_a, t.NH1, 200)
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
         self.assertIn(t.RT4, _extract_rt_from_call(self.vpn,
                                                    '_advertise_route'))
         # dataplane supposed to be updated for this route
-        self.assertEqual(
-            1,
-            self.mock_dp.setup_dataplane_for_remote_endpoint.call_count)
+        self.mock_dp.setup_dataplane_for_remote_endpoint.assert_called_once()
 
         self._reset_mocks()
 
         self._revert_event(event2)
         # withdraw of re-adv route supposed to happen
-        self.assertEqual(1, self.vpn._withdraw_route.call_count)
-        self.assertEqual(0, self.vpn._advertise_route.call_count)
+        self.vpn._withdraw_route.assert_called_once()
+        self.vpn._advertise_route.assert_not_called()
         # dataplane *not* supposed to be updated for this route
-        self.assertEqual(
-            0,
-            self.mock_dp.setup_dataplane_for_remote_endpoint.call_count)
+        self.mock_dp.setup_dataplane_for_remote_endpoint.assert_not_called()
 
     def _check_attract_traffic(self, method, redirect_rts,
                                expected_classifiers):
@@ -1116,7 +1083,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
 
         self._reset_mocks()
 
@@ -1138,7 +1105,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
 
         self._reset_mocks()
 
@@ -1167,7 +1134,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
 
         self._reset_mocks()
 
@@ -1194,7 +1161,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
 
         self._reset_mocks()
 
@@ -1244,7 +1211,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
                               worker_a, t.NH1, 200)
 
-        self.assertEqual(0, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_not_called()
 
     def test_attract_traffic_static_dest_prefix_advertise(self):
         # Configure VRF to generate traffic redirection, based on a 5-tuple
@@ -1300,7 +1267,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
 
         self._reset_mocks()
 
@@ -1312,7 +1279,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
                              [t.RT1], worker_a)
 
         redirect_rt5 = t._rt_to_string(t.RT5)
-        self.assertEqual(1, self.manager.redirect_traffic_to_vpn.call_count)
+        self.manager.redirect_traffic_to_vpn.assert_called_once()
         self.assertIn(TC1,
                       self.vpn.redirect_rt_2_classifiers[redirect_rt5])
 
@@ -1322,7 +1289,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
 
         self._reset_mocks()
 
@@ -1349,13 +1316,14 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         # new Route for plugged if supposed to be advertised
-        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn._advertise_route.assert_called_once()
 
         self._reset_mocks()
 
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         # FlowSpec route
+
         flow_nlri1 = self._generate_flow_spec_nlri(TC1)
         self._new_flow_event(engine.RouteEvent.ADVERTISE, flow_nlri1,
                              [t.RT5], [t.RT1], worker_a)
@@ -1378,7 +1346,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
                              [t.RT1], worker_a)
 
         self.assertTrue(not self.vpn.redirect_rt_2_classifiers)
-        self.assertEqual(1, self.manager.stop_redirect_to_vpn.call_count)
+        self.manager.stop_redirect_to_vpn.assert_called_once()
 
     def test_load_balancing_single_prefix_advertise(self):
         # Configure VRF to generate traffic redirection, based on a 5-tuple

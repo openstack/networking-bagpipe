@@ -157,12 +157,7 @@ class BaseTestBagPipeBGP(object):
                                                          attributes, source),
                                        source)
 
-        self.event_target_worker.enqueue(flow_event)
-
-        LOG.info("*** Emitting FlowSpec event to %s: %s",
-                 self.event_target_worker, flow_event)
-
-        self._wait()
+        self.event_target_worker._on_event(flow_event)
 
         return flow_event
 
@@ -174,12 +169,7 @@ class BaseTestBagPipeBGP(object):
 
         route_event = engine.RouteEvent(type, event.route_entry, event.source)
 
-        self.event_target_worker.enqueue(route_event)
-
-        LOG.info("*** Emitting event to %s: %s",
-                 self.event_target_worker, route_event)
-
-        self._wait()
+        self.event_target_worker._on_event(route_event)
 
     def _wait(self):
         time.sleep(WAIT_TIME)

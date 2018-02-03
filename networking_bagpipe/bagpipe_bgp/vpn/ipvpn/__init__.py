@@ -15,7 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 import itertools
+import six
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
@@ -30,8 +32,33 @@ from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
 
 
+@six.add_metaclass(abc.ABCMeta)
+class VPNInstanceDataplane(dp_drivers.VPNInstanceDataplane):
+
+    @abc.abstractmethod
+    def add_dataplane_for_traffic_classifier(self, classifier,
+                                             redirect_to_instance_id):
+        pass
+
+    @abc.abstractmethod
+    def remove_dataplane_for_traffic_classifier(self, classifier):
+        pass
+
+
+class DummyVPNInstanceDataplane(dp_drivers.DummyVPNInstanceDataplane,
+                                VPNInstanceDataplane):
+
+    def add_dataplane_for_traffic_classifier(self, classifier,
+                                             redirect_to_instance_id):
+        raise Exception("not implemented")
+
+    def remove_dataplane_for_traffic_classifier(self, classifier):
+        raise Exception("not implemented")
+
+
 class DummyDataplaneDriver(dp_drivers.DummyDataplaneDriver):
     type = constants.IPVPN
+    dataplane_instance_class = DummyVPNInstanceDataplane
 
 
 class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
