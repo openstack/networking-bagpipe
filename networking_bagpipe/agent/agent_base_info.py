@@ -78,6 +78,7 @@ class PortInfo(CommonInfo):
         self.mac_address = None
         self.network = None
         self.chain_hops = dict()
+        self.admin_state_up = False
 
     def __eq__(self, other):
         return (isinstance(other, self.__class__) and
@@ -104,7 +105,7 @@ class PortInfo(CommonInfo):
             self.chain_hops.update(chain_hop)
 
     def __repr__(self):
-        return "PortInfo: %s" % self.id
+        return "PortInfo(%s,%s)" % (self.id, self.admin_state_up)
 
 
 GatewayInfo = namedtuple('GatewayInfo', ['mac', 'ip'])

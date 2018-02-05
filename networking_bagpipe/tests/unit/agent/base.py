@@ -183,13 +183,14 @@ class BaseTestAgentExtension(object):
         self.agent_ext = self.agent_extension_class()
         self.connection = mock.Mock()
 
-    def _port_data(self, port, delete=False):
+    def _port_data(self, port, delete=False, admin_state_up=True):
         data = {
             'port_id': port['id']
         }
         if not delete:
             data.update({
                 'port_id': port['id'],
+                'admin_state_up': admin_state_up,
                 'network_id': port_2_net[port['id']]['id'],
                 'segmentation_id': port_2_net[port['id']]['segmentation_id'],
                 'network_type': 'vxlan',

@@ -1833,6 +1833,80 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         self._check_network_info(base.NETWORK1['id'], 1)
 
+    def test_net_assoc_port_admin_state_down_up_down(self):
+        self.agent_ext.handle_port(None, self._port_data(base.PORT10,
+                                                         admin_state_up=False))
+
+        self.assertEqual(self.mocked_bagpipe_agent.do_port_plug.call_count, 0)
+
+        net_assoc = self._fake_net_assoc(base.NETWORK1,
+                                         bgpvpn.BGPVPN_L3,
+                                         **base.BGPVPN_L3_RT100)
+
+        # Verify build callback attachments
+        def check_build_cb(*args):
+            self.assertDictEqual(
+                {},
+                self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+            )
+
+        # we need to check what build_bgpvpn_attach_info returns, at the
+        # precise time when do_port_plug is called
+        self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb
+
+        self._net_assoc_notif(net_assoc, rpc_events.CREATED)
+
+        # test transition to admin_state_up = True
+
+        self.mocked_bagpipe_agent.do_port_plug.reset_mock()
+
+        # Verify build callback attachments
+        def check_build_cb_2(*args):
+            self.assertNotEqual(
+                0,
+                len(self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id']))
+            )
+        self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb_2
+
+        self.agent_ext.handle_port(None, self._port_data(base.PORT10,
+                                                         admin_state_up=True))
+
+        # test transition to admin_state_up = False
+
+        self.mocked_bagpipe_agent.do_port_plug.reset_mock()
+
+        def check_build_cb_3(*args):
+            self.assertDictEqual(
+                {},
+                self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
+            )
+
+        self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb_3
+
+        self.agent_ext.handle_port(None, self._port_data(
+            base.PORT10,
+            admin_state_up=False))
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.\
+            assert_called_once_with(base.PORT10['id'], mock.ANY)
+
+    def test_net_assoc_port_admin_state_down_delete(self):
+        self.agent_ext.handle_port(None, self._port_data(base.PORT10,
+                                                         admin_state_up=False))
+
+        self.assertEqual(self.mocked_bagpipe_agent.do_port_plug.call_count, 0)
+
+        self._fake_net_assoc(base.NETWORK1,
+                             bgpvpn.BGPVPN_L3,
+                             **base.BGPVPN_L3_RT100)
+
+        # test delete_port when port in admin_state_up = False
+
+        self.agent_ext.delete_port(None, self._port_data(base.PORT10,
+                                                         delete=True))
+
+        self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_not_called()
+
 
 class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                             TestBgpvpnAgentExtensionMixin):
