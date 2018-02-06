@@ -23,6 +23,8 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import pbr.version
 
+from neutron.common import config as n_config  # noqa
+
 from networking_bagpipe.bagpipe_bgp.api import api
 from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.engine import exabgp_peer_worker

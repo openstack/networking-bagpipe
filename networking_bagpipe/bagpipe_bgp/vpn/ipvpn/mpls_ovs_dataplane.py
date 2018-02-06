@@ -779,7 +779,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
     dataplane_instance_class = MPLSOVSVRFDataplane
     type = consts.IPVPN
     ecmp_support = True
-    required_ovs_version = "2.5.0"
+    required_ovs_version = "2.8.0"
 
     driver_opts = [
         cfg.StrOpt("mpls_interface",
@@ -994,7 +994,6 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
             self.log.info("No OVS bridge (%s), no need to cleanup OVS rules",
                           self.bridge)
 
-    @log_decorator.log_info
     def initialize(self):
         if self.use_gre:
             self.log.info("Setting up tunnel for MPLS/GRE (%s)",
@@ -1143,7 +1142,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         for (table_name, table_id) in self.all_tables.items():
             output.update({
                 "%s (%d)" % (table_name, table_id): self._run_command(
-                    "ovs-ofctl dump-flows %s '%s' %s" % (
+                    "ovs-ofctl dump-flows --names %s '%s' %s" % (
                         self.bridge,
                         join_s("table=%d" % table_id, cookie_spec),
                         OVS_DUMP_FLOW_FILTER),
