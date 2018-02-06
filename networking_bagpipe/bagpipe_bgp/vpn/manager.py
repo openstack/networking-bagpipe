@@ -33,8 +33,12 @@ from networking_bagpipe.bagpipe_bgp.vpn import ipvpn
 from networking_bagpipe.bagpipe_bgp.vpn import label_allocator
 from networking_bagpipe.bagpipe_bgp.vpn import rd_allocator
 
+from neutron_lib import exceptions
+
 
 LOG = logging.getLogger(__name__)
+
+INSTANCE_ID_MAX = 2**32-1
 
 
 def redirect_instance_extid(instance_type, rt):
@@ -42,8 +46,8 @@ def redirect_instance_extid(instance_type, rt):
     return "redirect-to-%s-%s" % (instance_type, rt.replace(":", "_"))
 
 
-class NoSuchVPNInstance(Exception):
-    pass
+class MaxInstanceIDReached(exceptions.NeutronException):
+    _message = "Could not create VPN instance: max instance id was reached"
 
 
 class VPNManager(lg.LookingGlassMixin):
@@ -242,6 +246,9 @@ class VPNManager(lg.LookingGlassMixin):
 
         # unique internal vpn instance id
         instance_id = self.next_vpn_instance_id
+        if instance_id > INSTANCE_ID_MAX:
+            raise MaxInstanceIDReached()
+
         self.next_vpn_instance_id += 1
 
         vpn_instance = vpn_instance_class(self, dataplane_driver,
