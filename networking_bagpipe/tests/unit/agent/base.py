@@ -311,8 +311,8 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
 
     def _get_expected_local_port(self, bbgp_vpn_type, network_id, port_id,
                                  detach=False):
+        vlan = self.vlan_manager.get(network_id).vlan
         if bbgp_vpn_type == bbgp_const.IPVPN:
-            vlan = self.vlan_manager.get(network_id).vlan
             r = dict(
                 local_port=dict(
                     linuxif='%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan),
@@ -325,4 +325,12 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
                 del r['local_port']['ovs']
             return r
         else:
-            return {}
+            r = dict(
+                local_port=dict(
+                    linuxif='%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan),
+                    vlan=vlan
+                )
+            )
+            if detach:
+                del r['local_port']['vlan']
+            return r

@@ -734,12 +734,10 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             # Add OVS VLAN information
             vlan = self.vlan_manager.get(net_info.id).vlan
 
-            # no OVS driver yet for EVPN
             if bbgp_vpn_type == bbgp_const.EVPN:
-                LOG.warning("BGPVPN type L2 (EVPN) is not supported with "
-                            "OVS yet")
+                attach_info['local_port']['vlan'] = vlan
 
-            if bbgp_vpn_type == bbgp_const.IPVPN:
+            elif bbgp_vpn_type == bbgp_const.IPVPN:
                 attach_info['local_port'].update({
                     'ovs': {
                         'plugged': True,
@@ -801,8 +799,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             attachment = copy.deepcopy(attach_info)
             attachment['ip_address'] = port_info.ip_address
             attachment['instance_description'] = (
-                'BGPVPN associations for net %s (%s)' % (
-                    net_info.id, net_info.gateway_info.ip))
+                'BGPVPN %s associations for net %s (%s)' % (
+                    bbgp_vpn_type, net_info.id, net_info.gateway_info.ip))
             attachment.update(format_associations_route_targets(assocs))
 
             attachments.append(attachment)

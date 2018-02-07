@@ -673,9 +673,6 @@ class TestBgpvpnAgentExtensionMixin(object):
         self._check_network_info(base.NETWORK1['id'], 2)
 
     def test_two_assocs_one_deleted_then_the_second_different_types(self):
-        if isinstance(self, TestOVSAgentExtension):
-            self.skipTest("not relevant for OVS, because no EVPN driver")
-
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
         self.agent_ext.handle_port(None, self._port_data(base.PORT11))
 
@@ -895,9 +892,6 @@ class TestBgpvpnAgentExtensionMixin(object):
         self._check_network_info(base.NETWORK1['id'], 1)
 
     def test_net_assoc_single_port_l2_bgpvpn(self):
-        if isinstance(self, TestOVSAgentExtension):
-            self.skipTest("not relevant for OVS, because no EVPN driver")
-
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 
         net_assoc = self._fake_net_assoc(base.NETWORK1,
@@ -1031,9 +1025,6 @@ class TestBgpvpnAgentExtensionMixin(object):
         self._check_network_info(base.NETWORK2['id'], 1)
 
     def test_delete_net_assoc_multiple_bgpvpns_different_type(self):
-        if isinstance(self, TestOVSAgentExtension):
-            self.skipTest("not relevant for OVS, because no EVPN driver")
-
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 
         net_assoc_1 = self._fake_net_assoc(base.NETWORK1,
@@ -1802,9 +1793,6 @@ class TestBgpvpnAgentExtensionMixin(object):
         )
 
     def test_net_assoc_l2_bgpvpn_vni(self):
-        if isinstance(self, TestOVSAgentExtension):
-            self.skipTest("not relevant for OVS, because no EVPN driver")
-
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 
         net_assoc = self._fake_net_assoc(base.NETWORK1,
