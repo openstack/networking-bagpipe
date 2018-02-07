@@ -252,6 +252,33 @@ class TestVPNManager(t.TestCase):
             self.assertEqual(len(self.manager.vpn_instances.values()),
                              len(set(instance_ids)))
 
+    def test_instance_id_max(self):
+        with mock.patch.object(manager.VPNManager, 'type2class',
+                               {consts.IPVPN: MockVPNInstance,
+                                consts.EVPN: MockVPNInstance
+                                }):
+            self.manager.next_vpn_instance_id = 2**32 - 1
+
+            self.manager.plug_vif_to_vpn(
+                external_instance_id="dummy1",
+                vpn_type=consts.EVPN,
+                mac_address=MAC,
+                import_rts=[],
+                export_rts=[],
+                ip_address_prefix=IP,
+                local_port=LOCAL_PORT)
+
+            self.assertRaises(
+                manager.MaxInstanceIDReached,
+                self.manager.plug_vif_to_vpn,
+                external_instance_id="dummy2",
+                vpn_type=consts.EVPN,
+                import_rts=[],
+                export_rts=[],
+                mac_address=MAC,
+                ip_address_prefix=IP,
+                local_port=LOCAL_PORT)
+
     @mock.patch('networking_bagpipe.bagpipe_bgp.engine.bgp_manager.Manager')
     def test_manager_stop(self, mocked_bgp_manager):
         self.manager._get_vpn_instance("TEST_VPN_INSTANCE", consts.IPVPN,
