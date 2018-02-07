@@ -19,7 +19,6 @@ from networking_bgpvpn.neutron.db import bgpvpn_db
 
 from neutron.api.rpc.callbacks import resources
 from neutron.common import utils
-from neutron.db import api as db_api
 from neutron.objects import base
 from neutron.objects import common_types
 from neutron.objects.ports import IPAllocation
@@ -73,6 +72,7 @@ class BGPVPN(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
+    new_facade = True
     db_model = bgpvpn_db.BGPVPN
     fields = {
         'id': common_types.UUIDField(),
@@ -120,6 +120,7 @@ class BGPVPNNetAssociation(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
+    new_facade = True
     db_model = bgpvpn_db.BGPVPNNetAssociation
 
     fields = {
@@ -138,7 +139,7 @@ class BGPVPNNetAssociation(base.NeutronDbObject):
         super(BGPVPNNetAssociation, self).__init__(context, **kwargs)
 
     def create(self):
-        with db_api.autonested_transaction(self.obj_context.session):
+        with self.db_context_writer(self.obj_context):
             super(BGPVPNNetAssociation, self).create()
             self.obj_load_attr('subnets')
 
@@ -168,6 +169,7 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
+    new_facade = True
     db_model = bgpvpn_db.BGPVPNRouterAssociation
 
     fields = {
@@ -187,12 +189,12 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
         super(BGPVPNRouterAssociation, self).__init__(context, **kwargs)
 
     def create(self):
-        with db_api.autonested_transaction(self.obj_context.session):
+        with self.db_context_writer(self.obj_context):
             super(BGPVPNRouterAssociation, self).create()
             self.obj_load_attr('connected_networks')
 
     def update(self):
-        with db_api.autonested_transaction(self.obj_context.session):
+        with self.db_context_writer(self.obj_context):
             if 'connected_networks' in self.obj_what_changed():
                 self.obj_load_attr('connected_networks')
             super(BGPVPNRouterAssociation, self).update()
@@ -273,6 +275,7 @@ class BGPVPNPortAssociation(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
+    new_facade = True
     db_model = bgpvpn_db.BGPVPNPortAssociation
 
     fields = {
@@ -294,7 +297,7 @@ class BGPVPNPortAssociation(base.NeutronDbObject):
         super(BGPVPNPortAssociation, self).__init__(context, **kwargs)
 
     def create(self):
-        with db_api.autonested_transaction(self.obj_context.session):
+        with self.db_context_writer(self.obj_context):
             super(BGPVPNPortAssociation, self).create()
             self.obj_load_attr('subnets')
 
@@ -329,6 +332,7 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
+    new_facade = True
     db_model = bgpvpn_db.BGPVPNPortAssociationRoute
 
     fields = {
