@@ -341,28 +341,27 @@ class DummyVPNInstanceDataplane(VPNInstanceDataplane):
         VPNInstanceDataplane.__init__(self, *args)
 
     @log_decorator.log
-    def vif_plugged(self, mac_address, ip_address_prefix, localport, label):
+    def vif_plugged(self, *args, **kwargs):
         pass
 
     @log_decorator.log
-    def vif_unplugged(self, mac_address, ip_address_prefix, localport, label,
-                      last_endpoint=True):
+    def vif_unplugged(self, *args, **kwargs):
         pass
 
     @log_decorator.log
-    def update_fallback(self, fallback):
+    def update_fallback(self, *args, **kwargs):
         pass
 
     @log_decorator.log
-    def setup_dataplane_for_remote_endpoint(self, *args):
+    def setup_dataplane_for_remote_endpoint(self, *args, **kwargs):
         pass
 
     @log_decorator.log
-    def remove_dataplane_for_remote_endpoint(self, *args):
+    def remove_dataplane_for_remote_endpoint(self, *args, **kwargs):
         pass
 
     @log_decorator.log
-    def cleanup(self):
+    def cleanup(self, *args, **kwargs):
         pass
 
 
@@ -375,9 +374,9 @@ class DummyDataplaneDriver(DataplaneDriver):
         self.log.warning("Dummy dataplane driver, won't do anything useful")
 
     @log_decorator.log_info
-    def initialize(self):
+    def initialize(self, *args, **kwargs):
         pass
 
     @log_decorator.log_info
-    def reset_state(self):
+    def reset_state(self, *args, **kwargs):
         pass

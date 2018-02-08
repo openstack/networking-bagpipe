@@ -48,11 +48,10 @@ class VPNInstanceDataplane(dp_drivers.VPNInstanceDataplane):
 class DummyVPNInstanceDataplane(dp_drivers.DummyVPNInstanceDataplane,
                                 VPNInstanceDataplane):
 
-    def add_dataplane_for_traffic_classifier(self, classifier,
-                                             redirect_to_instance_id):
+    def add_dataplane_for_traffic_classifier(self, *args, **kwargs):
         raise Exception("not implemented")
 
-    def remove_dataplane_for_traffic_classifier(self, classifier):
+    def remove_dataplane_for_traffic_classifier(self, *args, **kwargs):
         raise Exception("not implemented")
 
 

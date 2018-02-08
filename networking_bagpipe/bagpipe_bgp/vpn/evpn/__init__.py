@@ -65,19 +65,19 @@ class DummyVPNInstanceDataplane(dp_drivers.DummyVPNInstanceDataplane,
     '''Dummy, do-nothing dataplane driver'''
 
     @log_decorator.log_info
-    def add_dataplane_for_bum_endpoint(self, remote_pe, dpid, nlri, encaps):
+    def add_dataplane_for_bum_endpoint(self, *args, **kwargs):
         pass
 
     @log_decorator.log_info
-    def remove_dataplane_for_bum_endpoint(self, remote_pe, dpid, nlri):
+    def remove_dataplane_for_bum_endpoint(self, *args, **kwargs):
         pass
 
     @log_decorator.log_info
-    def set_gateway_port(self, linuxif, gateway_ip):
+    def set_gateway_port(self, *args, **kwargs):
         pass
 
     @log_decorator.log_info
-    def gateway_port_down(self, linuxif):
+    def gateway_port_down(self, *args, **kwargs):
         pass
 
 
@@ -88,8 +88,8 @@ class DummyDataplaneDriver(dp_drivers.DummyDataplaneDriver):
     dataplane_instance_class = DummyVPNInstanceDataplane
     encaps = [exa.Encapsulation(exa.Encapsulation.Type.VXLAN)]
 
-    def __init__(self, *args):
-        dp_drivers.DummyDataplaneDriver.__init__(self, *args)
+    def __init__(self, *args, **kwargs):
+        dp_drivers.DummyDataplaneDriver.__init__(self, *args, **kwargs)
 
 
 class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
