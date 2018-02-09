@@ -359,6 +359,16 @@ class OVSDataplaneDriver(dp_drivers.DataplaneDriver):
 
     def __init__(self, *args, **kwargs):
         super(OVSDataplaneDriver, self).__init__(*args, **kwargs)
+
+        # copy bagpipe-bgp root helper configuration into neutron's config, so
+        # that neutron classes find the right configuration to execute commands
+        cfg.CONF.set_default('root_helper',
+                             cfg.CONF.COMMON.root_helper,
+                             group="AGENT")
+        cfg.CONF.set_default('root_helper_daemon',
+                             cfg.CONF.COMMON.root_helper_daemon,
+                             group="AGENT")
+
         self.bridge = OVSBridgeWithGroups(
             br_tun.OVSTunnelBridge(self.config.ovs_bridge)
         )
