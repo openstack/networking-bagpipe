@@ -9,12 +9,11 @@ enable_rtc=True
 # Root helper and root helper application
 #   root_helper_daemon is designed to use oslo-rootwrap-daemon for commands
 #   that need to be run as root.
-#   If root_helper_daemon is unset, bagpipe-bgp will use 'root_help' to call
+#   If root_helper_daemon is unset, bagpipe-bgp will use 'root_helper' to call
 #   these commands, which defaults to 'sudo', and can be configured to use
 #   oslo.rootwrap.
 #root_helper = sudo
-#root_helper = sudo /usr/local/bin/oslo-rootwrap /etc/bagpipe-bgp/rootwrap.conf
-root_helper_daemon = sudo /usr/local/bin/oslo-rootwrap-daemon /etc/bagpipe-bgp/rootwrap.conf
+#root_helper_daemon = sudo /usr/local/bin/neutron-rootwrap-daemon /etc/bagpipe-bgp/rootwrap.conf
 
 [API]
 # BGP component API IP address and port
