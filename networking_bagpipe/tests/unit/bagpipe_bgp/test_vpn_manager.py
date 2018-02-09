@@ -70,6 +70,9 @@ class MockVPNInstance(object):
     def update_fallback(self, *args):
         pass
 
+    def update_route_targets(self, *args):
+        pass
+
     def vif_plugged(self, *args, **kwargs):
         pass
 
@@ -159,7 +162,9 @@ class TestVPNManager(t.TestCase):
         self.assertTrue(not self.manager.vpn_instances)
 
     def test_plug_vif_to_vpn_with_forced_vni(self):
-        with mock.patch.object(self.manager, "_get_vpn_instance") as mock_get_vpn_instance, \
+        with mock.patch.object(self.manager, "_get_vpn_instance",
+                               return_value=(mock.Mock(), False)
+                               ) as mock_get_vpn_instance, \
                 mock.patch.object(utils, "convert_route_targets"):
             self.manager.plug_vif_to_vpn(vpn_instance_id=VPN_EXT_ID,
                                          vpn_type=consts.EVPN,
@@ -176,7 +181,9 @@ class TestVPNManager(t.TestCase):
             None, None, None, linuxbr=BRIDGE_NAME, vni=VNID)
 
     def test_plug_vif_to_vpn_without_forced_vni(self):
-        with mock.patch.object(self.manager, "_get_vpn_instance") as mock_get_vpn_instance, \
+        with mock.patch.object(self.manager, "_get_vpn_instance",
+                               return_value=(mock.Mock(), False)
+                               ) as mock_get_vpn_instance, \
                 mock.patch.object(utils, "convert_route_targets"):
             self.manager.plug_vif_to_vpn(vpn_instance_id=VPN_EXT_ID,
                                          vpn_type=consts.EVPN,
@@ -193,24 +200,27 @@ class TestVPNManager(t.TestCase):
             None, None, None, linuxbr=BRIDGE_NAME)
 
     def test_get_vpn_instance_with_forced_vni(self):
-        vpn_instance = self.manager._get_vpn_instance(VPN_EXT_ID,
+        instannce, _ = self.manager._get_vpn_instance(VPN_EXT_ID,
                                                       consts.IPVPN,
                                                       [], [],
                                                       GW_IP, GW_MASK,
                                                       None, None,
                                                       vni=VNID)
+        instannce.start()
 
-        self.assertEqual(VNID, vpn_instance.instance_label,
+        self.assertEqual(VNID, instannce.instance_label,
                          "VPN instance label should be forced to VNID")
 
     def test_get_vpn_instance_without_forced_vni(self):
-        vpn_instance = self.manager._get_vpn_instance(VPN_EXT_ID,
+        instannce, _ = self.manager._get_vpn_instance(VPN_EXT_ID,
                                                       consts.IPVPN,
                                                       [], [],
                                                       GW_IP, GW_MASK,
                                                       None, None)
 
-        self.assertIsNot(0, vpn_instance.instance_label,
+        instannce.start()
+
+        self.assertIsNot(0, instannce.instance_label,
                          "VPN instance label should be assigned locally")
 
     def test_instance_id_uniqueness(self):
@@ -281,8 +291,10 @@ class TestVPNManager(t.TestCase):
 
     @mock.patch('networking_bagpipe.bagpipe_bgp.engine.bgp_manager.Manager')
     def test_manager_stop(self, mocked_bgp_manager):
-        self.manager._get_vpn_instance("TEST_VPN_INSTANCE", consts.IPVPN,
-                                       [t.RT1], [t.RT1], "192.168.0.1", 24,
-                                       {}, {})
+        instance, _ = self.manager._get_vpn_instance(
+            "TEST_VPN_INSTANCE", consts.IPVPN, [t.RT1], [t.RT1],
+            "192.168.0.1", 24, {}, {})
+        instance.start()
+
         self.manager.stop()
         self.assertTrue(not self.manager.vpn_instances)
