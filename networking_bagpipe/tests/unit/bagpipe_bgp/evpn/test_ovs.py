@@ -97,7 +97,7 @@ class TestTunnelManager(t.TestCase):
         self.bridge.delete_port.assert_called_once_with(t2)
 
 
-class FackBridgeMockSpec(ovs.OVSBridgeWithGroups,
+class FakeBridgeMockSpec(ovs.OVSBridgeWithGroups,
                          br_tun.OVSTunnelBridge,
                          ovs_lib.OVSBridge):
     pass
@@ -114,8 +114,8 @@ class TestOVSEVIDataplane(t.TestCase):
     def setUp(self):
         super(TestOVSEVIDataplane, self).setUp()
 
-        self.bridge = mock.Mock(spec=FackBridgeMockSpec)
-        self.tunnel_mgr = mock.Mock(ovs.TunnelManager)
+        self.bridge = mock.Mock(spec=FakeBridgeMockSpec)
+        self.tunnel_mgr = mock.Mock(spec=ovs.TunnelManager)
 
         self.dp_driver = mock.Mock(spec=dp_drivers.DataplaneDriver)
         self.dp_driver.bridge = self.bridge
@@ -150,15 +150,20 @@ class TestOVSEVIDataplane(t.TestCase):
         self.tunnel_mgr.tunnel_for_remote_ip.assert_called_once_with(
             "2.2.2.2", (77, 42, MAC1))
 
-        self.bridge.add_flow.assert_called()
+        self.bridge.add_flow.assert_called_with(
+            table=ovs_const.UCAST_TO_TUN,
+            priority=mock.ANY,
+            dl_vlan=self.vlan,
+            dl_dst=MAC1,
+            actions=mock.ANY)
 
     def test_remove_dataplane_for_remote_endpoint__local(self):
         self.dataplane.remove_dataplane_for_remote_endpoint(
-            MAC1, "2.2.2.2", 42, FakeNLRI("11.0.0.1"))
+            MAC1, LOCAL_IP, 42, FakeNLRI("11.0.0.1"))
 
         self.bridge.delete_unicast_to_tun.assert_called_with(self.vlan, MAC1)
 
-        self.tunnel_mgr.free_tunnel.test_assert_not_called()
+        self.tunnel_mgr.free_tunnel.assert_not_called()
 
     def test_remove_dataplane_for_remote_endpoint(self):
         self.dataplane.remove_dataplane_for_remote_endpoint(
