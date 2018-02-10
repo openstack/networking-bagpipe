@@ -223,6 +223,8 @@ class VPNManager(lg.LookingGlassMixin):
         # if one already exists, check matching instance_type
         # else create one with provided parameters and start it
         #   (unless create_if_none is False --> raise exc.VPNNotFound)
+        # returns True if an already started instance was found
+        # False if a new instance was created without starting it
 
         LOG.info("Finding %s for external vpn_instance identifier %s",
                  instance_type, external_instance_id)
@@ -236,7 +238,7 @@ class VPNManager(lg.LookingGlassMixin):
                                 "(asked %s vs. already having %s)"
                                 % (external_instance_id,
                                    instance_type, vpn_instance.type))
-            return vpn_instance
+            return vpn_instance, True
 
         if not kwargs.pop('create_if_none', True):
             raise exc.VPNNotFound(external_instance_id)
@@ -260,9 +262,7 @@ class VPNManager(lg.LookingGlassMixin):
 
         self.vpn_instances[external_instance_id] = vpn_instance
 
-        vpn_instance.start()
-
-        return vpn_instance
+        return vpn_instance, False
 
     @utils.synchronized
     @log_decorator.log_info
@@ -338,17 +338,13 @@ class VPNManager(lg.LookingGlassMixin):
         if instance_type == constants.EVPN and linuxbr:
             kwargs['linuxbr'] = linuxbr
 
-        vpn_instance = self._get_vpn_instance(
+        vpn_instance, started = self._get_vpn_instance(
             external_instance_id, instance_type, import_rts, export_rts,
             gateway_ip, mask, readvertise, attract_traffic, fallback, **kwargs)
 
         vpn_instance.description = params.get('instance_description')
 
-        # Check if new route target import/export must be updated
-        if not ((set(vpn_instance.import_rts) == set(import_rts)) and
-                (set(vpn_instance.export_rts) == set(export_rts))):
-            vpn_instance.update_route_targets(import_rts, export_rts)
-
+        vpn_instance.update_route_targets(import_rts, export_rts)
         vpn_instance.update_fallback(fallback)
 
         if instance_type == constants.IPVPN and 'evpn' in localport:
@@ -365,6 +361,12 @@ class VPNManager(lg.LookingGlassMixin):
         vpn_instance.vif_plugged(mac_address, ip_address_prefix, localport,
                                  advertise_subnet, lb_consistent_hash_order,
                                  local_pref, **plug_kwargs)
+
+        # delaying the start after the first vif_plugged allows to handle
+        # dataplane driver for which the first vif_plugged needs to happen
+        # before route advertisements can be processed
+        if not started:
+            vpn_instance.start()
 
     @log_decorator.log_info
     def unplug_vif_from_vpn(self, **params):
@@ -409,12 +411,15 @@ class VPNManager(lg.LookingGlassMixin):
         # Retrieve a redirect VPN instance or create a new one if none exists
         # yet
         try:
-            return self._get_vpn_instance(external_instance_id,
+            i, s = self._get_vpn_instance(external_instance_id,
                                           redirected_type,
                                           import_rts, [],
                                           "127.0.0.1",
                                           "24", None, None,
                                           create_if_none=(not stop))
+            if not s:
+                i.start()
+            return i
         except exc.VPNNotFound:
             # (reached only in the 'stop' case)
             LOG.error("Try to stop traffic redirection for an RT for which"
