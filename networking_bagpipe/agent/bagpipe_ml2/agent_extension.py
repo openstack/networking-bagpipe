@@ -119,6 +119,7 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
         if data.get('network_type') != n_const.TYPE_VXLAN:
             LOG.debug("network is not of type vxlan, not handled by this "
                       "extension")
+            return
 
         port_id = data.pop('port_id')
         net_id = data.pop('network_id')
