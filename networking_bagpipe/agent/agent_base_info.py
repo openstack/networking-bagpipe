@@ -124,7 +124,8 @@ class NetworkInfo(CommonInfo):
         self.gateway_info = gateway_info
 
     def __repr__(self):
-        return "NetInfo: %s" % self.id
+        return "NetInfo: %s (segmentation id:%s, gw:%s), " % (
+            self.id, self.segmentation_id, self.gateway_info)
 
 
 class BaseInfoManager(object):
