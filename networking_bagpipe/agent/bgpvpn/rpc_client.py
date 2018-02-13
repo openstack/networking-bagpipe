@@ -19,6 +19,8 @@ from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from oslo_log import log as logging
 
+from networking_bagpipe._i18n import _
+
 LOG = logging.getLogger(__name__)
 
 # until we have a better way to add something in the topic namespace

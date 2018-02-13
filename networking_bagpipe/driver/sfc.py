@@ -31,6 +31,7 @@ from neutron.api.rpc.handlers import resources_rpc
 
 from neutron.db import models_v2
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.db import sfc_db
 from networking_bagpipe.driver import constants
 from networking_bagpipe.objects import sfc as sfc_obj
@@ -47,7 +48,7 @@ sfc_bagpipe_opts = [
     cfg.ListOpt('rtnn',
                 default=[5000, 5999],
                 help=_("List containing [<rtnn_min>, <rtnn_max>] values "
-                       "enumerating ranges of Route Target number that are "
+                       "enumerating ranges of Route Target numbers that are "
                        "available for Port Chain allocation")),
 ]
 
