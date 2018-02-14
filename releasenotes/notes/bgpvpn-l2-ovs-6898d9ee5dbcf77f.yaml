@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    bagpipe-bgp now supports E-VPN with OVS thanks to this new dataplane driver,
+    BGPVPNs of type L2 can now be supported, with both linuxbridge and OVS
