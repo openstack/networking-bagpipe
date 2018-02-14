@@ -31,8 +31,8 @@ These BGP VPNs are relevant in the context of Neutron, for two distinct
 use cases:
 
 1. creating reachability between Neutron ports (typically VMs) and BGP VPNs
-   outside the cloud datacenter (this is true independently of the backend
-   chosen for Neutron)
+   outside the cloud datacenter (this use case can be relevantindependently
+   of the backend chosen for Neutron)
 
 2. leveraging these BGP VPNs in Neutron's backend, to benefit from the
    flexibility, robustness and scalability of the underlying technology
@@ -51,12 +51,12 @@ The networking-bagpipe package includes:
   and BGP) is in networking-bagpipe, the Neutron server-side part,
   being currently in networking-bgpvpn_ package)
 
-* for use case 2: a Neutron ML2 mechanism driver
+* for use case 2: a Neutron ML2 mechanism driver (base Neutron networks),
+  a networking-sfc driver (service chaining)
 
 * compute code common to both: agent extensions for Neutron agent
   (linuxbridge or openvswitch) to consolidate and pass information via
   its REST API to :ref:`bagpipe-bgp`: a lightweight BGP VPN implementation
-  (note that a previous version of bagpipe-bgp was hosted under github)
 
 .. _networking-bgpvpn: https://github.com/openstack/networking-bgpvpn
 .. _RFC4364: http://tools.ietf.org/html/rfc4364

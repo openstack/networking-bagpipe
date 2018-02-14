@@ -44,12 +44,13 @@ LOG = logging.getLogger(__name__)
 
 sfc_bagpipe_opts = [
     cfg.IntOpt('as_number', default=64512,
-               help=_("Autonomous System number.")),
+               help=_("Autonomous System number used to generate BGP Route "
+                      "Targets that will be used for Port Chain allocations")),
     cfg.ListOpt('rtnn',
                 default=[5000, 5999],
-                help=_("List containing [<rtnn_min>, <rtnn_max>] values "
-                       "enumerating ranges of Route Target numbers that are "
-                       "available for Port Chain allocation")),
+                help=_("List containing <rtnn_min>, <rtnn_max> "
+                       "defining a range of BGP Route Targets that will "
+                       "be used for Port Chain allocations")),
 ]
 
 cfg.CONF.register_opts(sfc_bagpipe_opts, "sfc_bagpipe")
