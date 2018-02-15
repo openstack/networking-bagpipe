@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    the project now supports the features required for the `bgpvpn-routes-control`
+    API extension, including: control of local_pref, control of per port
+    routes, control of redistribution of routes between BGPVPN with next-hop
+    modified to point to a port.

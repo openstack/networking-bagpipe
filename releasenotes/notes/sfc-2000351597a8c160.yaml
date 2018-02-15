@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    networking-bagpipe now provides a driver for the networking-sfc project.
+    Using the `bagpipe` sfc driver will result in the use of BGPVPN stiching
+    route redistribution, and BGP flowspec for the realisation of a service
+    chain defined by the networking-sfc API.
