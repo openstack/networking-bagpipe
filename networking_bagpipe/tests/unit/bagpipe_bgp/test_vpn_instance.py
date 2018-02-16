@@ -813,8 +813,6 @@ IP_ADDR_PREFIX3 = '3.3.3.3/32'
 STATIC_ADDR_PREFIX1 = '10.10.10.10/32'
 STATIC_ADDR_PREFIX2 = '20.20.20.20/32'
 
-DEFAULT_ADDR_PREFIX = '0.0.0.0/0'
-
 ATTRACT_TRAFFIC_1 = {'redirect_rts': [t.RT5],
                      'classifier': {'destinationPort': '80',
                                     'protocol': 'tcp'
@@ -1094,7 +1092,8 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
                               _extract_rt_from_call(self.vpn, method, index))
 
                 ipvpn_nlri = _extract_nlri_from_call(self.vpn, method, index)
-                self.assertEqual(DEFAULT_ADDR_PREFIX, ipvpn_nlri.cidr.prefix())
+                self.assertEqual(ipvpn.DEFAULT_ADDR_PREFIX,
+                                 ipvpn_nlri.cidr.prefix())
 
                 if self.vpn.readvertise:
                     self.assertNotIn(self.vpn.readvertise_from_rts[0],
@@ -1120,6 +1119,76 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
                 )
 
     # unit test for IPVPN traffic redirection
+    def test_attract_traffic_re_advertisement(self):
+        # Configure VRF to generate traffic redirection, based on a 5-tuple
+        # classifier, to a specific route target
+        self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
+
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+
+        # new Route for plugged if supposed to be advertised
+        self.vpn._advertise_route.assert_called_once()
+
+        self._reset_mocks()
+
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
+
+        vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
+        event1 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1,
+                                       [t.RT3], worker_a, t.NH1, 200)
+
+        # Default and FlowSpec routes are supposed to be advertised
+        self.assertEqual(2, self.vpn._advertise_route.call_count)
+        self.vpn._withdraw_route.assert_not_called()
+
+        ipvpn_nlri = _extract_nlri_from_call(self.vpn, '_advertise_route', 0)
+        self.assertIsInstance(ipvpn_nlri, exa.IPVPN)
+        self.assertEqual(ipvpn.DEFAULT_ADDR_PREFIX,
+                         ipvpn_nlri.cidr.prefix())
+
+        flow_nlri = _extract_nlri_from_call(self.vpn, '_advertise_route', 1)
+        self.assertIsInstance(flow_nlri, exa.Flow)
+
+        self._reset_mocks()
+
+        vpn_nlri2 = self._generate_route_nlri(IP_ADDR_PREFIX2)
+        event2 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri2,
+                                       [t.RT3], worker_a, t.NH1, 200)
+
+        # Only FlowSpec route is supposed to be advertised
+        self.vpn._advertise_route.assert_called_once()
+        self.vpn._withdraw_route.assert_not_called()
+
+        flow_nlri = _extract_nlri_from_call(self.vpn, '_advertise_route', 0)
+        self.assertIsInstance(flow_nlri, exa.Flow)
+
+        self._reset_mocks()
+
+        self._revert_event(event2)
+
+        # Only FlowSpec route is supposed to be withdrawn
+        self.vpn._withdraw_route.assert_called_once()
+        self.vpn._advertise_route.assert_not_called()
+
+        flow_nlri = _extract_nlri_from_call(self.vpn, '_withdraw_route', 0)
+        self.assertIsInstance(flow_nlri, exa.Flow)
+
+        self._reset_mocks()
+
+        self._revert_event(event1)
+
+        # Default and FlowSpec routes are supposed to be withdrawn
+        self.assertEqual(2, self.vpn._withdraw_route.call_count)
+        self.vpn._advertise_route.assert_not_called()
+
+        ipvpn_nlri = _extract_nlri_from_call(self.vpn, '_withdraw_route', 0)
+        self.assertIsInstance(ipvpn_nlri, exa.IPVPN)
+        self.assertEqual(ipvpn.DEFAULT_ADDR_PREFIX,
+                         ipvpn_nlri.cidr.prefix())
+
+        flow_nlri = _extract_nlri_from_call(self.vpn, '_withdraw_route', 1)
+        self.assertIsInstance(flow_nlri, exa.Flow)
+
     def test_attract_traffic_single_prefix_advertise(self):
         # Configure VRF to generate traffic redirection, based on a 5-tuple
         # classifier, to a specific route target
@@ -1157,15 +1226,14 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
-        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
-                              worker_a, t.NH1, 200)
+        event1 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1,
+                                       [t.RT3], worker_a, t.NH1, 200)
 
         self.assertEqual(2, self.vpn._advertise_route.call_count)
 
         self._reset_mocks()
 
-        self._new_route_event(engine.RouteEvent.WITHDRAW, vpn_nlri1, [t.RT3],
-                              worker_a, t.NH1, 200)
+        self._revert_event(event1)
 
         self._check_attract_traffic('_withdraw_route',
                                     ATTRACT_TRAFFIC_1['redirect_rts'],
@@ -1196,7 +1264,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self._check_attract_traffic(
             '_advertise_route',
             ATTRACT_TRAFFIC_1['redirect_rts'],
-            [None, TC1, None, TC2])
+            [None, TC1, TC2])
 
     def test_attract_traffic_multiple_prefix_withdraw(self):
         # Configure VRF to generate traffic redirection, based on a 5-tuple
@@ -1213,27 +1281,24 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
-        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
-                              worker_a, t.NH1, 200)
+        event1 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1,
+                                       [t.RT3], worker_a, t.NH1, 200)
 
         vpn_nlri2 = self._generate_route_nlri(IP_ADDR_PREFIX2)
-        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri2, [t.RT3],
-                              worker_a, t.NH1, 200)
+        event2 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri2,
+                                       [t.RT3], worker_a, t.NH1, 200)
 
-        self.assertEqual(4, self.vpn._advertise_route.call_count)
+        self.assertEqual(3, self.vpn._advertise_route.call_count)
 
         self._reset_mocks()
 
-        self._new_route_event(engine.RouteEvent.WITHDRAW, vpn_nlri2, [t.RT3],
-                              worker_a, t.NH1, 200)
-
-        self._new_route_event(engine.RouteEvent.WITHDRAW, vpn_nlri1, [t.RT3],
-                              worker_a, t.NH1, 200)
+        self._revert_event(event2)
+        self._revert_event(event1)
 
         self._check_attract_traffic(
             '_withdraw_route',
             ATTRACT_TRAFFIC_1['redirect_rts'],
-            [None, TC2, None, TC1])
+            [TC2, None, TC1])
 
     def test_attract_traffic_static_dest_prefix_no_readvertise_advertise(self):
         # Configure VRF to generate traffic redirection, based on a 5-tuple
@@ -1370,25 +1435,23 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # FlowSpec route
 
         flow_nlri1 = self._generate_flow_spec_nlri(TC1)
-        self._new_flow_event(engine.RouteEvent.ADVERTISE, flow_nlri1,
-                             [t.RT5], [t.RT1], worker_a)
+        event1 = self._new_flow_event(engine.RouteEvent.ADVERTISE, flow_nlri1,
+                                      [t.RT5], [t.RT1], worker_a)
         flow_nlri2 = self._generate_flow_spec_nlri(TC2)
-        self._new_flow_event(engine.RouteEvent.ADVERTISE, flow_nlri2,
-                             [t.RT5], [t.RT1], worker_a)
+        event2 = self._new_flow_event(engine.RouteEvent.ADVERTISE, flow_nlri2,
+                                      [t.RT5], [t.RT1], worker_a)
 
         self.assertEqual(2, self.manager.redirect_traffic_to_vpn.call_count)
 
         self._reset_mocks_vpnmanager()
 
-        self._new_flow_event(engine.RouteEvent.WITHDRAW, flow_nlri2, [t.RT5],
-                             [t.RT1], worker_a)
+        self._revert_event(event2)
 
         redirect_rt5 = t._rt_to_string(t.RT5)
         self.assertNotIn(TC2,
                          self.vpn.redirect_rt_2_classifiers[redirect_rt5])
 
-        self._new_flow_event(engine.RouteEvent.WITHDRAW, flow_nlri1, [t.RT5],
-                             [t.RT1], worker_a)
+        self._revert_event(event1)
 
         self.assertTrue(not self.vpn.redirect_rt_2_classifiers)
         self.manager.stop_redirect_to_vpn.assert_called_once()
@@ -1432,15 +1495,14 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
-        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
-                              worker_a, t.NH1, 200)
+        event1 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1,
+                                       [t.RT3], worker_a, t.NH1, 200)
 
         self.assertEqual(3, self.vpn._advertise_route.call_count)
 
         self._reset_mocks()
 
-        self._new_route_event(engine.RouteEvent.WITHDRAW, vpn_nlri1, [t.RT3],
-                              worker_a, t.NH1, 200)
+        self._revert_event(event1)
 
         self._check_attract_traffic('_withdraw_route',
                                     ATTRACT_TRAFFIC_1['redirect_rts'],
@@ -1472,7 +1534,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self._check_attract_traffic(
             '_advertise_route',
             ATTRACT_TRAFFIC_1['redirect_rts'],
-            [None, None, TC1, None, None, TC2])
+            [None, None, TC1, TC2])
 
     def test_load_balancing_multiple_prefix_withdraw(self):
         # Configure VRF to generate traffic redirection, based on a 5-tuple
@@ -1490,26 +1552,24 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
 
         vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
-        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1, [t.RT3],
-                              worker_a, t.NH1, 200)
+        event1 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1,
+                                       [t.RT3], worker_a, t.NH1, 200)
 
         vpn_nlri2 = self._generate_route_nlri(IP_ADDR_PREFIX2)
-        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri2, [t.RT3],
-                              worker_a, t.NH1, 200)
+        event2 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri2,
+                                       [t.RT3], worker_a, t.NH1, 200)
 
-        self.assertEqual(6, self.vpn._advertise_route.call_count)
+        self.assertEqual(4, self.vpn._advertise_route.call_count)
 
         self._reset_mocks()
 
-        self._new_route_event(engine.RouteEvent.WITHDRAW, vpn_nlri2, [t.RT3],
-                              worker_a, t.NH1, 200)
-        self._new_route_event(engine.RouteEvent.WITHDRAW, vpn_nlri1, [t.RT3],
-                              worker_a, t.NH1, 200)
+        self._revert_event(event2)
+        self._revert_event(event1)
 
         self._check_attract_traffic(
             '_withdraw_route',
             ATTRACT_TRAFFIC_1['redirect_rts'],
-            [None, None, TC2, None, None, TC1])
+            [TC2, None, None, TC1])
 
     def test_load_balancing_new_plug(self):
         # Configure VRF to generate traffic redirection, based on a 5-tuple
@@ -1539,7 +1599,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self._check_attract_traffic(
             '_advertise_route',
             ATTRACT_TRAFFIC_1['redirect_rts'],
-            [None, None, TC1])
+            [None, TC1])
 
     def test_load_balancing_unplug_all(self):
         # Configure VRF to generate traffic redirection, based on a 5-tuple
