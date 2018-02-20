@@ -227,6 +227,19 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             self._get_network_port_infos(network_id, port_id)
         )
 
+        if data['admin_state_up']:
+            port_info.admin_state_up = True
+        else:
+            previous_admin_state_up = port_info.admin_state_up
+            if previous_admin_state_up:
+                self._delete_port(context, {'port_id': port_info.id})
+                port_info.admin_state_up = False
+            else:
+                LOG.debug("admin state up False, nothing to do for port %s",
+                          port_info.id)
+                port_info.admin_state_up = False
+                return
+
         if data['network_type'] == n_const.TYPE_VXLAN:
             net_info.segmentation_id = data['segmentation_id']
 
@@ -261,13 +274,21 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         if port_info.has_any_association():
             self.bagpipe_bgp_agent.do_port_plug(port_id)
 
-    @log_helpers.log_method_call
     @lockutils.synchronized('bagpipe-bgpvpn')
     def delete_port(self, context, data):
+        self._delete_port(context, data)
+
+    # un-synchronized version, to be called indirectly from handle_port
+    @log_helpers.log_method_call
+    def _delete_port(self, context, data):
         port_id = data['port_id']
         port_info = self.ports_info.get(port_id)
 
         if port_info and port_info.has_any_association():
+            if not port_info.admin_state_up:
+                LOG.debug("port %s was not admin_state_up, ignoring", port_id)
+                return
+
             if len(port_info.network.ports) == 1:
                 # last port on network...
                 self._stop_gateway_traffic_redirect(port_info.network,
@@ -779,6 +800,10 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
         port_info = self.ports_info[port_id]
 
+        if not port_info.admin_state_up:
+            LOG.debug("port %s admin-state-up False, no attachment", port_id)
+            return {}
+
         attachments = {}
 
         for vpn_type in bbgp_const.VPN_TYPES:
@@ -968,6 +993,11 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
     @log_helpers.log_method_call
     def _build_detach_infos(self, port_info, detach_bgpvpn_type=None):
         detach_infos = []
+
+        if not port_info.admin_state_up:
+            LOG.debug("port %s admin-state-up False, no attachment",
+                      port_info.id)
+            return {}
 
         # if an association type is not provided, then detach for all VPN types
         # of all the associations relevant for the port
