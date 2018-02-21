@@ -1,0 +1,12 @@
+---
+fixes:
+  - |
+    The IPVPN bgpvpn/router fallback mechanism has been improved. This
+    mechanism allows traffic not matching any VRF route in the distributed
+    BGPVPN implementation of bagpipe, to "fallback" and reach a Neutron
+    router connected on the network. The implementation has been simplified
+    and the risk removed of not reaching VRF destinations because of a stale
+    ARP entry for the gateway IP.  This improvement comes with the requirement
+    of using the OpenVSwitch security group firewall driver on
+    any node having both the l3agent and VMs with a need to reach BGPVPN
+    destinations (e.g. single node setup or DVR setup).
