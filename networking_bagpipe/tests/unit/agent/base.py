@@ -38,16 +38,6 @@ from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent \
     import ovs_test_base
 
 
-PATCH_TUN_TO_MPLS_OFPORT = 1
-PATCH_TUN_OFPORTS = [PATCH_TUN_TO_MPLS_OFPORT]
-
-PATCH_INT_TO_MPLS_OFPORT = 5
-PATCH_INT_OFPORTS = [PATCH_INT_TO_MPLS_OFPORT]
-
-PATCH_MPLS_TO_TUN_OFPORT = 2
-PATCH_MPLS_TO_INT_OFPORT = 6
-PATCH_MPLS_OFPORTS = [PATCH_MPLS_TO_TUN_OFPORT, PATCH_MPLS_TO_INT_OFPORT]
-
 PORT10_ID = uuidutils.generate_uuid()
 PORT10 = {'id': PORT10_ID,
           'mac_address': '00:00:de:ad:be:ef',
@@ -257,6 +247,49 @@ class BaseTestLinuxBridgeAgentExtension(base.BaseTestCase,
             }
 
 
+PATCH_INT_TO_MPLS = 5
+PATCH_INT_TO_TUN = 7
+PATCH_TUN_TO_MPLS = 1
+PATCH_TUN_TO_INT = 4
+PATCH_MPLS_TO_TUN = 2
+PATCH_MPLS_TO_INT = 6
+
+BR_INT_PATCHES = {
+    'patch-tun': PATCH_INT_TO_TUN,
+    'patch-int-from-mpls': PATCH_INT_TO_MPLS
+}
+
+BR_TUN_PATCHES = {
+    'patch-int': PATCH_TUN_TO_INT,
+    'patch-to-mpls': PATCH_TUN_TO_MPLS
+}
+
+BR_MPLS_PATCHES = {
+    'patch-from-tun': PATCH_MPLS_TO_TUN,
+    'patch-mpls-to-int': PATCH_MPLS_TO_INT
+}
+
+
+def get_port_ofport_tun_br(port_name):
+    return BR_TUN_PATCHES[port_name]
+
+
+def get_port_ofport_int_br(port_name):
+    return BR_INT_PATCHES[port_name]
+
+
+def add_patch_port_mpls(patch, peer):
+    return BR_MPLS_PATCHES[patch]
+
+
+def add_patch_port_tun(patch, peer):
+    return BR_TUN_PATCHES[patch]
+
+
+def add_patch_port_int(patch, peer):
+    return BR_INT_PATCHES[patch]
+
+
 class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
                                 BaseTestAgentExtension):
 
@@ -271,20 +304,25 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
         ovs_test_base.OVSOFCtlTestBase.setUp(self)
         BaseTestAgentExtension.setUp(self)
 
-        int_br = self.br_int_cls("br-int")
-        int_br.add_patch_port = mock.Mock(side_effect=PATCH_INT_OFPORTS)
-        int_br.get_port_ofport = mock.Mock()
-        int_br.add_flow = mock.Mock()
-        int_br.delete_flows = mock.Mock()
+        self.int_br = self.br_int_cls("br-int")
+        self.int_br.add_patch_port = mock.Mock(
+            side_effect=add_patch_port_int)
+        self.int_br.get_port_ofport = mock.Mock(
+            side_effect=get_port_ofport_int_br)
+        self.int_br.add_flow = mock.Mock()
+        self.int_br.delete_flows = mock.Mock()
+        self.int_br.use_at_least_protocol = mock.Mock()
 
-        tun_br = self.br_tun_cls("br-tun")
-        tun_br.add_patch_port = mock.Mock(side_effect=PATCH_TUN_OFPORTS)
-        tun_br.get_port_ofport = mock.Mock()
-        tun_br.add_flow = mock.Mock()
-        tun_br.delete_flows = mock.Mock()
+        self.tun_br = self.br_tun_cls("br-tun")
+        self.tun_br.add_patch_port = mock.Mock(
+            side_effect=add_patch_port_tun)
+        self.tun_br.get_port_ofport = mock.Mock(
+            side_effect=get_port_ofport_tun_br)
+        self.tun_br.add_flow = mock.Mock()
+        self.tun_br.delete_flows = mock.Mock()
 
-        agent_extension_api = ovs_ext_agt.OVSAgentExtensionAPI(int_br,
-                                                               tun_br)
+        agent_extension_api = ovs_ext_agt.OVSAgentExtensionAPI(self.int_br,
+                                                               self.tun_br)
         self.agent_ext.consume_api(agent_extension_api)
 
         br_exists_patcher = mock.patch(
@@ -295,7 +333,7 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
 
         add_patch_patcher = mock.patch('neutron.agent.common.ovs_lib.OVSBridge'
                                        '.add_patch_port',
-                                       side_effect=PATCH_MPLS_OFPORTS*4)
+                                       side_effect=add_patch_port_mpls)
         add_patch_patcher.start()
         self.addCleanup(add_patch_patcher.stop)
 
@@ -317,7 +355,7 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
                 local_port=dict(
                     linuxif='%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan),
                     ovs=dict(plugged=True,
-                             port_number=PATCH_MPLS_TO_TUN_OFPORT,
+                             port_number=PATCH_MPLS_TO_TUN,
                              vlan=vlan)
                 )
             )
