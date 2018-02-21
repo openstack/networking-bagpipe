@@ -29,6 +29,17 @@ class TestBaGPipeAgentExtensionMixin(object):
             "export_rt": [rt]
         }
 
+    def test_bagpipe_l2_unsupported_network_type(self):
+        # Set port network type to unsupported flat type
+        port10_flat_net = self._port_data(base.PORT10)
+        port10_flat_net['network_type'] = 'flat'
+
+        self.agent_ext.handle_port(None, port10_flat_net)
+
+        self.assertFalse(self.mocked_bagpipe_agent.do_port_plug.called)
+
+        self._check_network_info(base.NETWORK1['id'], 0)
+
     def test_bagpipe_l2_attach_single_port(self):
 
         def check_build_cb(*args):
