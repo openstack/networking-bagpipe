@@ -18,6 +18,7 @@
 import abc
 import collections
 import copy
+import itertools
 import re
 import socket
 import threading
@@ -441,6 +442,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
     def has_only_one_endpoint(self):
         return (len(self.localport_2_endpoints) == 1 and
                 len(six.next(six.itervalues(self.localport_2_endpoints))) == 1)
+
+    def all_endpoints(self):
+        return itertools.chain(*self.localport_2_endpoints.values())
 
     @log_decorator.log
     def update_route_targets(self, new_import_rts, new_export_rts):
