@@ -224,10 +224,10 @@ class TestInitVPNInstance(testtools.TestCase):
 
     def setUp(self):
         super(TestInitVPNInstance, self).setUp()
-        self.mock_manager = mock.mock.Mock()
-        self.mock_manager.label_allocator.release = mock.mock.Mock()
-        self.mock_dp_driver = mock.mock.Mock()
-        self.mock_dp_driver.initialize_dataplane_instance = mock.mock.Mock()
+        self.mock_manager = mock.Mock()
+        self.mock_manager.label_allocator.release = mock.Mock()
+        self.mock_dp_driver = mock.Mock()
+        self.mock_dp_driver.initialize_dataplane_instance = mock.Mock()
 
     def test_init_stop_VPNInstance_with_forced_vni(self):
         # Initialize a VPNInstance with a forced VNID > 0
@@ -271,7 +271,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
     def setUp(self):
         super(TestVPNInstance, self).setUp()
 
-        self.mock_dataplane = mock.mock.Mock(
+        self.mock_dataplane = mock.Mock(
             spec=dataplane_drivers.VPNInstanceDataplane)
 
         mock_dp_driver = mock.Mock(
@@ -862,7 +862,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
     def setUp(self):
         super(TestVRF, self).setUp()
 
-        self.mock_dp = mock.mock.Mock(
+        self.mock_dp = mock.Mock(
             spec=ipvpn.DummyVPNInstanceDataplane)
 
         mock_dp_driver = mock.Mock(
@@ -936,14 +936,14 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.manager.redirect_traffic_to_vpn.reset_mock()
         self.manager.stop_redirect_to_vpn.reset_mock()
 
-    def _generate_route_nlri(self, ip_address_prefix):
+    def _generate_route_nlri(self, ip_address_prefix, nexthop=NEXT_HOP):
         # Parse address/mask
         (_, prefix_len) = self.vpn._parse_ipaddress_prefix(ip_address_prefix)
 
         prefix_rd = self.manager.rd_allocator.get_new_rd(
             "Route distinguisher for prefix %s" % ip_address_prefix
         )
-        rd = self.vpn.instance_rd if prefix_len == 32 else prefix_rd
+        rd = prefix_rd if prefix_len == 32 else self.vpn.instance_rd
 
         label = self.manager.label_allocator.get_new_label(
             "Label for prefix %s" % ip_address_prefix
@@ -951,7 +951,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
 
         return ipvpn_routes.IPVPNRouteFactory(exa.AFI(exa.AFI.ipv4),
                                               ip_address_prefix,
-                                              label, rd, NEXT_HOP)
+                                              label, rd, nexthop)
 
     def _generate_flow_spec_nlri(self, classifier):
         flow_nlri = flowspec.FlowRouteFactory(exa.AFI(exa.AFI.ipv4),
@@ -1071,6 +1071,47 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn._advertise_route.assert_not_called()
         # dataplane *not* supposed to be updated for this route
         self.mock_dp.setup_dataplane_for_remote_endpoint.assert_not_called()
+
+    def test_re_advertisement_last(self):
+        self._reset_mocks()
+
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
+
+        vpn_nlri_1 = self._generate_route_nlri(IP_ADDR_PREFIX1, t.NH1)
+        event1 = self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri_1,
+                                       [t.RT3], worker_a, t.NH1, 200,
+                                       rtrecords=[RTRecord1])
+        # advertised route count increment by 2:
+        # - vif route for port
+        # - re-advertisement of VPN NLRI1 with port as next-hop
+        self.assertEqual(2, self.vpn._advertise_route.call_count)
+        self.vpn._withdraw_route.assert_not_called()
+
+        self._reset_mocks()
+
+        vpn_nlri_1bis = self._generate_route_nlri(IP_ADDR_PREFIX1, t.NH1)
+        event1bis = self._new_route_event(engine.RouteEvent.ADVERTISE,
+                                          vpn_nlri_1bis, [t.RT3], worker_a,
+                                          t.NH1, 200, rtrecords=[RTRecord1])
+        # second re-advertisement of VPN NLRI1 supposed to happen
+        # (must be futher fixed to only append once)
+        self.vpn._advertise_route.assert_called_once()
+        self.vpn._withdraw_route.assert_not_called()
+
+        self._reset_mocks()
+
+        self._revert_event(event1bis)
+        self.vpn._advertise_route.assert_not_called()
+        self.vpn._withdraw_route.assert_not_called()
+
+        self._reset_mocks()
+
+        self._revert_event(event1)
+        # withdraw of re-adv route supposed to happen
+        self.vpn._withdraw_route.assert_called_once()
+        self.vpn._advertise_route.assert_not_called()
 
     def _check_attract_traffic(self, method, redirect_rts,
                                expected_classifiers):
@@ -1599,7 +1640,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self._check_attract_traffic(
             '_advertise_route',
             ATTRACT_TRAFFIC_1['redirect_rts'],
-            [None, TC1])
+            [None, None])
 
     def test_load_balancing_unplug_all(self):
         # Configure VRF to generate traffic redirection, based on a 5-tuple
