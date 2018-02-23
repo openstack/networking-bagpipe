@@ -31,6 +31,8 @@ from networking_bagpipe.bagpipe_bgp.engine import ipvpn as ipvpn_routes
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
 
+DEFAULT_ADDR_PREFIX = '0.0.0.0/0'
+
 
 @six.add_metaclass(abc.ABCMeta)
 class VPNInstanceDataplane(dp_drivers.VPNInstanceDataplane):
@@ -132,11 +134,8 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
             )) > 0
 
     def _route_for_readvertisement(self, route, label, rd,
-                                   lb_consistent_hash_order,
-                                   do_default=False):
-        prefix = "0.0.0.0/0" if do_default else route.nlri.cidr.prefix()
-
-        nlri = self._nlri_from(prefix, label, rd)
+                                   lb_consistent_hash_order):
+        nlri = self._nlri_from(route.nlri.cidr.prefix(), label, rd)
 
         attributes = exa.Attributes()
 
@@ -156,6 +155,22 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         entry = engine.RouteEntry(nlri, self.readvertise_to_rts, attributes)
         self.log.debug("RouteEntry for (re-)advertisement: %s", entry)
+        return entry
+
+    def _default_route_for_advertisement(self, label, rd,
+                                         lb_consistent_hash_order):
+        nlri = self._nlri_from(DEFAULT_ADDR_PREFIX, label, rd)
+
+        attributes = exa.Attributes()
+
+        ecoms = self._gen_encap_extended_communities()
+        ecoms.communities.append(
+            exa.ConsistentHashSortOrder(lb_consistent_hash_order))
+        attributes.add(ecoms)
+
+        entry = engine.RouteEntry(nlri, self.readvertise_to_rts, attributes)
+        self.log.debug("RouteEntry for default prefix advertisement: %s",
+                       entry)
         return entry
 
     @log_decorator.log
@@ -188,25 +203,41 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
     def _advertise_route_or_default(self, route, label, rd,
                                     lb_consistent_hash_order=0):
         if self.attract_traffic:
-            self.log.debug("Advertising default route from VRF %d to "
-                           "redirection VRF", self.instance_id)
+            # Start advertising default route only when the first route to
+            # readvertise appears
+            if self.readvertised:
+                return
 
-        route_entry = self._route_for_readvertisement(
-            route, label, rd, lb_consistent_hash_order,
-            do_default=self.attract_traffic
-        )
+            self.log.debug("Start advertising default route from VRF %d to "
+                           "redirection VRF", self.instance_id)
+            route_entry = self._default_route_for_advertisement(
+                label, rd, lb_consistent_hash_order
+            )
+        else:
+            route_entry = self._route_for_readvertisement(
+                route, label, rd, lb_consistent_hash_order
+            )
+
         self._advertise_route(route_entry)
 
     def _withdraw_route_or_default(self, route, label, rd,
                                    lb_consistent_hash_order=0):
         if self.attract_traffic:
+            # Stop advertising default route only if the withdrawn route is
+            # the last of the routes to readvertise
+            if len(self.readvertised) > 1:
+                return
+
             self.log.debug("Stop advertising default route from VRF to "
                            "redirection VRF")
+            route_entry = self._default_route_for_advertisement(
+                label, rd, lb_consistent_hash_order
+            )
+        else:
+            route_entry = self._route_for_readvertisement(
+                route, label, rd, lb_consistent_hash_order
+            )
 
-        route_entry = self._route_for_readvertisement(
-            route, label, rd, lb_consistent_hash_order,
-            do_default=self.attract_traffic
-        )
         self._withdraw_route(route_entry)
 
     @log_decorator.log
@@ -224,7 +255,6 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                 self.log.debug("Start re-advertising %s from VRF, with label "
                                "%s and route distinguisher %s",
                                nlri, label, rd)
-                # need a distinct RD for each route...
                 self._advertise_route_or_default(route, label, rd,
                                                  lb_consistent_hash_order)
 
@@ -238,7 +268,8 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
     def _readvertise_stop(self, route):
         nlri = route.nlri
 
-        self.log.debug("Stop re-advertising %s from VRF", nlri.cidr.prefix())
+        self.log.debug("Stop re-advertising %s from VRF",
+                       nlri.cidr.prefix())
         for _, endpoints in self.localport_2_endpoints.items():
             for endpoint in endpoints:
                 port_data = self.mac_2_localport_data[endpoint[0]]
@@ -246,8 +277,9 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                 lb_consistent_hash_order = port_data[
                     'lb_consistent_hash_order']
                 rd = self.endpoint_2_rd[endpoint]
-                self.log.debug("Stop re-advertising %s from VRF, with label %s"
-                               "and route distinguisher %s", nlri, label, rd)
+                self.log.debug("Stop re-advertising %s from VRF, with "
+                               "label %s and route distinguisher %s",
+                               nlri, label, rd)
                 self._withdraw_route_or_default(route, label, rd,
                                                 lb_consistent_hash_order)
 
