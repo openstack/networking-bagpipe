@@ -121,8 +121,8 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
                       "extension")
             return
 
-        port_id = data.pop('port_id')
-        net_id = data.pop('network_id')
+        port_id = data['port_id']
+        net_id = data['network_id']
         net_info, port_info = (
             self._get_network_port_infos(net_id, port_id)
         )
@@ -151,7 +151,7 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
 
     @log_helpers.log_method_call
     def delete_port(self, context, data):
-        port_id = data.pop('port_id')
+        port_id = data['port_id']
         port_info = self.ports_info.get(port_id)
 
         if port_info:
