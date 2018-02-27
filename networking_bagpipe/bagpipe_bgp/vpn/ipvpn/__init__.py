@@ -101,6 +101,15 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         for port_data in self.mac_2_localport_data.values():
             yield port_data['label']
 
+    def _get_route_params_for_endpoint(self, endpoint):
+        port_data = self.mac_2_localport_data[endpoint[0]]
+        label = port_data['label']
+        lb_consistent_hash_order = port_data[
+            'lb_consistent_hash_order']
+        rd = self.endpoint_2_rd[endpoint]
+
+        return (label, rd, lb_consistent_hash_order)
+
     def _imported(self, route):
         return len(set(route.route_targets).intersection(set(self.import_rts))
                    ) > 0
@@ -133,8 +142,12 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
             set(self.readvertise_from_rts)
             )) > 0
 
-    def _route_for_readvertisement(self, route, label, rd,
-                                   lb_consistent_hash_order):
+    def _route_for_readvertisement(self, route, endpoint):
+        label, rd, lb_consistent_hash_order = (
+            self._get_route_params_for_endpoint(endpoint)
+        )
+        self.log.debug("Prefix %s (re-)advertisement with label %s and route "
+                       "distinguisher %s", route.nlri.cidr.prefix(), label, rd)
         nlri = self._nlri_from(route.nlri.cidr.prefix(), label, rd)
 
         attributes = exa.Attributes()
@@ -157,8 +170,12 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         self.log.debug("RouteEntry for (re-)advertisement: %s", entry)
         return entry
 
-    def _default_route_for_advertisement(self, label, rd,
-                                         lb_consistent_hash_order):
+    def _default_route_for_advertisement(self, endpoint):
+        label, rd, lb_consistent_hash_order = (
+            self._get_route_params_for_endpoint(endpoint)
+        )
+        self.log.debug("Default route (re-)advertisement with label %s and "
+                       "route distinguisher %s", label, rd)
         nlri = self._nlri_from(DEFAULT_ADDR_PREFIX, label, rd)
 
         attributes = exa.Attributes()
@@ -174,9 +191,11 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         return entry
 
     @log_decorator.log
-    def _route_for_attract_static_dest_prefixes(self, label, rd):
+    def _routes_for_attract_static_dest_prefixes(self, endpoint):
         if not self.attract_static_dest_prefixes:
             return
+
+        label, rd, _ = self._get_route_params_for_endpoint(endpoint)
 
         for prefix in self.attract_static_dest_prefixes:
             nlri = self._nlri_from(prefix, label, rd)
@@ -200,92 +219,67 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         return self.synthesize_redirect_bgp_route(rules)
 
-    def _advertise_route_or_default(self, route, label, rd,
-                                    lb_consistent_hash_order=0):
-        if self.attract_traffic:
-            # Start advertising default route only when the first route to
-            # readvertise appears
-            if self.readvertised:
-                return
-
-            self.log.debug("Start advertising default route from VRF %d to "
-                           "redirection VRF", self.instance_id)
-            route_entry = self._default_route_for_advertisement(
-                label, rd, lb_consistent_hash_order
-            )
-        else:
-            route_entry = self._route_for_readvertisement(
-                route, label, rd, lb_consistent_hash_order
-            )
-
-        self._advertise_route(route_entry)
-
-    def _withdraw_route_or_default(self, route, label, rd,
-                                   lb_consistent_hash_order=0):
-        if self.attract_traffic:
-            # Stop advertising default route only if the withdrawn route is
-            # the last of the routes to readvertise
-            if len(self.readvertised) > 1:
-                return
-
-            self.log.debug("Stop advertising default route from VRF to "
-                           "redirection VRF")
-            route_entry = self._default_route_for_advertisement(
-                label, rd, lb_consistent_hash_order
-            )
-        else:
-            route_entry = self._route_for_readvertisement(
-                route, label, rd, lb_consistent_hash_order
-            )
-
-        self._withdraw_route(route_entry)
-
     @log_decorator.log
     def _readvertise(self, route):
         nlri = route.nlri
 
         self.log.debug("Start re-advertising %s from VRF", nlri.cidr.prefix())
-        for _, endpoints in self.localport_2_endpoints.items():
-            for endpoint in endpoints:
-                port_data = self.mac_2_localport_data[endpoint[0]]
-                label = port_data['label']
-                lb_consistent_hash_order = port_data[
-                    'lb_consistent_hash_order']
-                rd = self.endpoint_2_rd[endpoint]
-                self.log.debug("Start re-advertising %s from VRF, with label "
-                               "%s and route distinguisher %s",
-                               nlri, label, rd)
-                self._advertise_route_or_default(route, label, rd,
-                                                 lb_consistent_hash_order)
-
         if self.attract_traffic:
-            flow_route = self._route_for_redirect_prefix(nlri.cidr.prefix())
-            self._advertise_route(flow_route)
+            # Start advertising default route only when the first route to
+            # readvertise appears
+            if not self.readvertised:
+                for endpoint in self.all_endpoints():
+                    self.log.debug("Start advertising default route from VRF "
+                                   "%d to redirection VRF", self.instance_id)
+                    self._advertise_route(
+                        self._default_route_for_advertisement(endpoint)
+                    )
+
+            # Advertise FlowSpec route for prefix
+            self._advertise_route(
+                self._route_for_redirect_prefix(nlri.cidr.prefix())
+            )
+
+        else:
+            for endpoint in self.all_endpoints():
+                self.log.debug("Start re-advertising %s from endpoint %s",
+                               nlri.cidr.prefix(), endpoint)
+                self._advertise_route(
+                    self._route_for_readvertisement(route, endpoint)
+                )
 
         self.readvertised.add(route)
 
     @log_decorator.log
-    def _readvertise_stop(self, route):
+    def _readvertise_stop(self, route, last):
         nlri = route.nlri
 
-        self.log.debug("Stop re-advertising %s from VRF",
-                       nlri.cidr.prefix())
-        for _, endpoints in self.localport_2_endpoints.items():
-            for endpoint in endpoints:
-                port_data = self.mac_2_localport_data[endpoint[0]]
-                label = port_data['label']
-                lb_consistent_hash_order = port_data[
-                    'lb_consistent_hash_order']
-                rd = self.endpoint_2_rd[endpoint]
-                self.log.debug("Stop re-advertising %s from VRF, with "
-                               "label %s and route distinguisher %s",
-                               nlri, label, rd)
-                self._withdraw_route_or_default(route, label, rd,
-                                                lb_consistent_hash_order)
+        if last:
+            self.log.debug("Stop re-advertising %s from VRF",
+                           nlri.cidr.prefix())
+            if self.attract_traffic:
+                # Stop advertising default route only if the withdrawn route is
+                # the last of the routes to readvertise
+                if len(self.readvertised) == 1:
+                    for endpoint in self.all_endpoints():
+                        self.log.debug("Stop advertising default route from "
+                                       "VRF to redirection VRF")
+                        self._withdraw_route(
+                            self._default_route_for_advertisement(endpoint)
+                        )
 
-        if self.attract_traffic:
-            flow_route = self._route_for_redirect_prefix(nlri.cidr.prefix())
-            self._withdraw_route(flow_route)
+                # Withdraw FlowSpec route for prefix
+                self._withdraw_route(
+                    self._route_for_redirect_prefix(nlri.cidr.prefix())
+                )
+            else:
+                for endpoint in self.all_endpoints():
+                    self.log.debug("Stop re-advertising %s from endpoint %s",
+                                   nlri.cidr.prefix(), endpoint)
+                    route_entry = (
+                        self._route_for_readvertisement(route, endpoint)
+                    )
+                    self._withdraw_route(route_entry)
 
         self.readvertised.remove(route)
 
@@ -300,41 +294,45 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         if vpn_instance.forward_to_port(kwargs.get('direction')):
             endpoint = (mac_address, ip_address_prefix)
-            label = self.mac_2_localport_data[mac_address]['label']
-            rd = self.endpoint_2_rd[endpoint]
             for route in itertools.chain(
                     self.readvertised,
-                    self._route_for_attract_static_dest_prefixes(label, rd)):
+                    self._routes_for_attract_static_dest_prefixes(endpoint)):
                 self.log.debug("Re-advertising %s with this port as next hop",
                                route.nlri)
-                self._advertise_route_or_default(route, label, rd,
-                                                 lb_consistent_hash_order)
-
                 if self.attract_traffic:
-                    flow_route = self._route_for_redirect_prefix(
-                        route.nlri.cidr.prefix())
-                    self._advertise_route(flow_route)
+                    self._advertise_route(
+                        self._default_route_for_advertisement(endpoint)
+                    )
+
+                    if self.has_only_one_endpoint():
+                        self._advertise_route(self._route_for_redirect_prefix(
+                            route.nlri.cidr.prefix()))
+                else:
+                    self._advertise_route(
+                        self._route_for_readvertisement(route, endpoint)
+                    )
 
     @log_decorator.log_info
     def vif_unplugged(self, mac_address, ip_address_prefix):
         endpoint = (mac_address, ip_address_prefix)
         direction = self.endpoint_2_direction[endpoint]
         if vpn_instance.forward_to_port(direction):
-            label = self.mac_2_localport_data[mac_address]['label']
-            lb_consistent_hash_order = (self.mac_2_localport_data[mac_address]
-                                        ["lb_consistent_hash_order"])
-            rd = self.endpoint_2_rd[endpoint]
             for route in itertools.chain(
                     self.readvertised,
-                    self._route_for_attract_static_dest_prefixes(label, rd)):
+                    self._routes_for_attract_static_dest_prefixes(endpoint)):
                 self.log.debug("Stop re-advertising %s", route.nlri)
-                self._withdraw_route_or_default(route, label, rd,
-                                                lb_consistent_hash_order)
+                if self.attract_traffic:
+                    self._withdraw_route(
+                        self._default_route_for_advertisement(endpoint)
+                    )
 
-                if self.attract_traffic and self.has_only_one_endpoint():
-                    flow_route = self._route_for_redirect_prefix(
-                        route.nlri.cidr.prefix())
-                    self._withdraw_route(flow_route)
+                    if self.has_only_one_endpoint():
+                        self._withdraw_route(self._route_for_redirect_prefix(
+                            route.nlri.cidr.prefix()))
+                else:
+                    self._withdraw_route(
+                        self._route_for_readvertisement(route, endpoint)
+                    )
 
         super(VRF, self).vif_unplugged(mac_address, ip_address_prefix)
 
@@ -418,11 +416,11 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         else:
             prefix = entry
 
-            if self.readvertise and last:
+            if self.readvertise:
                 # check if this is a route we were re-advertising
                 if self._to_readvertise(old_route):
                     self.log.debug("Need to stop re-advertising %s", prefix)
-                    self._readvertise_stop(old_route)
+                    self._readvertise_stop(old_route, last)
 
             # NOTE(tmorin): On new best routes, we only trigger dataplane
             # update events after checking with self._imported(...) that the
