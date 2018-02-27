@@ -2,6 +2,8 @@
 Installation
 ============
 
+.. _n8g_bagpipe_installation:
+
 Networking-bagpipe installation
 -------------------------------
 
@@ -9,7 +11,7 @@ The details related to how a package should be installed may depend on your
 environment.
 
 If possible, you should rely on packages provided by your Linux and/or
-Openstack distribution.
+OpenStack distribution.
 
 If you use ``pip``, follow these steps to install networking-bagpipe:
 
@@ -21,15 +23,16 @@ If you use ``pip``, follow these steps to install networking-bagpipe:
   * Newton: most recent of 5.0.x
   * Ocata: most recent of 6.0.x
   * Pike: most recent of 7.0.x
+  * Queens: most recent of 8.0.x
   * (see https://releases.openstack.org/index.html)
 
 * indicate pip to (a) install precisely this version and (b) take into
   account Openstack upper constraints on package versions for dependencies
-  (example for ocata):
+  (example for Queens):
 
   .. code-block:: console
 
-     $ pip install -c  https://git.openstack.org/cgit/openstack/requirements/plain/upper-constraints.txt?h=stable/ocata networking-bagpipe=6.0.0
+     $ pip install -c  https://git.openstack.org/cgit/openstack/requirements/plain/upper-constraints.txt?h=stable/queens networking-bagpipe=8.0.0
 
 BaGPipe for Neutron L2
 ----------------------
@@ -37,19 +40,19 @@ BaGPipe for Neutron L2
 Installation in a devstack test/development environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* install devstack (whether stable/kilo or master)
+* install devstack (whether stable/**x** or master)
 
 * enable the devstack plugin by adding this to ``local.conf``:
 
-  * to use branch ``stable/X`` (e.g. `stable/mitaka`):
+  * to use branch ``stable/x`` (e.g. `stable/queens`):
 
-    .. code-block:: none
+    .. code-block:: ini
 
        enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git stable/X
 
   * to use the development branch:
 
-    .. code-block:: none
+    .. code-block:: ini
 
        enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git master
 
@@ -58,9 +61,6 @@ Installation in a devstack test/development environment
   .. code-block:: ini
 
     ENABLE_BAGPIPE_L2=True
-
-* note that with devstack, :ref:`bagpipe-bgp` is installed automatically as a git
-  submodule of networking-bagpipe
 
 * for multinode setups, configure :ref:`bagpipe-bgp` on each compute node, i.e.
   you need each :ref:`bagpipe-bgp` to peer with a BGP Route Reflector:
@@ -82,36 +82,47 @@ Deployment
 ~~~~~~~~~~
 
 On Neutron servers, the following needs to be done, *based on an
-ML2/linuxbridge configuration* as a starting point:
+ML2/linuxbridge or ML2/openvswitch configuration* as a starting point:
 
-* installing networking-bagpipe python package:
-
-  .. code-block:: console
-
-     pip install -c http://git.openstack.org/cgit/openstack/requirements/plain/upper-constraints.txt?h=stable/<release> networking-bagpipe
+* installing ``networking-bagpipe`` python package (see
+  :ref:`n8g_bagpipe_installation`)
 
 * in ML2 configuration (``/etc/neutron/plugins/ml2.ini``):
 
   * adding the ``bagpipe`` mechanism driver (additionally to the
-    ``linuxbridge`` driver which will still handle ``flat`` and ``vlan``
-    networks)
+    ``linuxbridge`` or ``openvswitch`` driver which will still handle
+    ``flat`` and ``vlan``    networks)
+
+  * *before Queens release* (i.e. if networking-bagpipe < 8) use the
+    ``route_target`` type driver as default
+
+  * result:
+
+    .. code-block:: ini
+
+       [ml2]
+       # tenant_network_types = route_target  # before queens only!
+       mechanism_drivers = openvswitch,linuxbridge,bagpipe
+
 
 You need to deploy a BGP Route Reflector, that will distribute BGP VPN routes
 among compute and network nodes. This route reflector will need to support
 E-VPN and, optionally, RT Constraints. One option, among others is to use
 GoBGP_ (`sample configuration`_).
 
-On compute node and network nodes the following needs to be done, *based on an
-ML2/linuxbridge configuration* as a starting point:
+On compute node (and network nodes if any) the following needs to be done,
+*based on an ML2/linuxbridge or ML2/openvswitch configuration* as a
+starting point:
 
-* installing networking-bagpipe python package
+* installing ``networking-bagpipe`` python package (see
+  :ref:`n8g_bagpipe_installation`)
 
-* configuring Neutron linuxbridge agent for bagpipe
+* configuring Neutron linuxbridge or OpenvSwitch agent for bagpipe
   ``/etc/neutron/plugins/ml2.ini``:
 
   * enabling ``bagpipe`` agent extension
 
-  * disabling VXLAN
+  * *before Queens release* (i.e. if networking-bagpipe < 8), disable VXLAN:
 
   * configuring the AS number and range to use to allocate BGP Route Targets
     for tenant networks
@@ -124,7 +135,8 @@ ML2/linuxbridge configuration* as a starting point:
        extensions = bagpipe
 
        [vxlan]
-       enable_vxlan = False
+       # for a release strictly before OpenStack Queens (networking-bagpipe < 8)
+       # enable_vxlan = False
 
        [ml2_bagpipe_extension]
        as_number = 64512
@@ -136,13 +148,102 @@ ML2/linuxbridge configuration* as a starting point:
 
   * adding the Route Reflector IP to ``peers``
 
-  * selecting ``linux`` dataplane driver for EVPN
+  * selecting the EVPN dataplane driver corresponding to your agent in
+    (``/etc/bagpipe-bgp/bgp.conf``):
+
+    * ``ovs`` for the openvswitch agent:
+
+    .. code-block:: ini
+
+       [DATAPLANE_DRIVER_EVPN]
+       dataplane_driver = ovs
+
+    * ``linux`` for the linuxbridge agent:
+
+    .. code-block:: ini
+
+       [DATAPLANE_DRIVER_EVPN]
+       dataplane_driver = linux
+
 
 BaGPipe for BGPVPN
 ------------------
 
 Information on how to use ``bagpipe`` driver for networking-bgpvpn_ is provided
 in `BGPVPN bagpipe driver documentation`_.
+
+
+BaGPipe for networking-sfc
+--------------------------
+
+To enable the use of networking-bagpipe driver for networking-sfc, the
+following needs to be done:
+
+* enable ``bagpipe`` driver for the ``networking-sfc`` service plugin, in
+  ``/etc/neutron/neutron.conf`` and configure its parameters
+  (see :ref:`neutron-sfc-config`):
+
+    .. code-block:: ini
+
+       [sfc]
+       drivers = bagpipe
+
+       [sfc_bagpipe]
+       # examples, of course!
+       as_number = 64517
+       rtnn = 10000,30000
+
+* add the ``bagpipe_sfc`` agent extension to the Neutron linuxbridge agent
+  config in``/etc/neutron/plugins/ml2.ini``:
+
+    .. code-block:: ini
+
+       [agent]
+       extensions = bagpipe_sfc
+
+* :ref:`bagpipe-bgp` lightweight BGP VPN implementation, configured to
+  use ``ovs`` as dataplane driver for IPVPNs, and ``linux`` as dataplane
+  driver for EVPN (``/etc/bagpipe-bgp/bgp.conf``):
+
+    .. code-block:: ini
+
+       [DATAPLANE_DRIVER_IPVPN]
+       dataplane_driver = ovs
+
+       [DATAPLANE_DRIVER_EVPN]
+       dataplane_driver = linux
+
+In a devstack
+~~~~~~~~~~~~~
+
+To experiment with sfc driver in a devstack, the following is can be added
+in your `local.conf` (replace stable/X with stable/queens for e.g. Openstack
+Queens release) :
+
+    .. code-block:: ini
+
+       enable_plugin networking-sfc https://git.openstack.org/openstack/networking-bagpipe.git
+       # enable_plugin networking-sfc https://git.openstack.org/openstack/networking-bagpipe.git stable/X
+       enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git
+       # enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git stable/X
+
+       BAGPIPE_DATAPLANE_DRIVER_EVPN=linux
+       BAGPIPE_DATAPLANE_DRIVER_IPVPN=ovs
+
+       [[post-config|$NEUTRON_CONF]]
+
+       [sfc]
+       drivers = bagpipe
+
+       [sfc_bagpipe]
+       as_number = 64517
+       rtnn = 10000,30000
+
+
+       [[post-config|/$NEUTRON_CORE_PLUGIN_CONF]]
+
+       [agent]
+       extensions = bagpipe_sfc
 
 
 .. _networking-bgpvpn: http://git.openstack.org/cgit/openstack/networking-bgpvpn

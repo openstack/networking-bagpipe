@@ -1,7 +1,7 @@
 Design overview
 ===============
 
-The common design choices underlying bagpipe archiecture are:
+The common design choices underlying bagpipe architecture are:
 
 a. on Neutron server, allocate and associate BGP VPN constructs necessary to
    realize Neutron API abstractions: network, router, service chain,
@@ -12,8 +12,8 @@ b. pass the information about these BGP VPN constructs to the compute node agent
 
 c. on compute node, a bagpipe extension of the Neutron agent (OVS or
    linuxbridge) passes the information to the local implementation of BGP VPN
-   extensions (:ref:`bagpipe-bgp`) that will exchange
-   BGP VPN routes and populate the dataplane
+   extensions (:ref:`bagpipe-bgp`) that will advertise and receive
+   BGP VPN routes and populate the dataplane accordingly
 
 d. depending on the use cases, BGP VPN routes are exchanged between compute
    nodes, between compute nodes and DC gateway IP/MPLS routers, or both ; the
@@ -21,9 +21,9 @@ d. depending on the use cases, BGP VPN routes are exchanged between compute
    but will typically involve BGP Route Reflectors and the use of the RT
    Constraints pub/sub mechanism (RFC4684_)
 
-e. traffic is exchanged with an overlay encap, with VXLAN as the typical
-   choice for vswitch-to-vswitch, and MPLS-over-GRE or MPLS-over-UDP as the
-   target for vswitch-to-DC-gateway traffic
+e. traffic is exchanged using an overlay encapsulation, with VXLAN as the
+   typical choice for vswitch-to-vswitch, and MPLS-over-GRE or MPLS-over-UDP
+   (future) as the target for vswitch-to-DC-gateway traffic
 
 .. blockdiag:: overview.blockdiag
 
