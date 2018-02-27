@@ -954,8 +954,10 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
                                               label, rd, nexthop)
 
     def _generate_flow_spec_nlri(self, classifier):
-        flow_nlri = flowspec.FlowRouteFactory(exa.AFI(exa.AFI.ipv4),
-                                              self.vpn.instance_rd)
+        rd = self.manager.rd_allocator.get_new_rd(
+            "Route distinguisher for FlowSpec NLRI"
+        )
+        flow_nlri = flowspec.FlowRouteFactory(exa.AFI(exa.AFI.ipv4), rd)
 
         for rule in classifier.map_traffic_classifier_2_redirect_rules():
             flow_nlri.add(rule)
@@ -996,6 +998,10 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
                                                           '_advertise_route'))
         self.assertIn(RTRecord1, _extract_rtrec_from_call(self.vpn,
                                                           '_advertise_route'))
+        # check that event is for re-advertised route vpn_nlri_2 and
+        #  contains what we expect
+        route_entry = self.vpn._advertise_route.call_args_list[0][0][0]
+        self.assertNotEqual(vpn_nlri_2.rd, route_entry.nlri.rd)
         # dataplane *not* supposed to be updated for this route
         self.mock_dp.setup_dataplane_for_remote_endpoint.assert_not_called()
 
@@ -1022,10 +1028,13 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         # check that second event is for re-advertised route vpn_nlri_2 and
         #  contains what we expect
         route_entry = self.vpn._advertise_route.call_args_list[1][0][0]
+        vpn_nlri_2_readv_rd = route_entry.nlri.rd
         self.assertEqual(vpn_nlri_2.cidr.prefix(),
                          route_entry.nlri.cidr.prefix())
         self.assertNotEqual(vpn_nlri_2.labels, route_entry.nlri.labels)
         self.assertNotEqual(vpn_nlri_2.nexthop, route_entry.nlri.nexthop)
+        self.assertNotEqual(vpn_nlri_2.rd, route_entry.nlri.rd)
+        self.assertEqual(vpn_nlri_2_readv_rd, route_entry.nlri.rd)
 
         self._reset_mocks()
 
@@ -1050,6 +1059,9 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
                          route_entry.nlri.cidr.prefix())
         self.assertNotEqual(vpn_nlri_2.labels, route_entry.nlri.labels)
         self.assertNotEqual(vpn_nlri_2.nexthop, route_entry.nlri.nexthop)
+        self.assertNotEqual(vpn_nlri_2.rd, route_entry.nlri.rd)
+        self.assertNotEqual(vpn_nlri_2.rd, route_entry.nlri.rd)
+        self.assertEqual(vpn_nlri_2_readv_rd, route_entry.nlri.rd)
 
         self._reset_mocks()
 
@@ -1113,6 +1125,57 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn._withdraw_route.assert_called_once()
         self.vpn._advertise_route.assert_not_called()
 
+    # unit test for FlowSpec re-advertisement
+    def test_flowspec_re_advertisement_1(self):
+        # Configure VRF to generate traffic redirection, based on a 5-tuple
+        # classifier, to a specific route target
+        self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
+
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+
+        self._reset_mocks()
+
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
+
+        # FlowSpec route
+        flow_nlri1 = self._generate_flow_spec_nlri(TC1)
+        self._new_flow_event(engine.RouteEvent.ADVERTISE, flow_nlri1, [t.RT5],
+                             [t.RT3], worker_a)
+
+        # re-advertisement of Flow NLRI1 supposed to happen, to RT4
+        self.assertEqual(2, self.vpn._advertise_route.call_count)
+        self.manager.redirect_traffic_to_vpn.assert_not_called()
+
+        # 1 - re-advertisement of a default route supposed to happen
+        # to RT4
+        self.assertIn(t.RT4,
+                      _extract_rt_from_call(self.vpn, '_advertise_route', 0))
+
+        ipvpn_nlri = _extract_nlri_from_call(self.vpn, '_advertise_route', 0)
+        self.assertEqual(ipvpn.DEFAULT_ADDR_PREFIX, ipvpn_nlri.cidr.prefix())
+
+        # 2 - advertisement of FlowSpec NLRI supposed to happen to RT4
+        #     for traffic redirection to RT5 on TCP destination port 80
+        self.assertIn(t.RT4,
+                      _extract_rt_from_call(self.vpn, '_advertise_route', 1))
+        self.assertNotIn(t.RT3,
+                         _extract_rt_from_call(self.vpn,
+                                               '_advertise_route', 1))
+        self.assertIn(RTRecord3,
+                      _extract_rtrec_from_call(self.vpn,
+                                               '_advertise_route', 1))
+        self.assertEqual(
+            t.RT5,
+            _extract_traffic_redirect_from_call(self.vpn,
+                                                '_advertise_route', 1))
+        # check that second event is for re-advertised route flow_nlri1 and
+        #  contains what we expect
+        route_entry = self.vpn._advertise_route.call_args_list[1][0][0]
+        self.assertNotEqual(flow_nlri1.rd, route_entry.nlri.rd)
+        self.assertEqual(self.vpn.instance_rd, route_entry.nlri.rd)
+        # dataplane *not* supposed to be updated for this route
+        self.mock_dp.setup_dataplane_for_remote_endpoint.assert_not_called()
+
     def _check_attract_traffic(self, method, redirect_rts,
                                expected_classifiers):
         self.assertEqual(len(expected_classifiers),
@@ -1146,6 +1209,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
                 flow_nlri = _extract_nlri_from_call(self.vpn, method, index)
                 self.assertIsInstance(flow_nlri, exa.Flow)
 
+                self.assertEqual(flow_nlri.rd, self.vpn.instance_rd)
                 self.assertIn(redirect_rts[0],
                               _extract_rt_from_call(self.vpn, method, index))
                 self.assertEqual(

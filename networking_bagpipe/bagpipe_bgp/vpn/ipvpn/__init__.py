@@ -115,10 +115,6 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                    ) > 0
 
     def _to_readvertise(self, route):
-        # Only re-advertise IP VPN routes (e.g. not Flowspec routes)
-        if not isinstance(route.nlri, ipvpn_routes.IPVPN):
-            return False
-
         rt_records = route.ecoms(exa.RTRecord)
         self.log.debug("RTRecords: %s (readvertise_to_rts:%s)",
                        rt_records,
@@ -142,6 +138,15 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
             set(self.readvertise_from_rts)
             )) > 0
 
+    def _gen_rtrecords_extended_community(self, ecoms):
+        # new RTRecord = original RTRecord (if any) + orig RTs converted into
+        # RTRecord attributes
+        orig_rtrecords = ecoms(exa.RTRecord)
+        rts = ecoms(exa.RTExtCom)
+        add_rtrecords = [exa.RTRecord.from_rt(rt) for rt in rts]
+
+        return list(set(orig_rtrecords) | set(add_rtrecords))
+
     def _route_for_readvertisement(self, route, endpoint):
         label, rd, lb_consistent_hash_order = (
             self._get_route_params_for_endpoint(endpoint)
@@ -152,16 +157,10 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         attributes = exa.Attributes()
 
-        # new RTRecord = original RTRecord (if any) + orig RTs converted into
-        # RTRecord attributes
-        orig_rtrecords = route.ecoms(exa.RTRecord)
-        rts = route.ecoms(exa.RTExtCom)
-        add_rtrecords = [exa.RTRecord.from_rt(rt) for rt in rts]
-
-        final_rtrecords = list(set(orig_rtrecords) | set(add_rtrecords))
-
         ecoms = self._gen_encap_extended_communities()
-        ecoms.communities += final_rtrecords
+        ecoms.communities += (
+            self._gen_rtrecords_extended_community(route.ecoms)
+        )
         ecoms.communities.append(
             exa.ConsistentHashSortOrder(lb_consistent_hash_order))
         attributes.add(ecoms)
@@ -219,11 +218,34 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         return self.synthesize_redirect_bgp_route(rules)
 
+    def _redirect_route_for_readvertisement(self, route):
+        # Create a FlowSpec NLRI with distinct RD and a copy of rules from
+        # FlowSpec route to readvertise
+        nlri = flowspec.FlowRouteFactory(self.afi, self.instance_rd)
+        nlri.rules = route.nlri.rules
+
+        attributes = exa.Attributes()
+
+        ecoms = exa.ExtendedCommunities()
+        ecoms.communities += (
+            self._gen_rtrecords_extended_community(route.ecoms)
+        )
+        assert len(self.attract_rts) == 1
+        rt = self.attract_rts[0]
+        ecoms.communities.append(
+            exa.TrafficRedirect(exa.ASN(int(rt.asn)), int(rt.number))
+        )
+        attributes.add(ecoms)
+
+        entry = engine.RouteEntry(nlri, self.readvertise_to_rts, attributes)
+        self.log.debug("RouteEntry for redirect (re-)advertisement: %s", entry)
+        return entry
+
     @log_decorator.log
     def _readvertise(self, route):
         nlri = route.nlri
 
-        self.log.debug("Start re-advertising %s from VRF", nlri.cidr.prefix())
+        self.log.debug("Start re-advertising %s from VRF", nlri)
         if self.attract_traffic:
             # Start advertising default route only when the first route to
             # readvertise appears
@@ -235,10 +257,16 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                         self._default_route_for_advertisement(endpoint)
                     )
 
-            # Advertise FlowSpec route for prefix
-            self._advertise_route(
-                self._route_for_redirect_prefix(nlri.cidr.prefix())
-            )
+            if isinstance(nlri, flowspec.Flow):
+                # Readvertise FlowSpec route
+                self._advertise_route(
+                    self._redirect_route_for_readvertisement(route)
+                )
+            else:
+                # Advertise FlowSpec route for prefix
+                self._advertise_route(
+                    self._route_for_redirect_prefix(nlri.cidr.prefix())
+                )
 
         else:
             for endpoint in self.all_endpoints():
@@ -255,8 +283,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         nlri = route.nlri
 
         if last:
-            self.log.debug("Stop re-advertising %s from VRF",
-                           nlri.cidr.prefix())
+            self.log.debug("Stop re-advertising %s from VRF", nlri)
             if self.attract_traffic:
                 # Stop advertising default route only if the withdrawn route is
                 # the last of the routes to readvertise
@@ -268,10 +295,16 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                             self._default_route_for_advertisement(endpoint)
                         )
 
-                # Withdraw FlowSpec route for prefix
-                self._withdraw_route(
-                    self._route_for_redirect_prefix(nlri.cidr.prefix())
-                )
+                if isinstance(nlri, flowspec.Flow):
+                    # Withdraw readvertised FlowSpec route
+                    self._withdraw_route(
+                        self._redirect_route_for_readvertisement(route)
+                    )
+                else:
+                    # Withdraw FlowSpec route for prefix
+                    self._withdraw_route(
+                        self._route_for_redirect_prefix(nlri.cidr.prefix())
+                    )
             else:
                 for endpoint in self.all_endpoints():
                     self.log.debug("Stop re-advertising %s from endpoint %s",
@@ -352,32 +385,32 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
     @log_decorator.log
     def new_best_route(self, entry, new_route):
 
+        if self.readvertise:
+            # check if this is a route we need to re-advertise
+            self.log.debug("route RTs: %s", new_route.route_targets)
+            self.log.debug("readv from RTs: %s", self.readvertise_from_rts)
+            if self._to_readvertise(new_route):
+                self.log.debug("Need to re-advertise %s", entry)
+                self._readvertise(new_route)
+
+        if not self._imported(new_route):
+            self.log.debug("No need to setup dataplane for:%s", entry)
+            return
+
         if isinstance(new_route.nlri, flowspec.Flow):
             if len(new_route.ecoms(exa.TrafficRedirect)) == 1:
                 traffic_redirect = new_route.ecoms(exa.TrafficRedirect)
                 redirect_rt = "%s:%s" % (traffic_redirect[0].asn,
                                          traffic_redirect[0].target)
 
-                self.start_redirect_traffic(redirect_rt, new_route.nlri.rules)
+                self.start_redirect_traffic(redirect_rt,
+                                            new_route.nlri.rules)
             else:
-                self.log.warning("FlowSpec action or multiple traffic redirect"
-                                 " actions not supported: %s",
+                self.log.warning("FlowSpec action or multiple traffic "
+                                 "redirect actions not supported: %s",
                                  new_route.ecoms())
         else:
             prefix = entry
-
-            if self.readvertise:
-                # check if this is a route we need to re-advertise
-                self.log.debug("route RTs: %s", new_route.route_targets)
-                self.log.debug("readv from RTs: %s", self.readvertise_from_rts)
-                if self._to_readvertise(new_route):
-                    self.log.debug("Need to re-advertise %s", prefix)
-                    self._readvertise(new_route)
-
-            if not self._imported(new_route):
-                self.log.debug("No need to setup dataplane for:%s",
-                               prefix)
-                return
 
             encaps = self._check_encaps(new_route)
             if not encaps:
@@ -399,28 +432,29 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
     @log_decorator.log
     def best_route_removed(self, entry, old_route, last):
 
-        if isinstance(old_route.nlri, flowspec.Flow):
-            if len(old_route.ecoms(exa.TrafficRedirect)) == 1:
-                if last:
-                    traffic_redirect = old_route.ecoms(
-                        exa.TrafficRedirect)
-                    redirect_rt = "%s:%s" % (traffic_redirect[0].asn,
-                                             traffic_redirect[0].target)
+        if self.readvertise:
+            # check if this is a route we were re-advertising
+            if self._to_readvertise(old_route):
+                self.log.debug("Need to stop re-advertising %s", entry)
+                self._readvertise_stop(old_route, last)
 
-                    self.stop_redirect_traffic(redirect_rt,
-                                               old_route.nlri.rules)
-            else:
-                self.log.warning("FlowSpec action or multiple traffic redirect"
-                                 " actions not supported: %s",
-                                 old_route.ecoms())
+        if isinstance(old_route.nlri, flowspec.Flow):
+            if self._imported(old_route):
+                if len(old_route.ecoms(exa.TrafficRedirect)) == 1:
+                    if last:
+                        traffic_redirect = old_route.ecoms(
+                            exa.TrafficRedirect)
+                        redirect_rt = "%s:%s" % (traffic_redirect[0].asn,
+                                                 traffic_redirect[0].target)
+
+                        self.stop_redirect_traffic(redirect_rt,
+                                                   old_route.nlri.rules)
+                else:
+                    self.log.warning("FlowSpec action or multiple traffic "
+                                     "redirect actions not supported: %s",
+                                     old_route.ecoms())
         else:
             prefix = entry
-
-            if self.readvertise:
-                # check if this is a route we were re-advertising
-                if self._to_readvertise(old_route):
-                    self.log.debug("Need to stop re-advertising %s", prefix)
-                    self._readvertise_stop(old_route, last)
 
             # NOTE(tmorin): On new best routes, we only trigger dataplane
             # update events after checking with self._imported(...) that the
