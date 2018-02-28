@@ -20,7 +20,7 @@ from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers
 from networking_bagpipe.bagpipe_bgp.vpn.evpn import linux_vxlan
 from networking_bagpipe.bagpipe_bgp.vpn.ipvpn import mpls_linux_dataplane
 from networking_bagpipe.bagpipe_bgp.vpn.ipvpn import mpls_ovs_dataplane
-from networking_bagpipe.driver import sfc
+from networking_bagpipe.db import sfc_db
 
 
 # NOTE(amotoki): oslo.config suggests to use lower case as group name.
@@ -91,5 +91,5 @@ def list_dataplane_driver_ipvpn_mpls_ovs_opts():
 
 def list_neutron_sfc_opts():
     return [
-        ('sfc_bagpipe', sfc.sfc_bagpipe_opts)
+        ('sfc_bagpipe', sfc_db.sfc_bagpipe_opts)
     ]
