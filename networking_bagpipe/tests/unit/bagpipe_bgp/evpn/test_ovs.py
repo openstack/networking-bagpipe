@@ -17,6 +17,7 @@
 
 import mock
 
+from networking_bagpipe.bagpipe_bgp.common import dataplane_utils
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 from networking_bagpipe.bagpipe_bgp.vpn.evpn import ovs
 from networking_bagpipe.tests.unit.bagpipe_bgp import base as t
@@ -97,7 +98,7 @@ class TestTunnelManager(t.TestCase):
         self.bridge.delete_port.assert_called_once_with(t2)
 
 
-class FakeBridgeMockSpec(ovs.OVSBridgeWithGroups,
+class FakeBridgeMockSpec(dataplane_utils.OVSBridgeWithGroups,
                          br_tun.OVSTunnelBridge,
                          ovs_lib.OVSBridge):
     pass
