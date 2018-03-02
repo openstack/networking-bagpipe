@@ -7,7 +7,7 @@ BaGPipe-BGP is a component of networking-bagpipe, used on compute nodes
 along the Neutron agent and bagpipe agent extension of this agent.
 
 It is a lightweight implementation of BGP VPNs (IP VPNs and
-E-VPNs), targeting deployments on servers hosting VMs, in particular for
+E-VPNs), targeting deployments on compute nodes hosting VMs, in particular for
 Openstack/KVM platforms.
 
 The goal of BaGPipe-BGP is *not* to fully implement BGP specifications,
@@ -18,7 +18,7 @@ and `RFC4684 <http://tools.ietf.org/html/RFC4684>`__).
 
 BaGPipe-BGP is designed to use encapsulations over IP (such as
 MPLS-over-GRE or VXLAN), and thus does not require the use of LDP. Bare
-MPLS over Ethernet is also supported and can be used if servers/routers
+MPLS over Ethernet is also supported and can be used if compute nodes/routers
 have direct Ethernet connectivity.
 
 Typical Use/deployment
@@ -31,23 +31,26 @@ BaGPipe-BGP is typically driven via its HTTP REST interface, by
 Openstack Neutron agent extensions found in this package.
 
 Moreover, BaGPipe-BGP can also be used standalone (in particular for testing
-purposes), with for instance VMs tap interfaces or veth interfaces to network
-namespaces (see `below <#netns-example>`__).
+purposes), with for instance VMs tap interfaces or with veth interfaces to
+network namespaces (see `below <#netns-example>`__).
 
 BGP and Route Reflection
 ------------------------
 
-If you only want to test how to interconnect one server running
+If you only want to test how to interconnect one compute node running
 bagpipe-bgp and an IP/MPLS router, you don't need to setup a BGP Route
-Reflector. But to use BaGPipe-BGP on more than one server, the current
-code currently requires setting up a BGP Route Reflector (see
-`Caveats <#caveats>`__).
+Reflector.
+
+However, using BaGPipe-BGP between compute nodes currently requires setting
+up a BGP Route Reflector (see :ref:`bgp_implementation` and
+`Caveats <#caveats>`__). Typically, passive mode will have to be used
+for BGP peerings.
 
 The term "BGP Route Reflector" refers to a BGP implementation that
-redistribute routes between iBGP peers
+redistributes routes between iBGP peers
 `RFC4456 <http://tools.ietf.org/html/RFC4456>`__.
 
-When using bagpipe-bgp on more than one server, we thus need each
+When using bagpipe-bgp on more than one compute node, we thus need each
 instance of BaGPipe-BGP to be configured to peer with at least one route
 reflector (see `Configuration <#config>`__).
 
@@ -55,13 +58,9 @@ We provide a tool that can be used to emulate a route reflector to
 interconnect **2** BaGPipe-BGP implementations, typically for test
 purposes (see `Fake RR <#fakerr>`__).
 
-For more than 2 servers running BaGPipe-BGP, you will need a real BGP
+For more than 2 compute nodes running BaGPipe-BGP, you will need a real BGP
 implementation supporting RFC4364 and BGP route reflection (and ideally
 also RFC4684), different options can be considered:
-
-*  A router from for instance, Alcatel-Lucent, Cisco or Juniper can be
-   used; some of these vendors also provide their OSes as virtual
-   machines
 
 *  BGP implementations in other opensource projects would possibly be
    suitable, but we did not explore these exhaustively:
@@ -74,12 +73,14 @@ also RFC4684), different options can be considered:
    -  we have successfully used OpenBSD BGPd as an IP VPN RR for
       bagpipe-bgp
 
-   -  Quagga is supposed to support IP VPNs (untested AFAIK)
+   - FRRouting
 
-   -  there has been some work to allow the use of OpenContrail's BGP
-      implementation as a Route Reflector; although this is currently
-      unfinished, we have done rough hacks to confirm the feasibility
-      and the interoperability
+   - Quagga
+
+*  A commercial router from for instance, Alcatel-Lucent, Cisco or Juniper can
+   be used; some of these vendors also provide their OSes as virtual
+   machines
+
 
 .. _bagpipe-bgp-config:
 
@@ -101,15 +102,15 @@ It needs to be customized, at least for the following:
 *  dataplane configuration, if you really want packets to get through
    (see `Dataplane configuration <#dpconfig>`__)
 
-Example with two servers and relying on bagpipe fake route reflector:
+Example with two compute nodes and relying on bagpipe fake route reflector:
 
-*  On server A (local\_address=10.0.0.1):
+*  On compute node A (local\_address=10.0.0.1):
 
    -  run bagpipe-fakerr
 
-   -  run bagpipe-bgp with peers=127.0.0.1 (server A will thus connect to the locally running fake route-reflector)
+   -  run bagpipe-bgp with peers=127.0.0.1 (compute node A will thus connect to the locally running fake route-reflector)
 
-*  On server B (local\_address=10.0.0.2):
+*  On compute node B (local\_address=10.0.0.2):
 
    -  run bagpipe-bgp with peers=10.0.0.1
 
@@ -136,10 +137,10 @@ dataplane drivers for IP VPNs:
    to attach them
 
 * the ``linux`` driver relies on the native MPLS stack of the Linux kernel,
-  it currenly requires a kernel 4.4+ and uses the pyroute2 module that allows
+  it currently requires a kernel 4.4+ and uses the pyroute2 module that allows
   defining all states via Netlink rather than by executing 'ip' commands
 
-For E-VPN, the ``vxlan`` driver is supported without any particular additional
+For E-VPN, the ``linux`` driver is supported without any particular additional
 configuration being required, and simply requires a Linux kernel >=3.10
 (`linux\_vxlan.py <networking_bagpipe/bagpipe_bgp/vpn/evpn/linux_vxlan.py#L269>`__).
 
@@ -186,14 +187,14 @@ IP VPN example with a VM tap interface
 
 This example assumes that there is a pre-existing tap interface 'tap42'.
 
-*  on server A, plug tap interface tap42, MAC de:ad:00:00:be:ef, IP
+*  on compute node A, plug tap interface tap42, MAC de:ad:00:00:be:ef, IP
    11.11.11.1 into an IP VPN VRF with route-target 64512:77:
 
    .. code-block:: console
 
        bagpipe-rest-attach --attach --port tap42 --mac de:ad:00:00:be:ef --ip 11.11.11.1 --gateway-ip 11.11.11.254 --network-type ipvpn --rt 64512:77
 
-*  on server B, plug tap interface tap56, MAC ba:d0:00:00:ca:fe, IP
+*  on compute node B, plug tap interface tap56, MAC ba:d0:00:00:ca:fe, IP
    11.11.11.2 into an IP VPN VRF with route-target 64512:77:
 
    .. code-block:: console
@@ -216,14 +217,14 @@ In this example, the bagpipe-rest-attach tool will build for you a
 network namespace and a properly configured pair of veth interfaces, and
 will plug one of the veth to the VRF:
 
-*  on server A, plug a netns interface with IP 12.11.11.1 into a new IP
+*  on compute node A, plug a netns interface with IP 12.11.11.1 into a new IP
    VPN VRF named "test", with route-target 64512:78
 
    .. code-block:: console
 
        bagpipe-rest-attach --attach --port netns --ip 12.11.11.1 --network-type ipvpn --vpn-instance-id test --rt 64512:78
 
-*  on server B, plug a netns interface with IP 12.11.11.2 into a new IP
+*  on compute node B, plug a netns interface with IP 12.11.11.2 into a new IP
    VPN VRF named "test", with route-target 64512:78
 
    .. code-block:: console
@@ -249,14 +250,14 @@ tool will build for you a network namespace and a properly configured
 pair of veth interfaces, and will plug one of the veth to the E-VPN
 instance:
 
-*  on server A, plug a netns interface with IP 12.11.11.1 into a new
+*  on compute node A, plug a netns interface with IP 12.11.11.1 into a new
    E-VPN named "test2", with route-target 64512:79
 
    .. code-block:: console
 
        bagpipe-rest-attach --attach --port netns --ip 12.11.11.1 --network-type evpn --vpn-instance-id test2 --rt 64512:79
 
-*  on server B, plug a netns interface with IP 12.11.11.2 into a new
+*  on compute node B, plug a netns interface with IP 12.11.11.2 into a new
    E-VPN named "test2", with route-target 64512:79
 
    .. code-block:: console
@@ -390,6 +391,8 @@ restart, the component responsible triggering the attachment of
 interfaces to VPNs, can detect the restart of the BGP and
 re-trigger these attachments.
 
+.. _bgp_implementation:
+
 BGP Implementation
 ~~~~~~~~~~~~~~~~~~
 
@@ -403,7 +406,7 @@ Non-goals for this BGP implementation:
 * redistribution of routes between BGP peers (hence, no route reflection, no eBGP)
 * accepting incoming BGP connections
 * scaling to a number of routes beyond the number of routes required to
-  route traffic in/out of VMs hosted on a server running BaGPipe-BGP
+  route traffic in/out of VMs hosted on a compute node running BaGPipe-BGP
 
 Dataplanes
 ~~~~~~~~~~
@@ -419,16 +422,18 @@ port attachment information and BGP routes.
 Caveats
 -------
 
-* release early, release often: not everything is perfect yet
 * BGP implementation not written for compliancy
 
   - the BaGPipe-BGP service does not listen for incoming BGP connections
+    (using a BGP route reflector is required to interconnect bagpipe-bgp
+    instance together, typically using passive mode for BGP peerings)
 
-  - the state machine, in particular retry timers is possibly not fully compliant yet
+  - the state machine, in particular retry timers is possibly not fully compliant
 
   - however, interop testing has been done with a fair amount of implementations
 
-* MPLS-over-GRE is supported for IP VPNs, but is not yet standard (OpenVSwitch currently does MPLS-o-Ethernet-o-GRE and not MPLS-o-GRE)
-
+* standard MPLS-over-GRE, interoperating with routers, requires
+  OVS >= 2.8 (previous OpenVSwitch releases do MPLS-o-Ethernet-o-GRE
+  and not MPLS-o-GRE)
 
 .. _sample configuration: http://git.openstack.org/cgit/openstack/networking-bagpipe/tree/samples/gobgp.conf
