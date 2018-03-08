@@ -207,7 +207,7 @@ class TunnelManager(dataplane_utils.ObjectLifecycleManager):
         self.local_ip = local_ip
 
     @log_decorator.log_info
-    def create_object(self, remote_ip):
+    def create_object(self, remote_ip, *args, **kwargs):
         port_name = ovs_neutron_agent.OVSNeutronAgent.get_tunnel_name(
             n_consts.TYPE_VXLAN, self.local_ip, remote_ip)
         tunnel = self.bridge.add_tunnel_port(port_name,
