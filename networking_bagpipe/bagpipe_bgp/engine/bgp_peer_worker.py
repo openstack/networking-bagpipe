@@ -19,7 +19,6 @@ import abc
 import random
 import threading
 import time
-import traceback
 
 from oslo_log import log as logging
 import six
@@ -210,7 +209,7 @@ class BGPPeerWorker(worker.Worker,
         except Exception as e:
             self.log.warning("Exception while initiating connection: %s", e)
             if self.log.isEnabledFor(logging.DEBUG):
-                self.log.debug("%s", traceback.format_exc())
+                self.log.exception("")
             self._to_active()
             return
 
@@ -280,7 +279,7 @@ class BGPPeerWorker(worker.Worker,
                 self.log.error("Error: %s (=> aborting receive_loop and "
                                "reinitializing)", e)
                 if self.log.isEnabledFor(logging.WARNING):
-                    self.log.warning("%s", traceback.format_exc())
+                    self.log.exception("")
                 # FIXME: use (Worker.)enqueue_high_priority so that
                 # ToIdle is treated before other events
                 self.enqueue(ToIdle(ERROR_RETRY_TIMER))

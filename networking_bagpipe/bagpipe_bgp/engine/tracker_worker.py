@@ -17,7 +17,6 @@
 
 import abc
 import socket
-import traceback
 
 from oslo_log import log as logging
 import six
@@ -412,7 +411,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
         except Exception as e:
             self.log.error("Exception in <subclass>.new_best_route: %s", e)
             if self.log.isEnabledFor(logging.WARNING):
-                self.log.info("%s", traceback.format_exc())
+                self.log.exception("")
 
     @log_decorator.log
     def _call_best_route_removed(self, entry, old_route, last):
@@ -422,7 +421,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
             self.log.error("Exception in <subclass>.best_route_removed: %s",
                            e)
             if self.log.isEnabledFor(logging.WARNING):
-                self.log.info("%s", traceback.format_exc())
+                self.log.exception("")
 
     # Callbacks for subclasses ########################
 

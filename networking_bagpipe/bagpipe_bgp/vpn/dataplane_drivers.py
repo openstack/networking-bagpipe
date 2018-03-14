@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import abc
-import traceback
 
 from distutils import version  # pylint: disable=no-name-in-module
 from oslo_config import cfg
@@ -87,10 +86,9 @@ def instantiate_dataplane_drivers():
             ).driver
 
             drivers[vpn_type] = driver_class()
-        except Exception as e:
-            LOG.error("Error while instantiating dataplane"
-                      " driver for %s with %s: %s", vpn_type, driver_name, e)
-            LOG.error(traceback.format_exc())
+        except Exception:
+            LOG.exception("Error while instantiating dataplane driver for "
+                          "%s with %s", vpn_type, driver_name)
             raise
 
     return drivers

@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import threading
-import traceback
 
 from oslo_log import log as logging
 from six.moves import queue
@@ -95,9 +94,9 @@ class Worker(engine.EventSource, lg.LookingGlassMixin):
 
             try:
                 self._on_event(event)
-            except Exception as e:
-                LOG.error("Exception raised on subclass._on_event: %s", e)
-                LOG.error("%s", traceback.format_exc())
+            except Exception:
+                LOG.exception("Exception raised on subclass._on_event: %s",
+                              event)
 
     def run(self):
         self._event_queue_processor_loop()
