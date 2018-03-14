@@ -2,8 +2,8 @@
 
 # borrowed from neutron-lbaas/tools
 
-# Many of neutron's repos suffer from the problem of depending on neutron,
-# but it not existing on pypi.
+# Many of neutron's repos suffer from the problem of depending on neutron
+# repos but they do not exist on pypi.
 
 # This wrapper for tox's package installer will use the existing package
 # if it exists, else use zuul-cloner if that program exists, else grab it
@@ -61,7 +61,6 @@ set -e
 install_cmd="pip install -c$1"
 shift
 
-install_project neutron
 install_project networking-bgpvpn
 install_project networking-sfc
 
