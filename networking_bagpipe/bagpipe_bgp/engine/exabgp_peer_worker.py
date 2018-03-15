@@ -20,7 +20,6 @@ import inspect
 import logging as python_logging
 import select
 import time
-import traceback
 
 from exabgp.bgp import fsm as exa_fsm
 from exabgp.bgp import message as exa_message
@@ -372,9 +371,8 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
         try:
             for _ in self.protocol.connection.writer(data):
                 pass
-        except Exception as e:
-            self.log.error("Was not able to send data: %s", e)
-            self.log.warning("%s", traceback.format_exc())
+        except Exception:
+            self.log.exception("Was not able to send data")
 
     def _keep_alive_message_data(self):
         return exa_message.KeepAlive().message()
@@ -384,10 +382,9 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             r = exa_message.Update([event.route_entry.nlri],
                                    event.route_entry.attributes)
             return ''.join(r.messages(self.protocol.negotiated))
-        except Exception as e:
-            self.log.error("Exception while generating message for "
-                           "route %s: %s", r, e)
-            self.log.warning("%s", traceback.format_exc())
+        except Exception:
+            self.log.exception("Exception while generating message for "
+                               "route %s", r)
             return ''
 
     # Looking Glass ###############

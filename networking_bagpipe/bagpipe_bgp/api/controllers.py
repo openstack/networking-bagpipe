@@ -17,7 +17,6 @@
 
 import logging as python_logging
 import time
-import traceback
 import uuid
 
 from oslo_config import cfg
@@ -218,10 +217,9 @@ class AttachController(VPNManagerController):
         except exc.APIException as e:
             LOG.warning('attach_localport: API error: %s', e)
             pecan.abort(400, "API error: %s" % e)
-        except Exception as e:
-            LOG.error('attach_localport: An error occurred during local port'
-                      ' plug to VPN: %s', e)
-            LOG.info(traceback.format_exc())
+        except Exception:
+            LOG.exception('attach_localport: An error occurred during local '
+                          'port plug to VPN')
             pecan.abort(500, 'An error occurred during local port plug to VPN')
 
 
@@ -250,10 +248,9 @@ class DetachController(VPNManagerController):
         except exc.APIException as e:
             LOG.warning('detach_localport: API error: %s', e)
             pecan.abort(400, "API error: %s" % e)
-        except Exception as e:
-            LOG.error('detach_localport: An error occurred during local port'
-                      ' unplug from VPN: %s', e)
-            LOG.info(traceback.format_exc())
+        except Exception:
+            LOG.exception('detach_localport: An error occurred during local '
+                          'port unplug from VPN')
             pecan.abort(500, 'An error occurred during local port unplug from '
                         'VPN')
 
@@ -298,9 +295,8 @@ class LookingGlassController(VPNManagerController,
         except lg.NoSuchLookingGlassObject as e:
             LOG.info('looking_glass: %s', repr(e))
             pecan.abort(404, repr(e))
-        except Exception as e:
-            LOG.error('looking_glass: An error occurred: %s', e)
-            LOG.error(traceback.format_exc())
+        except Exception:
+            LOG.exception('looking_glass: an error occurred')
             pecan.abort(500, 'Server error')
 
     @when(index, method='DELETE')

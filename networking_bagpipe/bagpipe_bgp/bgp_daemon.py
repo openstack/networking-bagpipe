@@ -107,8 +107,8 @@ def daemon_main():
         signal.signal(signal.SIGINT, stop)
 
         pecan_api.run()
-    except Exception as e:
-        LOG.exception("Error while starting BGP daemon: %s", e)
+    except Exception:
+        LOG.exception("Error while starting BGP daemon")
 
 
 def cleanup_main():

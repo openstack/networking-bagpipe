@@ -18,7 +18,6 @@
 import collections
 from functools import reduce
 import threading
-import traceback
 
 from oslo_log import log as logging
 import six
@@ -214,10 +213,8 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
                 self._worker_cleanup(event.worker)
             else:
                 raise Exception("unknown event: %s", event)
-        except Exception as e:
-            LOG.error("Exception during processing of event: %s", repr(e))
-            LOG.error("%s", traceback.format_exc())
-            LOG.error("    event was: %s", event)
+        except Exception:
+            LOG.exception("Exception during processing of event %s", event)
 
     def enqueue(self, event):
         self._queue.put(event)
