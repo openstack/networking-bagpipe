@@ -92,6 +92,7 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
             'linuxbr': lnx_agt.LinuxBridgeManager.get_bridge_name(
                 port_info.network.id
             ),
+            'vni': port_info.network.segmentation_id,
             bbgp_const.RT_IMPORT: bagpipe_rts,
             bbgp_const.RT_EXPORT: bagpipe_rts
         })
