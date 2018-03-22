@@ -105,7 +105,7 @@ class LookingGlassMixin(object):
     def get_lg_map(self):
         """Main looking glass hook for LG objects
 
-        This can be overriden by looking glass objects to indicate looking
+        This can be overridden by looking glass objects to indicate looking
         glass information items for this objects.
 
         :returns: a dict mapping a <subpath> to a (<lg_map_type>,<hook>) tuple
@@ -151,7 +151,7 @@ class LookingGlassMixin(object):
     def get_lg_local_info(self, path_prefix):
         """Deeper hook for LG objects
 
-        Can be overriden by looking glass objects instead of get_lg_map
+        Can be overridden by looking glass objects instead of get_lg_map
 
         :param path_prefix: the URL prefix that was used to reach *self*
             through the looking glass
