@@ -873,7 +873,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
         self._check_port_sfc_info(base.PORT10['id'],
                                   [sfc_const.INGRESS, sfc_const.EGRESS])
 
-    def test_port_hop_created_already_plugged_port(self):
+    def test_port_hop_created_already_plugged_port_ingress(self):
         self.agent_ext.handle_port(None, self._port_data(base.PORT10))
 
         chain_hop = self._fake_chain_hop(
@@ -916,6 +916,51 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
         # Verify attachments list consistency
         self._check_network_info(base.NETWORK1['id'], 1)
         self._check_port_sfc_info(base.PORT10['id'], [sfc_const.INGRESS])
+
+    def test_port_hop_created_already_plugged_port_egress(self):
+        self.agent_ext.handle_port(None, self._port_data(base.PORT21))
+
+        chain_hop = self._fake_chain_hop(
+            portchain_id=uuidutils.generate_uuid(),
+            rts=CHAIN_HOP_RT1000,
+            ingress_network=base.NETWORK1,
+            egress_network=base.NETWORK2)
+
+        port21_hops = self._fake_port_hops(base.PORT21['id'],
+                                           egress_hops=[chain_hop])
+
+        # Verify build callback attachments
+        def check_build_cb(port_id):
+            linuxbr2 = LinuxBridgeManager.get_bridge_name(base.NETWORK2['id'])
+            self.assertDictEqual(
+                dict(
+                    network_id=base.NETWORK2['id'],
+                    ipvpn=[dict(
+                        ip_address=base.PORT21['ip_address'],
+                        mac_address=base.PORT21['mac_address'],
+                        gateway_ip=base.NETWORK2['gateway_ip'],
+                        local_port=dict(linuxif=linuxbr2),
+                        import_rt=[],
+                        export_rt=CHAIN_HOP_RT1000,
+                        lb_consistent_hash_order=1
+                    )]
+                ),
+                self.agent_ext.build_sfc_attach_info(base.PORT21['id'])
+            )
+
+        # we need to check what build_sfc_attach_info returns, at the
+        # precise time when do_port_plug is called
+        self.mocked_bagpipe_agent.do_port_plug.side_effect = check_build_cb
+
+        self._port_hops_notif([port21_hops], rpc_events.CREATED)
+
+        self.mocked_bagpipe_agent.do_port_plug.assert_has_calls(
+            [mock.call(base.PORT21['id'])]
+        )
+
+        # Verify attachments list consistency
+        self._check_network_info(base.NETWORK2['id'], 1)
+        self._check_port_sfc_info(base.PORT21['id'], [sfc_const.EGRESS])
 
     def test_chain_hop_deleted_no_plugged_ports(self):
         chain_hop = self._fake_chain_hop(

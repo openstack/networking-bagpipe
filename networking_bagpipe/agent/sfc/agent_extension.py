@@ -93,29 +93,38 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
             sfc_obj.BaGPipePortHops.obj_name())
         connection.create_consumer(topic_port_hops, endpoints, fanout=True)
 
+    def _add_sfc_chain_hop_helper_for_port(self, port_id, chain_hop, side,
+                                           lb_consistent_hash_order):
+        orig_info = deepcopy(chain_hop)
+        port_info = self.ports_info[port_id]
+
+        # Set gateway IP address in NetworkInfo if necessary
+        net_info = port_info.network
+        if net_info.gateway_info == agent_base_info.NO_GW_INFO:
+            gateway_info = (
+                agent_base_info.GatewayInfo(None,
+                                            chain_hop[side + '_gw'])
+            )
+            net_info.set_gateway_info(gateway_info)
+
+        # FIXME: We could use subset bytes of port pair id to avoid hash
+        # polarization
+        # Chain hop ingress, respectively egress, port corresponds to SFC port
+        # pair egress, respectively ingress, port side.
+        if side == sfc_const.EGRESS:
+            orig_info['lb_consistent_hash_order'] = (
+                lb_consistent_hash_order
+            )
+
+        port_info.add_chain_hop({side: orig_info})
+
     def _add_sfc_chain_hop_helper(self, port_ids, chain_hop, side):
         for index, port_id in enumerate(port_ids):
             if port_id not in self.ports_info:
                 continue
 
-            orig_info = deepcopy(chain_hop)
-            port_info = self.ports_info[port_id]
-
-            # Set gateway IP address in NetworkInfo if necessary
-            net_info = port_info.network
-            if net_info.gateway_info == agent_base_info.NO_GW_INFO:
-                gateway_info = (
-                    agent_base_info.GatewayInfo(None,
-                                                chain_hop[side + '_gw'])
-                )
-                net_info.set_gateway_info(gateway_info)
-
-            # We could use subset bytes of port pair id to avoid hash
-            # polarization
-            if side == sfc_const.EGRESS:
-                orig_info['lb_consistent_hash_order'] = index
-
-            port_info.add_chain_hop({side: orig_info})
+            self._add_sfc_chain_hop_helper_for_port(port_id, chain_hop, side,
+                                                    index)
 
     def _remove_sfc_chain_hop_helper(self, port_info, chain_hop, side):
         sfc_info = port_info.chain_hops
@@ -317,12 +326,17 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
             for side in [sfc_const.INGRESS, sfc_const.EGRESS]:
                 for hop in getattr(port_hop, side + '_hops'):
                     hop_dict = hop.to_dict()
+
+                    lb_consistent_hash_order = (
+                        hop_dict[side + '_ports'].index(port_id)
+                    )
+
                     del hop_dict['ingress_ports']
                     del hop_dict['egress_ports']
 
-                    self._add_sfc_chain_hop_helper([port_id],
-                                                   hop_dict,
-                                                   side)
+                    self._add_sfc_chain_hop_helper_for_port(
+                        port_id, hop_dict, side, lb_consistent_hash_order
+                    )
 
             self.bagpipe_bgp_agent.do_port_plug(port_id)
 
@@ -369,14 +383,16 @@ class BagpipeSfcAgentExtension(l2_extension.L2AgentExtension,
             egress_ports = hop_dict.pop('egress_ports')
 
             if port_id in ingress_ports:
-                self._add_sfc_chain_hop_helper([port_id],
-                                               hop_dict,
-                                               sfc_const.INGRESS)
+                self._add_sfc_chain_hop_helper_for_port(
+                    port_id, hop_dict, sfc_const.INGRESS,
+                    ingress_ports.index(port_id)
+                )
 
             if port_id in egress_ports:
-                self._add_sfc_chain_hop_helper([port_id],
-                                               hop_dict,
-                                               sfc_const.EGRESS)
+                self._add_sfc_chain_hop_helper_for_port(
+                    port_id, hop_dict, sfc_const.EGRESS,
+                    egress_ports.index(port_id)
+                )
 
         if port_info.chain_hops:
             self.bagpipe_bgp_agent.do_port_plug(port_id)
