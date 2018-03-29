@@ -122,7 +122,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
             return bgpvpns
 
         bgpvpn_plugin = (
-            directory.get_plugin(bgpvpn_def.LABEL)
+            directory.get_plugin(bgpvpn_def.ALIAS)
         )
         if not bgpvpn_plugin:
             LOG.warning("BGPVPN service not found")
