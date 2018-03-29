@@ -391,7 +391,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
 
     def synthesize_withdraw_all(self, afi, safi):
         for tracked_entry, routes in list(self.tracked_entry_2_routes.items()):
-            self.log.trace("Synthethizing withdraws for all routes of %s with "
+            self.log.trace("Synthesizing withdraws for all routes of %s with "
                            "AFI(%s)/SAFI(%s)", tracked_entry, afi, safi)
             for route in routes:
                 if (route.nlri.afi, route.nlri.safi) == (afi, safi):
