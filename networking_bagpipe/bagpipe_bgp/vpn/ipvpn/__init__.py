@@ -78,6 +78,12 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         vpn_instance.VPNInstance.__init__(self, *args, **kwargs)
         self.readvertised = set()
 
+    def needs_cleanup_assist(self, afi, safi):
+        if (afi, safi) == (self.afi, exa.SAFI.flow_vpn):
+            return True
+        else:
+            return self.dataplane.needs_cleanup_assist()
+
     @classmethod
     def validate_convert_attach_params(cls, params):
         super(VRF, cls).validate_convert_attach_params(params)

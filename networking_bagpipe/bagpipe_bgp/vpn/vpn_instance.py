@@ -406,14 +406,20 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         self.dataplane.update_fallback(fallback)
 
+    def needs_cleanup_assist(self, afi, safi):
+        return self.dataplane.needs_cleanup_assist()
+
     @utils.synchronized
     @log_decorator.log
     def stop(self):
         self.stop_event_loop()
 
-        if self.dataplane.needs_cleanup_assist():
-            self.log.debug("Dataplane driver needs cleanup assistance")
-            self.synthesize_withdraw_all()
+        for afi in (self.afi,):
+            for safi in (self.safi, exa.SAFI.flow_vpn):
+                if self.needs_cleanup_assist(afi, safi):
+                    self.log.debug("Dataplane driver needs cleanup assistance"
+                                   "for AFI(%s)/SAFI(%s)", afi, safi)
+                    self.synthesize_withdraw_all(afi, safi)
 
         self.dataplane.cleanup()
         if not self.forced_vni:

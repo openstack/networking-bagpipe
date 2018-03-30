@@ -1744,3 +1744,27 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
             '_withdraw_route',
             ATTRACT_TRAFFIC_1['redirect_rts'],
             [None, TC1, None])
+
+    def test_cleanup_assist(self):
+        # Configure VRF to generate traffic redirection, based on a 5-tuple
+        # classifier, to a specific route target
+        self._config_vrf_with_attract_traffic(ATTRACT_TRAFFIC_1)
+
+        worker_a = worker.Worker(mock.Mock(), 'worker.Worker-A')
+
+        vpn_nlri1 = self._generate_route_nlri(IP_ADDR_PREFIX1)
+        self._new_route_event(engine.RouteEvent.ADVERTISE, vpn_nlri1,
+                              [t.RT1], worker_a, t.NH1, 200)
+
+        # FlowSpec route
+        flow_nlri1 = self._generate_flow_spec_nlri(TC1)
+        self._new_flow_event(engine.RouteEvent.ADVERTISE, flow_nlri1,
+                             [t.RT5], [t.RT1], worker_a)
+
+        self.mock_dp.needs_cleanup_assist.return_value = False
+
+        with mock.patch.object(self.vpn, 'best_route_removed') as mock_brr:
+            self.vpn.stop()
+            mock_brr.assert_called_once()
+            self.assertIsInstance(mock_brr.call_args[0][1].nlri,
+                                  flowspec.Flow)
