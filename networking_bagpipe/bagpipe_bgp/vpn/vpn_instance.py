@@ -249,8 +249,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
     @log_decorator.log
     def __init__(self, vpn_manager, dataplane_driver,
                  external_instance_id, instance_id, import_rts, export_rts,
-                 gateway_ip, mask, readvertise, attract_traffic, fallback=None,
-                 **kwargs):
+                 gateway_ip, ip_address_plen, readvertise, attract_traffic,
+                 fallback=None, **kwargs):
 
         self.manager = vpn_manager
 
@@ -282,7 +282,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         self.export_rts = export_rts
         self.external_instance_id = external_instance_id
         self.gateway_ip = gateway_ip
-        self.mask = mask
+        self.network_plen = ip_address_plen
 
         self.fallback = None
 
@@ -332,7 +332,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         self.dataplane = self.dp_driver.initialize_dataplane_instance(
             self.instance_id, self.external_instance_id,
-            self.gateway_ip, self.mask, self.instance_label, **kwargs)
+            self.gateway_ip, self.network_plen, self.instance_label, **kwargs)
 
         for rt in self.import_rts:
             self._subscribe(self.afi, self.safi, rt)
@@ -509,15 +509,10 @@ class VPNInstance(tracker_worker.TrackerWorker,
             self.dataplane.update_fallback(fallback)
 
     def _parse_ipaddress_prefix(self, ip_address_prefix):
-        ip_address = ""
-        mask = 0
-        try:
-            net = netaddr.IPNetwork(ip_address_prefix)
-            (ip_address, mask) = (str(net.ip), net.prefixlen)
-        except netaddr.core.AddrFormatError:
-            raise exc.APIException("Bogus IP prefix: %s" % ip_address_prefix)
-
-        return (ip_address, mask)
+        if ip_address_prefix is None:
+            return (None, 0)
+        net = netaddr.IPNetwork(ip_address_prefix)
+        return (str(net.ip), net.prefixlen)
 
     def _gen_encap_extended_communities(self):
         ecommunities = exa.extcoms.ExtendedCommunities()
@@ -590,7 +585,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
     @classmethod
     def validate_convert_params(cls, params, also_mandatory=()):
 
-        for param in ('vpn_instance_id', 'mac_address', 'ip_address',
+        for param in ('vpn_instance_id', 'mac_address',
                       'local_port') + also_mandatory:
             if param not in params:
                 raise exc.APIMissingParameterException(param)
@@ -621,17 +616,30 @@ class VPNInstance(tracker_worker.TrackerWorker,
             raise exc.APIException("Mandatory key is missing in local_port "
                                    "parameter (linuxif, or evpn)")
 
-        # Verify and format IP address with prefix if necessary
-        if re.match(r'([12]?\d?\d\.){3}[12]?\d?\d\/[123]?\d',
-                    params['ip_address']):
-            params['ip_address_prefix'] = params['ip_address']
-        elif re.match(r'([12]?\d?\d\.){3}[12]?\d?\d', params['ip_address']):
-            params['ip_address_prefix'] = params['ip_address'] + "/32"
-        else:
-            raise exc.MalformedIPAddress(params['ip_address'])
+        # validate mac_address
+        try:
+            netaddr.EUI(params['mac_address'])
+        except netaddr.core.AddrFormatError:
+            raise exc.MalformedMACAddress(params['mac_address'])
 
-        # NOTE(tmorin): improve the IP check above and validate MAC address
-        # format
+        # validate ip_address if present
+        if 'ip_address' in params:
+            try:
+                net = netaddr.IPNetwork(params['ip_address'])
+                params['ip_address_prefix'] = params['ip_address']
+                params['ip_address_plen'] = net.prefixlen
+            except netaddr.core.AddrFormatError:
+                # Try again assuming ip_address is an IP without a prefix
+                # (implicitly using /32)
+                try:
+                    netaddr.IPAddress(params['ip_address'])
+                    params['ip_address_prefix'] = params['ip_address'] + "/32"
+                    params['ip_address_plen'] = 32
+                except netaddr.core.AddrFormatError:
+                    raise exc.MalformedIPAddress(params['ip_address'])
+        else:
+            params['ip_address_prefix'] = None
+            params['ip_address_plen'] = None
 
         if not isinstance(params.get('advertise_subnet', False), bool):
             raise exc.APIException("'advertise_subnet' must be a boolean")
@@ -683,6 +691,32 @@ class VPNInstance(tracker_worker.TrackerWorker,
             self.endpoint_2_rd[endpoint] = rd
         return rd
 
+    def _check_ip_mac(self, mac_address, ip_address_prefix, advertise_subnet):
+        (ip_prefix, plen) = self._parse_ipaddress_prefix(ip_address_prefix)
+
+        # Special case where no IP was provided
+        if ip_prefix is None:
+            refresh_only = mac_address in self.mac_2_localport_data
+            return (None, None, refresh_only)
+
+        if not advertise_subnet and plen != 32:
+            self.log.debug("Using /32 instead of /%d", plen)
+            plen = 32
+
+        # - Verify (MAC address, IP address) tuple consistency
+        refresh_only = False
+        if ip_address_prefix in self.ip_address_2_mac and plen == 32:
+            if mac_address not in self.ip_address_2_mac[ip_address_prefix]:
+                raise exc.APIException("Inconsistent endpoint info: %s "
+                                       "already bound to a MAC address "
+                                       "different from %s" %
+                                       (ip_address_prefix, mac_address))
+            else:
+                LOG.debug("IP/MAC already plugged, only updating route")
+                refresh_only = True
+
+        return ip_prefix, plen, refresh_only
+
     @utils.synchronized
     @log_decorator.log_info
     def vif_plugged(self, mac_address, ip_address_prefix, localport,
@@ -708,25 +742,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
         try:
             self.endpoint_2_desc[endpoint] = kwargs.get('description')
 
-            # Parse address/mask
-            (ip_prefix, plen) = self._parse_ipaddress_prefix(ip_address_prefix)
-
-            if not advertise_subnet and plen != 32:
-                self.log.debug("Using /32 instead of /%d", plen)
-                plen = 32
-
-            # - Verify (MAC address, IP address) tuple consistency
-            refresh_only = False
-            if ip_address_prefix in self.ip_address_2_mac and plen == 32:
-                if mac_address not in self.ip_address_2_mac[ip_address_prefix]:
-                    raise exc.APIException("Inconsistent endpoint info: %s "
-                                           "already bound to a MAC address "
-                                           "different from %s" %
-                                           (ip_address_prefix, mac_address))
-                else:
-                    LOG.debug("IP/MAC already plugged, only updating route")
-                    refresh_only = True
-                    return
+            (ip_prefix, plen, refresh_only) = self._check_ip_mac(
+                mac_address, ip_address_prefix, advertise_subnet)
 
             self.log.debug("Plugging port (%s)", ip_prefix)
 
@@ -734,9 +751,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
             if not pdata:
                 pdata['label'] = self.manager.label_allocator.get_new_label(
                     "Incoming traffic for %s %d, interface %s"
-                    ", endpoint %s/%s" %
-                    (self.instance_type, self.instance_id,
-                     linuxif, mac_address, ip_address_prefix)
+                    ", endpoint %s" %
+                    (self.instance_type, self.instance_id, linuxif, endpoint)
                 )
                 pdata["port_info"] = localport
                 pdata["lb_consistent_hash_order"] = lb_consistent_hash_order
@@ -777,7 +793,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
             self.endpoint_2_direction[endpoint] = direction
             self.mac_2_localport_data[mac_address] = pdata
 
-            self.ip_address_2_mac[ip_address_prefix].add(mac_address)
+            if ip_address_prefix:
+                self.ip_address_2_mac[ip_address_prefix].add(mac_address)
 
         except Exception as e:
             self.log.error("Error in vif_plugged: %s", e)
@@ -831,8 +848,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
             # Parse address/mask
             (ip_prefix, _) = self._parse_ipaddress_prefix(ip_address_prefix)
 
-            self.log.info("Withdrawing BGP route for VIF %s endpoint "
-                          "(%s, %s)", linuxif, mac_address, ip_address_prefix)
+            self.log.info("Withdrawing BGP route for VIF %s endpoint %s",
+                          linuxif, endpoint)
 
             self._withdraw_route(self.endpoint_2_route.pop(endpoint))
 
@@ -868,10 +885,11 @@ class VPNInstance(tracker_worker.TrackerWorker,
             else:
                 del self.mac_2_localport_data[mac_address]
 
-            self.ip_address_2_mac[ip_address_prefix].discard(mac_address)
+            if ip_address_prefix:
+                self.ip_address_2_mac[ip_address_prefix].discard(mac_address)
 
-            if not self.ip_address_2_mac[ip_address_prefix]:
-                del self.ip_address_2_mac[ip_address_prefix]
+                if not self.ip_address_2_mac[ip_address_prefix]:
+                    del self.ip_address_2_mac[ip_address_prefix]
 
             del self.endpoint_2_desc[endpoint]
         else:
@@ -1025,7 +1043,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
             "dataplane":             (lg.DELEGATE, self.dataplane),
             "route_targets":         (lg.SUBITEM, self.get_rts),
             "gateway_ip":            (lg.VALUE, self.gateway_ip),
-            "subnet_mask":           (lg.VALUE, self.mask),
+            "subnet_prefix_length":  (lg.VALUE, self.network_plen),
             "instance_dataplane_id": (lg.VALUE, self.instance_label),
             "ports":                 (lg.SUBTREE, self.get_lg_local_port_data),
             "readvertise":           (lg.SUBITEM, self.get_lg_readvertise),

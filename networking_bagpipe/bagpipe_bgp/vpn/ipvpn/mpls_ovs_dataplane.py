@@ -523,9 +523,8 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         dec_ttl_action = ""
 
         # if destination in same subnet as the VRF, don't decrement TTL
-        if netaddr.IPNetwork(prefix) not in netaddr.IPNetwork("%s/%s" %
-                                                              (self.gateway_ip,
-                                                               self.mask)):
+        if netaddr.IPNetwork(prefix) not in netaddr.IPNetwork(
+                "%s/%s" % (self.gateway_ip, self.network_plen)):
             dec_ttl_action = "dec_ttl"
 
         flows_to_add = []

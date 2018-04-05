@@ -267,14 +267,14 @@ class VPNInstanceDataplane(lg.LookingGlassLocalLogger):
 
     @log_decorator.log_info
     def __init__(self, dataplane_driver, instance_id, external_instance_id,
-                 gateway_ip, mask, instance_label=None, **kwargs):
+                 gateway_ip, network_plen, instance_label=None, **kwargs):
         lg.LookingGlassLocalLogger.__init__(self, repr(instance_id))
         self.driver = dataplane_driver
         self.config = dataplane_driver.config
         self.instance_id = instance_id
         self.external_instance_id = external_instance_id
         self.gateway_ip = gateway_ip
-        self.mask = mask
+        self.network_plen = network_plen
         self.instance_label = instance_label
 
     @abc.abstractmethod
@@ -293,8 +293,8 @@ class VPNInstanceDataplane(lg.LookingGlassLocalLogger):
 
     def update_fallback(self, fallback):
         if fallback is not None:
-            self.log.warning("fallback  specified (%s) but not supported by"
-                             " driver, ignoring", fallback)
+            self.log.warning("fallback specified (%s) but not supported by "
+                             "driver, ignoring", fallback)
 
     @abc.abstractmethod
     def setup_dataplane_for_remote_endpoint(self, prefix, remote_pe, label,

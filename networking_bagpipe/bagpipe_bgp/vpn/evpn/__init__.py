@@ -150,7 +150,8 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
     def generate_vif_bgp_route(self, mac_address, ip_prefix, plen, label, rd):
         # Generate BGP route and advertise it...
 
-        assert(plen == 32)
+        if ip_prefix:
+            assert(plen == 32)
 
         if self._vxlan_dp_driver():
             mpls_label_field = exa.Labels([], raw_labels=[self.instance_label])
@@ -161,7 +162,7 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         nlri = exa.EVPNMAC(
             rd, exa.ESI(), exa.EthernetTag(), exa.MAC(mac_address), 6*8,
             mpls_label_field,
-            exa.IP.create(ip_prefix), None,
+            exa.IP.create(ip_prefix) if ip_prefix else None, None,
             exa.IP.create(self.dp_driver.get_local_address()))
 
         return engine.RouteEntry(nlri)

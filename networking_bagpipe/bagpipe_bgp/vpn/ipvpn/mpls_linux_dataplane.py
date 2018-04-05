@@ -171,12 +171,12 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
         # FIXME: that would need to be per vif port
         # Retrieve broadcast IP address
         broadcast_ip = str(netaddr.IPNetwork("%s/%s" % (self.gateway_ip,
-                                                        self.mask)
+                                                        self.network_plen)
                                              ).broadcast)
 
         try:
             ipr.addr('add', index=self.ip.interfaces[interface].index,
-                     address=self.gateway_ip, mask=self.mask,
+                     address=self.gateway_ip, mask=self.network_plen,
                      broadcast=broadcast_ip)
         except netlink.exceptions.NetlinkError as x:
             if x.code == errno.EEXIST:
@@ -230,11 +230,11 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
         # Unconfigure gateway address on this port
         # FIXME: that would need to be per vif port
         # Retrieve broadcast IP address
-        ip = netaddr.IPNetwork("%s/%s" % (self.gateway_ip, self.mask))
+        ip = netaddr.IPNetwork("%s/%s" % (self.gateway_ip, self.network_plen))
         broadcast_ip = str(ip.broadcast)
 
         ipr.addr('del', index=self.ip.interfaces[interface].index,
-                 address=self.gateway_ip, mask=self.mask,
+                 address=self.gateway_ip, mask=self.network_plen,
                  broadcast=broadcast_ip)
 
         with self.ip.routes.tables['mpls'][label] as r:

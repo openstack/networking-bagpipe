@@ -163,7 +163,6 @@ class TestVPNInstanceAPIChecks(testtools.TestCase):
         method = vpn_instance.VPNInstance.validate_convert_attach_params
         self._test_validate_convert_missing(method, 'vpn_instance_id')
         self._test_validate_convert_missing(method, 'mac_address')
-        self._test_validate_convert_missing(method, 'ip_address')
         self._test_validate_convert_missing(method, 'local_port')
         self._test_validate_convert_missing(method, 'import_rt')
         self._test_validate_convert_missing(method, 'export_rt')
@@ -172,7 +171,6 @@ class TestVPNInstanceAPIChecks(testtools.TestCase):
         method = vpn_instance.VPNInstance.validate_convert_detach_params
         self._test_validate_convert_missing(method, 'vpn_instance_id')
         self._test_validate_convert_missing(method, 'mac_address')
-        self._test_validate_convert_missing(method, 'ip_address')
         self._test_validate_convert_missing(method, 'local_port')
 
     def test_api_internal_translation(self):
@@ -216,6 +214,22 @@ class TestVPNInstanceAPIChecks(testtools.TestCase):
         params['direction'] = 'floop'
         self.assertRaises(
             exc.APIException,
+            vpn_instance.VPNInstance.validate_convert_attach_params,
+            params)
+
+    def test_mac_address_bogus(self):
+        params = api_params()
+        params['mac_address'] = 'gg:gg:gg:gg:gg:gg'
+        self.assertRaises(
+            exc.MalformedMACAddress,
+            vpn_instance.VPNInstance.validate_convert_attach_params,
+            params)
+
+    def test_ip_address_bogus(self):
+        params = api_params()
+        params['ip_address'] = '257.303.1.'
+        self.assertRaises(
+            exc.MalformedIPAddress,
             vpn_instance.VPNInstance.validate_convert_attach_params,
             params)
 
@@ -336,9 +350,9 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
                 endpoint,
                 self.vpn.localport_2_endpoints[localport['linuxif']])
 
-    def validate_convert_params_duplicate_rts(self):
+    def test_validate_convert_params_duplicate_rts(self):
         test_params = {'vpn_instance_id': 'foo',
-                       'mac_address': 'foo',
+                       'mac_address': 'aa:bb:cc:dd:ee:ff',
                        'ip_address': '1.2.3.4',
                        'local_port': 'foo',
                        'import_rt': ['64512:1', '64512:1'],
@@ -355,7 +369,6 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
 
         self.vpn.dataplane.vif_plugged.assert_called_once()
-        self.vpn._advertise_route.assert_called_once()
 
         self._validate_ip_address_2_mac_address_consistency(MAC1, IP1)
         self._chk_mac_2_localport_data_consistency(MAC1, LOCAL_PORT1)
@@ -963,6 +976,20 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
             flow_nlri.add(rule)
 
         return flow_nlri
+
+    def test_validate_convert_attach(self):
+        params = api_params()
+        params.pop('ip_address')
+        self.assertRaises(exc.APIMissingParameterException,
+                          ipvpn.VRF.validate_convert_attach_params,
+                          params)
+
+    def test_validate_convert_detach(self):
+        params = api_params()
+        params.pop('ip_address')
+        self.assertRaises(exc.APIMissingParameterException,
+                          ipvpn.VRF.validate_convert_detach_params,
+                          params)
 
     # unit test for IPVPN re-advertisement
     def test_re_advertisement_1(self):

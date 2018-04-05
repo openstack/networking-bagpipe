@@ -19,11 +19,9 @@
 class RemotePEMACAddressNotFound(Exception):
 
     def __init__(self, ip_address):
-        self.message = ("MAC address for %s could not be found. CAUTION:"
-                        " Need direct MPLS/Eth connection" % ip_address)
-
-    def __str__(self):
-        return repr(self.message)
+        super(RemotePEMACAddressNotFound, self).__init__(
+            "MAC address for %s could not be found. CAUTION:"
+            " Need direct MPLS/Eth connection" % ip_address)
 
 
 class APIException(Exception):
@@ -33,43 +31,38 @@ class APIException(Exception):
 class VPNNotFound(APIException):
 
     def __init__(self, vrf_id):
-        self.message = "VPN %s could not be found" % vrf_id
+        super(VPNNotFound, self).__init__("VPN %s could not be found" % vrf_id)
 
-    def __str__(self):
-        return repr(self.message)
+
+class MalformedMACAddress(APIException):
+
+    def __init__(self, address):
+        super(MalformedMACAddress, self).__init__(
+            "MAC address %s is not valid" % address)
 
 
 class MalformedIPAddress(APIException):
 
-    def __init__(self, ip_address):
-        self.message = "Address %s doesn't look valid" % ip_address
-
-    def __str__(self):
-        return repr(self.message)
+    def __init__(self, address):
+        super(MalformedIPAddress, self).__init__(
+            "IP address %s is not valid" % address)
 
 
 class OVSBridgeNotFound(APIException):
 
     def __init__(self, bridge):
-        self.message = "OVS bridge '%s' doesn't exist" % bridge
-
-    def __str__(self):
-        return str(self.message)
+        super(OVSBridgeNotFound, self).__init__(
+            "OVS bridge '%s' doesn't exist" % bridge)
 
 
 class OVSBridgePortNotFound(APIException):
 
     def __init__(self, interface, bridge):
-        self.message = ("OVS Port %s doesn't exist on OVS Bridge %s" %
-                        (interface, bridge))
-
-    def __str__(self):
-        return repr(self.message)
+        super(OVSBridgePortNotFound, self).__init__(
+            "OVS Port %s doesn't exist on OVS Bridge %s" % (interface, bridge))
 
 
 class APIMissingParameterException(APIException):
     def __init__(self, parameter):
-        self.message = "Missing parameter: '%s'" % parameter
-
-    def __str__(self):
-        return self.message
+        super(APIMissingParameterException, self).__init__(
+            "Missing parameter: '%s'" % parameter)

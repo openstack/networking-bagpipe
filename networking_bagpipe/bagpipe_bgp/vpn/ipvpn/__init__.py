@@ -85,6 +85,12 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
             return self.dataplane.needs_cleanup_assist()
 
     @classmethod
+    def validate_convert_params(cls, params, also_mandatory=()):
+        return super(VRF, cls).validate_convert_params(
+            params,
+            also_mandatory=tuple(set(also_mandatory) | set(['ip_address'])))
+
+    @classmethod
     def validate_convert_attach_params(cls, params):
         super(VRF, cls).validate_convert_attach_params(params)
         if 'gateway_ip' not in params:

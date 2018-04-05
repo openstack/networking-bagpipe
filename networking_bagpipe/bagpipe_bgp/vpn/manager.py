@@ -308,6 +308,7 @@ class VPNManager(lg.LookingGlassMixin):
         vni = params.get('vni')
 
         ip_address_prefix = params.get('ip_address_prefix')
+        ip_address_plen = params.get('ip_address_plen')
 
         # Convert route target string to RouteTarget dictionary
         import_rts = utils.convert_route_targets(import_rts)
@@ -329,9 +330,6 @@ class VPNManager(lg.LookingGlassMixin):
             except KeyError as e:
                 raise Exception("Wrong 'attract_traffic' parameters: %s" % e)
 
-        # retrieve network mask
-        mask = int(ip_address_prefix.split('/')[1])
-
         kwargs = {}
         if vni:
             kwargs['vni'] = vni
@@ -340,7 +338,8 @@ class VPNManager(lg.LookingGlassMixin):
 
         vpn_instance, started = self._get_vpn_instance(
             external_instance_id, instance_type, import_rts, export_rts,
-            gateway_ip, mask, readvertise, attract_traffic, fallback, **kwargs)
+            gateway_ip, ip_address_plen, readvertise, attract_traffic,
+            fallback, **kwargs)
 
         vpn_instance.description = params.get('instance_description')
 
