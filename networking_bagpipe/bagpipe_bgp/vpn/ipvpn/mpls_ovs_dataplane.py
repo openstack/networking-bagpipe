@@ -647,12 +647,15 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
             lb_flows.extend(self._get_lb_flows_to_del(prefix))
 
-            self._lb_endpoints[prefix].remove(
-                {'label': label,
-                 'remote_pe': remote_pe,
-                 'encaps': encaps,
-                 'lb_consistent_hash_order': lb_consistent_hash_order}
-            )
+            try:
+                self._lb_endpoints[prefix].remove(
+                    {'label': label,
+                     'remote_pe': remote_pe,
+                     'encaps': encaps,
+                     'lb_consistent_hash_order': lb_consistent_hash_order}
+                )
+            except ValueError:
+                pass
 
             lb_flows.append(self._get_lb_multipath_flow_mod(prefix))
 
