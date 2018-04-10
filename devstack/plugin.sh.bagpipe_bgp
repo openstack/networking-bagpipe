@@ -55,7 +55,7 @@ function configure_bagpipe {
 	sudo chown root:root $TEMPFILE
 	sudo mv $TEMPFILE /etc/sudoers.d/bagpipe-rootwrap
 
-	if is_service_enabled b-bgp; then
+	if is_service_enabled neutron-bagpipe-bgp; then
 		# build the config file from scratch
 		create_bagpipe_conf
 	fi
@@ -87,9 +87,7 @@ function create_bagpipe_conf {
 	iniset $BAGPIPE_CONF common root_helper "$BAGPIPE_BGP_RW_COMMAND"
 	iniset $BAGPIPE_CONF common root_helper_daemon "$BAGPIPE_BGP_RW_DAEMON_COMMAND"
 
-	if [ "$LOG_COLOR" == "True" ] && [ "$SYSLOG" == "False" ]; then
-		setup_colorized_logging $BAGPIPE_CONF DEFAULT
-	fi
+	setup_logging $BAGPIPE_CONF
 }
 
 # Initialize databases, etc.
@@ -170,22 +168,22 @@ EOF
 
 # Start the BGP component
 function start_bagpipe_bgp {
-	if is_service_enabled b-bgp ; then
-		run_process b-bgp "${NEUTRON_BIN_DIR}/bagpipe-bgp"
+	if is_service_enabled neutron-bagpipe-bgp ; then
+		run_process neutron-bagpipe-bgp "${NEUTRON_BIN_DIR}/bagpipe-bgp"
 
-		run_process b-bgp-looking-glass "/bin/sh -c 'while true; do date ; sleep 10; bagpipe-looking-glass -r vpns instances ; echo --------------------------------------------------; done'"
+		run_process neutron-bagpipe-bgp-lg "/bin/sh -c 'while true; do date ; sleep 10; bagpipe-looking-glass -r vpns instances ; echo --------------------------------------------------; done'"
 
 		echo "Waiting for bagpipe-bgp to start..."
 		if ! wait_for_service $SERVICE_TIMEOUT http://$BAGPIPE_SERVICE_HOST:$BAGPIPE_SERVICE_PORT; then
-				die $LINENO "bagpipe-bgp did not start"
+			die $LINENO "bagpipe-bgp did not start"
 		fi
 	fi
 }
 
 # Start the FakeRR component
 function start_bagpipe_fakerr {
-	if is_service_enabled b-fakerr ; then
-		run_process b-fakerr "echo 'from networking_bagpipe.bagpipe_bgp.fakerr import application' | sudo twistd -n -y /dev/stdin"
+	if is_service_enabled neutron-bagpipe-fakerr ; then
+		run_process neutron-bagpipe-fakerr "echo 'from networking_bagpipe.bagpipe_bgp.fakerr import application' | sudo twistd -n -y /dev/stdin"
 	fi
 }
 
@@ -195,11 +193,11 @@ function start_bagpipe {
 }
 
 function stop_bagpipe_bgp {
-	stop_process b-bgp
+	stop_process neutron-bagpipe-bgp
 }
 
 function stop_bagpipe_fakerr {
-	stop_process b-fakerr
+	stop_process neutron-bagpipe-fakerr
 }
 
 # Stop running processes
@@ -211,7 +209,7 @@ function stop_bagpipe {
 # Remove residual data files, anything left over from previous runs that a
 # clean run would need to clean up
 function cleanup_bagpipe {
-	if is_service_enabled b-bgp ; then
+	if is_service_enabled neutron-bagpipe-bgp ; then
 		sudo bagpipe-bgp-cleanup
 
 		MPLS_IFACE_IP=`ip addr show $BAGPIPE_INTERNAL_PORT | grep 'inet ' | awk '{ print $2 }'`
