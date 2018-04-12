@@ -15,8 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
-
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -50,7 +48,10 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         # OpenFlow 1.3 is needed for mod_vlan_vid
         self.bridge.use_at_least_protocol(ovs_const.OPENFLOW13)
 
-        self.tunnel_mgr = self.driver.tunnel_mgr
+        self.tunnel_mgr = dataplane_utils.ObjectLifecycleManagerProxy(
+            self.driver.tunnel_mgr,
+            self.instance_id
+        )
         self.flooding_ports = set()
         self.vlan = None
         self.local_ip = self.driver.get_local_address()
@@ -92,9 +93,6 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         return "load:0->NXM_OF_IN_PORT[],set_tunnel:%d,resubmit(,%s)" % (
             vni, ovs_const.VXLAN_TUN_TO_LV)
 
-    def _tun_mgr_handle(self, vni, mac):
-        return (self.instance_id, vni, mac)
-
     @log_decorator.log_info
     def setup_dataplane_for_remote_endpoint(self, prefix, remote_pe, vni, nlri,
                                             encaps):
@@ -107,8 +105,7 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         if remote_pe == self.local_ip:
             actions = self._local_vni_actions(vni)
         else:
-            port = self.tunnel_mgr.tunnel_for_remote_ip(
-                remote_pe, self._tun_mgr_handle(vni, mac))
+            port = self.tunnel_mgr.get_object(remote_pe, (vni, mac))
             actions = "set_tunnel:%d,output:%s" % (vni, port)
         self.bridge.add_flow(table=ovs_const.UCAST_TO_TUN,
                              priority=FLOW_PRIORITY,
@@ -129,8 +126,7 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         self.bridge.delete_unicast_to_tun(self.vlan, mac)
 
         if remote_pe != self.local_ip:
-            self.tunnel_mgr.free_tunnel(remote_pe,
-                                        self._tun_mgr_handle(vni, mac))
+            self.tunnel_mgr.free_object(remote_pe, (vni, mac))
 
         # cleanup ARP responder
         if ip:
@@ -142,8 +138,7 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         if remote_pe == self.local_ip:
             port = "local"
         else:
-            port = self.tunnel_mgr.tunnel_for_remote_ip(
-                remote_pe, self._tun_mgr_handle(vni, FLOOD))
+            port = self.tunnel_mgr.get_object(remote_pe, (vni, FLOOD))
         self.flooding_ports.add((port, vni))
 
         self._update_flooding_buckets()
@@ -154,15 +149,15 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         if remote_pe == self.local_ip:
             port = "local"
         else:
-            port = self.tunnel_mgr.tunnel_for_remote_ip(remote_pe)
+            port = self.tunnel_mgr.get_object(remote_pe)
 
-        self.flooding_ports.remove((port, vni))
+        if port:
+            self.flooding_ports.remove((port, vni))
 
-        self._update_flooding_buckets()
+            self._update_flooding_buckets()
 
-        if remote_pe != self.local_ip:
-            self.tunnel_mgr.free_tunnel(
-                remote_pe, self._tun_mgr_handle(vni, FLOOD))
+            if remote_pe != self.local_ip:
+                self.tunnel_mgr.free_object(remote_pe, (vni, FLOOD))
 
     def _update_flooding_buckets(self):
         buckets = []
@@ -202,61 +197,31 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         }
 
 
-class TunnelManager(object):
+class TunnelManager(dataplane_utils.ObjectLifecycleManager):
 
     def __init__(self, bridge, local_ip):
-        self.tunnels = dict()
+        super(TunnelManager, self).__init__()
+
         self.bridge = bridge
         self.local_ip = local_ip
-        self.tunnel_used_for = collections.defaultdict(set)
 
     @log_decorator.log_info
-    def tunnel_for_remote_ip(self, remote_ip, use=None):
-        tunnel = self.tunnels.get(remote_ip)
-        if tunnel:
-            LOG.debug("existing tunnel for %s: %s", remote_ip, tunnel)
-        else:
-            if not use:
-                raise Exception("non-existing tunnel for %s", remote_ip)
+    def create_object(self, remote_ip):
+        port_name = ovs_neutron_agent.OVSNeutronAgent.get_tunnel_name(
+            n_consts.TYPE_VXLAN, self.local_ip, remote_ip)
+        tunnel = self.bridge.add_tunnel_port(port_name,
+                                             remote_ip,
+                                             self.local_ip,
+                                             n_consts.TYPE_VXLAN)
 
-            port_name = ovs_neutron_agent.OVSNeutronAgent.get_tunnel_name(
-                n_consts.TYPE_VXLAN, self.local_ip, remote_ip)
-            tunnel = self.bridge.add_tunnel_port(port_name,
-                                                 remote_ip,
-                                                 self.local_ip,
-                                                 n_consts.TYPE_VXLAN)
-
-            self.bridge.setup_tunnel_port(n_consts.TYPE_VXLAN, tunnel)
-            self.tunnels[remote_ip] = tunnel
-            LOG.debug("tunnel for %s: %s (%s)", remote_ip, port_name, tunnel)
-
-        if use:
-            self.tunnel_used_for[remote_ip].add(use)
+        self.bridge.setup_tunnel_port(n_consts.TYPE_VXLAN, tunnel)
+        LOG.debug("tunnel for %s: %s (%s)", remote_ip, port_name, tunnel)
 
         return tunnel
 
     @log_decorator.log_info
-    def free_tunnel(self, remote_ip, use):
-        if remote_ip not in self.tunnel_used_for:
-            LOG.debug("no tunnel to free for %s", remote_ip)
-            return
-
-        self.tunnel_used_for[remote_ip].discard(use)
-        if not self.tunnel_used_for[remote_ip]:
-            tunnel = self.tunnels[remote_ip]
-
-            LOG.debug("%s was last user for %s, clearing port", use,
-                      remote_ip)
-            self.bridge.delete_port(tunnel)
-
-            del self.tunnels[remote_ip]
-            del self.tunnel_used_for[remote_ip]
-        else:
-            LOG.debug("remaining users for tunnel %s: %s", remote_ip,
-                      self.tunnel_used_for[remote_ip])
-
-    def infos(self):
-        return self.tunnels
+    def delete_object(self, tunnel):
+        self.bridge.delete_port(tunnel)
 
 
 class OVSDataplaneDriver(dp_drivers.DataplaneDriver):

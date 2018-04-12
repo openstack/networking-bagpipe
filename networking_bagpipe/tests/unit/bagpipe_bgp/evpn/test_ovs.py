@@ -42,7 +42,7 @@ class TestTunnelManager(t.TestCase):
         self.manager = ovs.TunnelManager(self.bridge, LOCAL_IP)
 
     def test_get_tunnel(self):
-        t1 = self.manager.tunnel_for_remote_ip("2.2.2.2", "A")
+        t1 = self.manager.get_object("2.2.2.2", "A")
         self.bridge.add_tunnel_port.assert_called_once_with(mock.ANY,
                                                             "2.2.2.2",
                                                             LOCAL_IP,
@@ -52,7 +52,7 @@ class TestTunnelManager(t.TestCase):
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.setup_tunnel_port.reset_mock()
 
-        t2 = self.manager.tunnel_for_remote_ip("2.2.2.2", "B")
+        t2 = self.manager.get_object("2.2.2.2", "B")
         self.bridge.add_tunnel_port.assert_not_called()
         self.bridge.setup_tunnel_port.assert_not_called()
 
@@ -61,7 +61,7 @@ class TestTunnelManager(t.TestCase):
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.setup_tunnel_port.reset_mock()
 
-        t3 = self.manager.tunnel_for_remote_ip("3.3.3.3", "A")
+        t3 = self.manager.get_object("3.3.3.3", "A")
         self.bridge.add_tunnel_port.assert_called_once()
         self.bridge.setup_tunnel_port.assert_called_once()
 
@@ -69,32 +69,32 @@ class TestTunnelManager(t.TestCase):
 
         self.assertTrue(len(self.manager.infos()))
 
-    def test_free_tunnel(self):
-        t1 = self.manager.tunnel_for_remote_ip("2.2.2.2", "A")
-        self.manager.tunnel_for_remote_ip("2.2.2.2", "B")
-        t2 = self.manager.tunnel_for_remote_ip("3.3.3.3", "A")
+    def test_free_object(self):
+        t1 = self.manager.get_object("2.2.2.2", "A")
+        self.manager.get_object("2.2.2.2", "B")
+        t2 = self.manager.get_object("3.3.3.3", "A")
 
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.delete_port.reset_mock()
         self.bridge.setup_tunnel_port.reset_mock()
 
-        self.manager.free_tunnel("2.2.2.2", "A")
+        self.manager.free_object("2.2.2.2", "A")
         self.bridge.delete_port.assert_not_called()
-        t1bis = self.manager.tunnel_for_remote_ip("2.2.2.2")
+        t1bis = self.manager.get_object("2.2.2.2")
         self.assertTrue(t1bis == t1)
 
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.delete_port.reset_mock()
         self.bridge.setup_tunnel_port.reset_mock()
 
-        self.manager.free_tunnel("2.2.2.2", "B")
+        self.manager.free_object("2.2.2.2", "B")
         self.bridge.delete_port.assert_called_once_with(t1)
 
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.delete_port.reset_mock()
         self.bridge.setup_tunnel_port.reset_mock()
 
-        self.manager.free_tunnel("3.3.3.3", "A")
+        self.manager.free_object("3.3.3.3", "A")
         self.bridge.delete_port.assert_called_once_with(t2)
 
 
@@ -142,14 +142,14 @@ class TestOVSEVIDataplane(t.TestCase):
         self.dataplane.setup_dataplane_for_remote_endpoint(
             MAC1, LOCAL_IP, 42, FakeNLRI("11.0.0.1"), None)
 
-        self.tunnel_mgr.tunnel_for_remote_ip.assert_not_called()
+        self.tunnel_mgr.get_object.assert_not_called()
 
     def test_setup_dataplane_for_remote_endpoint(self):
         self.dataplane.setup_dataplane_for_remote_endpoint(
             MAC1, "2.2.2.2", 42, FakeNLRI("11.0.0.1"), None)
 
-        self.tunnel_mgr.tunnel_for_remote_ip.assert_called_once_with(
-            "2.2.2.2", (77, 42, MAC1))
+        self.tunnel_mgr.get_object.assert_called_once_with(
+            "2.2.2.2", (77, (42, MAC1)))
 
         self.bridge.add_flow.assert_called_with(
             table=ovs_const.UCAST_TO_TUN,
@@ -164,7 +164,7 @@ class TestOVSEVIDataplane(t.TestCase):
 
         self.bridge.delete_unicast_to_tun.assert_called_with(self.vlan, MAC1)
 
-        self.tunnel_mgr.free_tunnel.assert_not_called()
+        self.tunnel_mgr.free_object.assert_not_called()
 
     def test_remove_dataplane_for_remote_endpoint(self):
         self.dataplane.remove_dataplane_for_remote_endpoint(
@@ -172,37 +172,37 @@ class TestOVSEVIDataplane(t.TestCase):
 
         self.bridge.delete_unicast_to_tun.assert_called_with(self.vlan, MAC1)
 
-        self.tunnel_mgr.free_tunnel.assert_called_with(
-            "2.2.2.2", (77, 42, MAC1))
+        self.tunnel_mgr.free_object.assert_called_with(
+            "2.2.2.2", (77, (42, MAC1)))
 
     def test_add_dataplane_for_bum_endpoint__local(self):
         self.dataplane.add_dataplane_for_bum_endpoint(LOCAL_IP, 45,
                                                       None, None)
 
-        self.tunnel_mgr.tunnel_for_remote_ip.assert_not_called()
+        self.tunnel_mgr.get_object.assert_not_called()
 
     def test_add_dataplane_for_bum_endpoint(self):
         self.dataplane.add_dataplane_for_bum_endpoint("2.2.2.2", 45,
                                                       None, None)
 
-        self.tunnel_mgr.tunnel_for_remote_ip.assert_called_with(
-            "2.2.2.2", (77, 45, "flood"))
+        self.tunnel_mgr.get_object.assert_called_with(
+            "2.2.2.2", (77, (45, "flood")))
 
     def test_remove_dataplane_for_bum_endpoint__local(self):
         self.dataplane.add_dataplane_for_bum_endpoint(LOCAL_IP, 45,
                                                       None, None)
-        self.tunnel_mgr.free_tunnel.reset_mock()
+        self.tunnel_mgr.free_object.reset_mock()
 
         self.dataplane.remove_dataplane_for_bum_endpoint(LOCAL_IP, 45, None)
 
-        self.tunnel_mgr.free_tunnel.assert_not_called()
+        self.tunnel_mgr.free_object.assert_not_called()
 
     def test_remove_dataplane_for_bum_endpoint(self):
         self.dataplane.add_dataplane_for_bum_endpoint("2.2.2.2", 45,
                                                       None, None)
-        self.tunnel_mgr.free_tunnel.reset_mock()
+        self.tunnel_mgr.free_object.reset_mock()
 
         self.dataplane.remove_dataplane_for_bum_endpoint("2.2.2.2", 45, None)
 
-        self.tunnel_mgr.free_tunnel.assert_called_with(
-            "2.2.2.2", (77, 45, "flood"))
+        self.tunnel_mgr.free_object.assert_called_with(
+            "2.2.2.2", (77, (45, "flood")))
