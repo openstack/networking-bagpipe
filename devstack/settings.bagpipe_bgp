@@ -10,4 +10,9 @@ BAGPIPE_MPLS_IFACE=${BAGPIPE_MPLS_IFACE:-}
 BAGPIPE_MPLS_BR=${BAGPIPE_MPLS_BR:-br-mpls}
 BAGPIPE_INTERNAL_PORT=bagpipe
 
+# backward compatibility with old-style service name
+if is_service_enabled b-bgp ; then
+    enable_service neutron-bagpipe-bgp
+fi
+
 GOBGP_RELEASE=https://github.com/osrg/gobgp/releases/download/v1.24/gobgp_1.24_linux_amd64.tar.gz
