@@ -15,6 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
+import collections
+
+from oslo_log import log as logging
+
 from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 
@@ -23,6 +28,8 @@ from neutron.plugins.ml2.drivers.openvswitch.agent.common import \
     constants as ovs_const
 
 from neutron_lib import exceptions
+
+LOG = logging.getLogger(__name__)
 
 
 # largely copied from networking_sfc.services.sfc.common.ovs_ext_lib
@@ -106,3 +113,81 @@ def _build_group_expr_str(group_dict, cmd):
         group_expr_arr.append(buckets)
 
     return ','.join(group_expr_arr)
+
+
+class ObjectLifecycleManager(object):
+
+    def __init__(self):
+        self.objects = dict()
+        self.object_used_for = collections.defaultdict(set)
+
+    @abc.abstractmethod
+    def create_object(self, object_key):
+        pass
+
+    @abc.abstractmethod
+    def delete_object(self, object):
+        pass
+
+    @log_decorator.log_info
+    def get_object(self, object_key, user_key=None):
+        obj = self.objects.get(object_key)
+        if obj:
+            LOG.debug("existing object for %s: %s", object_key, obj)
+        else:
+            if not user_key:
+                return None
+
+            obj = self.create_object(object_key)
+            self.objects[object_key] = obj
+            LOG.debug("object for %s: %s", object_key, obj)
+
+        if user_key:
+            self.object_used_for[object_key].add(user_key)
+
+        return obj
+
+    @log_decorator.log_info
+    def free_object(self, object_key, user_key):
+        if object_key not in self.object_used_for:
+            LOG.debug("no object to free for %s", object_key)
+            return
+
+        self.object_used_for[object_key].discard(user_key)
+        if not self.object_used_for[object_key]:
+            obj = self.objects[object_key]
+
+            LOG.debug("%s was last user for %s, clearing", user_key,
+                      object_key)
+            self.delete_object(obj)
+
+            del self.objects[object_key]
+            del self.object_used_for[object_key]
+        else:
+            LOG.debug("remaining users for object %s: %s", object_key,
+                      self.object_used_for[object_key])
+
+    def infos(self):
+        return self.objects
+
+
+class ObjectLifecycleManagerProxy(object):
+
+    def __init__(self, manager, parent_user):
+        self.manager = manager
+        self.parent_user = parent_user
+
+    def get_object(self, object_key, user_key=None):
+        if user_key:
+            return self.manager.get_object(object_key,
+                                           (self.parent_user, user_key))
+        else:
+            return self.manager.get_object(object_key)
+
+    def free_object(self, object_key, user_key):
+        if user_key:
+            return self.manager.free_object(object_key,
+                                            (self.parent_user, user_key))
+
+    def infos(self):
+        return self.manager.infos()
