@@ -160,10 +160,13 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
     def _is_if_on_bridge(self, ifname):
         with pyroute2.IPDB(plugins=('interfaces',)) as ipdb:
-            for port_id in ipdb.interfaces[self.bridge_name].ports:
-                port = ipdb.interfaces[port_id]
-                if port.ifname == ifname:
-                    return True
+            try:
+                for port_id in ipdb.interfaces[self.bridge_name].ports:
+                    port = ipdb.interfaces[port_id]
+                    if port.ifname == ifname:
+                        return True
+            except KeyError:
+                return False
         return False
 
     def _is_vxlan_if_on_bridge(self):
