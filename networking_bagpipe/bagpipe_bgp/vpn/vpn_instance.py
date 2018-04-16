@@ -269,13 +269,10 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         tracker_worker.TrackerWorker.__init__(
             self,
-            self.manager.bgp_manager, "%s-%d" % (self.instance_type,
-                                                 self.instance_id),
+            self.manager.bgp_manager, repr(self),
             compare_routes)
 
-        lg.LookingGlassLocalLogger.__init__(self,
-                                            "%s-%d" % (self.instance_type,
-                                                       self.instance_id))
+        lg.LookingGlassLocalLogger.__init__(self, repr(self))
         self.lock = threading.RLock()
 
         self.import_rts = import_rts
@@ -296,13 +293,11 @@ class VPNInstance(tracker_worker.TrackerWorker,
             self.forced_vni = True
         else:
             self.instance_label = self.manager.label_allocator.get_new_label(
-                "Incoming traffic for %s %d" % (self.instance_type,
-                                                self.instance_id))
+                "Incoming traffic for %s" % self)
             self.forced_vni = False
 
         self.instance_rd = self.manager.rd_allocator.get_new_rd(
-            "Default route distinguisher for %s %d" % (self.instance_type,
-                                                       self.instance_id))
+            "Default route distinguisher for %s" % self)
 
         self.localport_data = dict()
 
@@ -409,6 +404,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
     def needs_cleanup_assist(self, afi, safi):
         return self.dataplane.needs_cleanup_assist()
 
+    def __repr__(self):
+        return "%s-%s" % (self.instance_type, self.instance_id)
+
     @utils.synchronized
     @log_decorator.log
     def stop(self):
@@ -457,10 +455,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
         added_import_rt = set(new_import_rts) - set(self.import_rts)
         removed_import_rt = set(self.import_rts) - set(new_import_rts)
 
-        self.log.debug("%s %d - Added Import RTs: %s",
-                       self.instance_type, self.instance_id, added_import_rt)
-        self.log.debug("%s %d - Removed Import RTs: %s",
-                       self.instance_type, self.instance_id, removed_import_rt)
+        self.log.debug("Added Import RTs: %s", added_import_rt)
+        self.log.debug("Removed Import RTs: %s", removed_import_rt)
 
         # Unregister from BGP with these route targets
         for rt in removed_import_rt:
@@ -750,9 +746,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
             pdata = self.mac_2_localport_data.get(mac_address, dict())
             if not pdata:
                 pdata['label'] = self.manager.label_allocator.get_new_label(
-                    "Incoming traffic for %s %d, interface %s"
-                    ", endpoint %s" %
-                    (self.instance_type, self.instance_id, linuxif, endpoint)
+                    "Incoming traffic for %s, interface %s, endpoint %s" %
+                    (self, linuxif, endpoint)
                 )
                 pdata["port_info"] = localport
                 pdata["lb_consistent_hash_order"] = lb_consistent_hash_order
@@ -769,17 +764,14 @@ class VPNInstance(tracker_worker.TrackerWorker,
             if forward_to_port(direction):
                 endpoint_rd = self._rd_for_endpoint(
                     endpoint,
-                    "Route distinguisher for %s %d, interface %s, "
-                    "endpoint %s/%s" % (self.instance_type, self.instance_id,
-                                        linuxif, mac_address,
-                                        ip_address_prefix)
+                    "Route distinguisher for %s, interface %s, "
+                    "endpoint %s" % (self, linuxif, endpoint)
                 )
 
                 rd = self.instance_rd if plen == 32 else endpoint_rd
 
                 self.log.info("Synthesizing and advertising BGP route for VIF "
-                              "%s endpoint (%s, %s/%s)", linuxif,
-                              mac_address, ip_prefix, plen)
+                              "%s endpoint %s", linuxif, endpoint)
                 route_entry = self.synthesize_vif_bgp_route(
                     mac_address, ip_prefix, plen,
                     pdata['label'], lb_consistent_hash_order, rd, local_pref)
@@ -893,9 +885,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
             del self.endpoint_2_desc[endpoint]
         else:
-            self.log.error("vif_unplugged called for endpoint {%s, %s}, but"
-                           " port data is incomplete", mac_address,
-                           ip_address_prefix)
+            self.log.error("vif_unplugged called for endpoint %s, but"
+                           " port data is incomplete", endpoint)
             raise Exception("bagpipe-bgp bug, check its logs")
 
         self.log.info("localport_2_endpoints: %s", self.localport_2_endpoints)
