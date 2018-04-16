@@ -700,7 +700,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
             return (None, None, refresh_only)
 
         if not advertise_subnet and plen != 32:
-            self.log.debug("Using /32 instead of /%d", plen)
+            self.log.debug("Using /32 instead of /%s", plen)
             plen = 32
 
         # - Verify (MAC address, IP address) tuple consistency
@@ -778,7 +778,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
                 rd = self.instance_rd if plen == 32 else endpoint_rd
 
                 self.log.info("Synthesizing and advertising BGP route for VIF "
-                              "%s endpoint (%s, %s/%d)", linuxif,
+                              "%s endpoint (%s, %s/%s)", linuxif,
                               mac_address, ip_prefix, plen)
                 route_entry = self.synthesize_vif_bgp_route(
                     mac_address, ip_prefix, plen,
