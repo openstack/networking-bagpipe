@@ -111,20 +111,8 @@ class TestBaGPipeAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.EVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
             self.assertDictEqual(
-                dict(
-                    network_id=base.NETWORK1['id'],
-                    evpn=[dict(
-                        ip_address=base.PORT10['ip_address'],
-                        mac_address=base.PORT10['mac_address'],
-                        local_port=local_port['local_port'],
-                        linuxbr=local_port['linuxbr'],
-                        **self._rts_for_network(base.NETWORK1)
-                    )]
-                ),
+                {},
                 self.agent_ext.build_bagpipe_l2_attach_info(base.PORT10['id'])
             )
 

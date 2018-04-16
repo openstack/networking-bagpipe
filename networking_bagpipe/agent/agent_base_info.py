@@ -104,6 +104,20 @@ class PortInfo(CommonInfo):
                    for item in chain_hop.items()):
             self.chain_hops.update(chain_hop)
 
+    def update_admin_state(self, port_data, transition_to_down_hook=None):
+        if port_data['admin_state_up']:
+            self.admin_state_up = True
+        else:
+            previous_admin_state_up = self.admin_state_up
+            if previous_admin_state_up:
+                if callable(transition_to_down_hook):
+                    transition_to_down_hook()
+                self.admin_state_up = False
+            else:
+                self.admin_state_up = False
+        LOG.debug("port %s, admin_state_up is now: %s",
+                  self.id, self.admin_state_up)
+
     def __repr__(self):
         return "PortInfo(%s,%s)" % (self.id, self.admin_state_up)
 

@@ -18,6 +18,7 @@ import sys
 import eventlet
 eventlet.monkey_patch()
 
+from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_config import types
 from oslo_log import helpers as log_helpers
@@ -27,6 +28,7 @@ from networking_bagpipe.agent import agent_base_info
 from networking_bagpipe.agent import bagpipe_bgp_agent
 from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 
+from neutron.agent.linux import ip_lib
 from neutron.common import config as common_config
 from neutron.plugins.ml2.drivers.linuxbridge.agent import \
     linuxbridge_neutron_agent as lnx_agt
@@ -74,9 +76,8 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
         port_info = self.ports_info.get(port_id)
 
         if not port_info:
-            LOG.warning("build_bagpipe_l2_attach_info called on an unplugged "
-                        "port (%s)", port_id)
-            return None
+            LOG.debug("no info for port %s", port_id)
+            return {}
 
         LOG.debug("segmentation id: %s", port_info.network.segmentation_id)
 
@@ -114,6 +115,7 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
             info.update({'ip_address': port_info.ip_address})
         return info
 
+    @lockutils.synchronized('bagpipe-ml2')
     @log_helpers.log_method_call
     def handle_port(self, context, data):
         if data.get('network_type') != n_const.TYPE_VXLAN:
@@ -122,10 +124,24 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
             return
 
         port_id = data['port_id']
+
+        tap_device_name = lnx_agt.LinuxBridgeManager.get_tap_device_name(
+            port_id)
+        if not ip_lib.device_exists(tap_device_name):
+            LOG.debug('skip non-existing port %s', port_id)
+            return
+
         net_id = data['network_id']
         net_info, port_info = (
             self._get_network_port_infos(net_id, port_id)
         )
+
+        def delete_hook():
+            self._delete_port(context, {'port_id': port_info.id})
+
+        port_info.update_admin_state(data, delete_hook)
+        if not port_info.admin_state_up:
+            return
 
         port_info.mac_address = data['mac_address']
 
@@ -149,8 +165,13 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
 
         self.ports.add(port_id)
 
-    @log_helpers.log_method_call
+    @lockutils.synchronized('bagpipe-ml2')
     def delete_port(self, context, data):
+        self._delete_port(context, data)
+
+    # un-synchronized version, to be called indirectly from handle_port
+    @log_helpers.log_method_call
+    def _delete_port(self, context, data):
         port_id = data['port_id']
         port_info = self.ports_info.get(port_id)
 
@@ -159,11 +180,12 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
                 'network_id': port_info.network.id,
                 bbgp_const.EVPN: self._base_attach_info(port_info)
             }
-            self.bagpipe_bgp_agent.do_port_plug_refresh(port_id,
-                                                        detach_info)
 
             self._remove_network_port_infos(port_info.network.id, port_id)
             self.ports.remove(port_id)
+
+            self.bagpipe_bgp_agent.do_port_plug_refresh(port_id,
+                                                        detach_info)
 
 
 def main():
