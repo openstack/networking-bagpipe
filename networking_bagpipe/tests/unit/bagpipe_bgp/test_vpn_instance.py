@@ -48,9 +48,8 @@ from networking_bagpipe.bagpipe_bgp.engine import flowspec
 from networking_bagpipe.bagpipe_bgp.engine import ipvpn as ipvpn_routes
 from networking_bagpipe.bagpipe_bgp.engine import worker
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers
+from networking_bagpipe.bagpipe_bgp.vpn import identifier_allocators
 from networking_bagpipe.bagpipe_bgp.vpn import ipvpn
-from networking_bagpipe.bagpipe_bgp.vpn import label_allocator
-from networking_bagpipe.bagpipe_bgp.vpn import rd_allocator
 from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
 from networking_bagpipe.tests.unit.bagpipe_bgp import base as t
 
@@ -887,10 +886,12 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         mock_dp_driver.supported_encaps.return_value = \
             [exa.Encapsulation(exa.Encapsulation.Type.DEFAULT)]
 
-        label_alloc = label_allocator.LabelAllocator()
+        label_alloc = identifier_allocators.LabelAllocator()
         bgp_manager = mock.Mock()
         bgp_manager.get_local_address.return_value = LOCAL_ADDRESS
-        rd_alloc = rd_allocator.RDAllocator(bgp_manager.get_local_address())
+        rd_alloc = (
+            identifier_allocators.RDAllocator(bgp_manager.get_local_address())
+        )
         self.manager = mock.Mock(bgp_manager=bgp_manager,
                                  label_allocator=label_alloc,
                                  rd_allocator=rd_alloc)

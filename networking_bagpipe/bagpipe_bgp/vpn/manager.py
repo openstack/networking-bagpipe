@@ -29,9 +29,8 @@ from networking_bagpipe.bagpipe_bgp import constants
 from networking_bagpipe.bagpipe_bgp.engine import bgp_manager
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 from networking_bagpipe.bagpipe_bgp.vpn import evpn
+from networking_bagpipe.bagpipe_bgp.vpn import identifier_allocators
 from networking_bagpipe.bagpipe_bgp.vpn import ipvpn
-from networking_bagpipe.bagpipe_bgp.vpn import label_allocator
-from networking_bagpipe.bagpipe_bgp.vpn import rd_allocator
 
 from neutron_lib import exceptions
 
@@ -76,10 +75,10 @@ class VPNManager(lg.LookingGlassMixin):
         self.next_vpn_instance_id = 1
 
         LOG.debug("Creating label allocator")
-        self.label_allocator = label_allocator.LabelAllocator()
+        self.label_allocator = identifier_allocators.LabelAllocator()
 
         LOG.debug("Creating route distinguisher allocator")
-        self.rd_allocator = rd_allocator.RDAllocator(
+        self.rd_allocator = identifier_allocators.RDAllocator(
             self.bgp_manager.get_local_address())
 
         # dict containing info how an ipvpn is plugged
