@@ -16,6 +16,7 @@
 # limitations under the License.
 
 from oslo_config import cfg
+from oslo_log import log as logging
 import pyroute2
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
@@ -327,9 +328,10 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         self._fdb_dump()
 
     def _fdb_dump(self):
-        if self.log.debug:
+        if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug("bridge fdb dump: %s", self._run_command(
                 "bridge fdb show br %s" % self.bridge_name,
+                acceptable_return_codes=[0, 255],
                 run_as_root=True)[0])
 
     # Looking glass ####
