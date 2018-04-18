@@ -25,6 +25,7 @@ from six.moves import queue
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
+from networking_bagpipe.bagpipe_bgp.common import utils
 from networking_bagpipe.bagpipe_bgp import engine
 from networking_bagpipe.bagpipe_bgp.engine import bgp_peer_worker
 from networking_bagpipe.bagpipe_bgp.engine import exa
@@ -150,7 +151,8 @@ def test_should_dispatch(route_event, target_worker):
         return (True, "")
 
 
-class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
+class RouteTableManager(threading.Thread, lg.LookingGlassMixin,
+                        utils.ClassReprMixin):
     """Singleton class dispatching route events between workers
 
     Events relates to BGP routes that are announced or withdrawn by workers.
@@ -413,8 +415,8 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin):
 
             if replaced_entry == route_event.route_entry:
                 LOG.warning("Ignoring, the route advertized is the same as the"
-                            " one previously advertized by the source (%s)",
-                            route_event.source)
+                            " one previously advertized by the source %s: %s",
+                            route_event.source, route_event.route_entry)
                 return
 
             # propagate event to interested worker

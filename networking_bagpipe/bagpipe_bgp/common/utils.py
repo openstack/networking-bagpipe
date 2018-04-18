@@ -85,3 +85,9 @@ def convert_route_targets(orig_list):
         except Exception:
             raise Exception("Malformed route target: '%s'" % rt)
     return list_
+
+
+class ClassReprMixin(object):
+
+    def __repr__(self):
+        return self.__class__.__name__

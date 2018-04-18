@@ -36,7 +36,7 @@ LOG = logging.getLogger(__name__)
 RTC_SAFIS = (exa.SAFI.mpls_vpn, exa.SAFI.evpn)
 
 
-class Manager(engine.EventSource, lg.LookingGlassMixin):
+class Manager(engine.EventSource, lg.LookingGlassMixin, utils.ClassReprMixin):
 
     _instance = None
 
@@ -117,27 +117,6 @@ class Manager(engine.EventSource, lg.LookingGlassMixin):
         route_entry = engine.RouteEntry(nlri)
 
         return route_entry
-
-    @classmethod
-    @utils.oslo_synchronized('BGPManager')
-    def _create_instance(cls):
-        if not cls.has_instance():
-            cls._instance = cls()
-
-    @classmethod
-    def has_instance(cls):
-        return cls._instance is not None
-
-    @classmethod
-    def clear_instance(cls):
-        cls._instance = None
-
-    @classmethod
-    def get_instance(cls):
-        # double checked locking
-        if not cls.has_instance():
-            cls._create_instance()
-        return cls._instance
 
     # Looking Glass Functions ###################
 

@@ -90,7 +90,7 @@ def _shell_command(log, command, stdin=None):
     return (exit_code, output, error)
 
 
-def _log_output_error(log_fn, output, error):
+def _log_stdx_if(log_fn, output, error):
     if output:
         log_fn("  run_command stdout: %s", "\n   ".join(output))
     if error:
@@ -132,7 +132,7 @@ def run_command(log, command,
     error = error.splitlines()
 
     if log.isEnabledFor(logging.DEBUG):
-        _log_output_error(log.debug, output, error)
+        _log_stdx_if(log.debug, output, error)
 
     if (exit_code in acceptable_return_codes or -1 in acceptable_return_codes):
         return (output, exit_code)
@@ -141,7 +141,7 @@ def run_command(log, command,
 
         if raise_on_error:
             log.error(message)
-            _log_output_error(log.error, output, error)
+            _log_stdx_if(log.error, output, error)
             raise Exception(message)
         else:
             log.warning(message)

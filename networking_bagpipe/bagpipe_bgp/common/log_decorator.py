@@ -27,16 +27,15 @@ def log(method, level=logging.DEBUG):
     @functools.wraps(method)
     def wrapper(*args, **kwargs):
         instance = args[0]
-        data = {"class_name": "%s.%s" % (instance.__class__.__module__,
-                                         instance.__class__.__name__),
+        data = {"class_name": instance.__class__.__name__,
                 "method_name": method.__name__,
                 "args": args[1:], "kwargs": kwargs}
         if hasattr(args[0], 'log'):
             logger = args[0].log
         else:
             logger = logging.getLogger(method.__module__)
-        logger.log(level, '%(class_name)s method %(method_name)s'
-                   ' called with arguments %(args)s %(kwargs)s', data)
+        logger.log(level, 'method %(class_name)s.%(method_name)s'
+                   ' called with %(args)s %(kwargs)s', data)
         return method(*args, **kwargs)
     return wrapper
 

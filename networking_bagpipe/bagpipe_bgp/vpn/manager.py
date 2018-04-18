@@ -49,7 +49,7 @@ class MaxInstanceIDReached(exceptions.NeutronException):
     _message = "Could not create VPN instance: max instance id was reached"
 
 
-class VPNManager(lg.LookingGlassMixin):
+class VPNManager(lg.LookingGlassMixin, utils.ClassReprMixin):
     """VPN Manager
 
     Creates, and keeps track of, VPN instances (VRFs and EVIs) and passes
@@ -66,7 +66,7 @@ class VPNManager(lg.LookingGlassMixin):
     def __init__(self):
         LOG.debug("Instantiating VPN Manager...")
 
-        self.bgp_manager = bgp_manager.Manager.get_instance()
+        self.bgp_manager = bgp_manager.Manager()
 
         self.dataplane_drivers = dp_drivers.instantiate_dataplane_drivers()
 
@@ -249,7 +249,7 @@ class VPNManager(lg.LookingGlassMixin):
         # if a vni is specified, check that no VPN instance with same VNI
         # already exists...
         if 'vni' in kwargs and kwargs['vni'] in self.vpn_instance_by_vni:
-            raise exc.AlreadyUsedVNI(kwargs['vni'])
+            raise exc.APIAlreadyUsedVNI(kwargs['vni'])
 
         vpn_instance_class = VPNManager.type2class[instance_type]
         dataplane_driver = self.dataplane_drivers[instance_type]

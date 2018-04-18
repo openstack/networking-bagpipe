@@ -235,7 +235,7 @@ class TestVPNManager(t.TestCase):
                                                       vni=VNID)
         instannce.start()
 
-        self.assertRaises(exceptions.AlreadyUsedVNI,
+        self.assertRaises(exceptions.APIAlreadyUsedVNI,
                           self.manager._get_vpn_instance,
                           VPN_EXT_ID_bis,
                           consts.EVPN,

@@ -95,7 +95,7 @@ def instantiate_dataplane_drivers():
 
 
 @six.add_metaclass(abc.ABCMeta)
-class DataplaneDriver(lg.LookingGlassLocalLogger):
+class DataplaneDriver(lg.LookingGlassLocalLogger, utils.ClassReprMixin):
     '''Dataplane driver
 
     The initialisation workflow is the following:
@@ -319,7 +319,11 @@ class VPNInstanceDataplane(lg.LookingGlassLocalLogger):
         return self.driver.needs_cleanup_assist()
 
     def _run_command(self, command, run_as_root=False, *args, **kwargs):
-        return self.driver._run_command(command, run_as_root, *args, **kwargs)
+        return run_command.run_command(self.log, command, run_as_root,
+                                       *args, **kwargs)
+
+    def __repr__(self):
+        return "%s<%d>" % (self.__class__.__name__, self.instance_id)
 
     # Looking glass info ####
 

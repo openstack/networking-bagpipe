@@ -76,8 +76,7 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         self.rt_table = RT_TABLE_BASE + self.instance_id
 
-        self.log.info("VRF %d: Initializing VRF interface %s",
-                      self.instance_id, self.vrf_if)
+        self.log.info("Initializing VRF interface %s", self.vrf_if)
 
         self.flush_routes()
 

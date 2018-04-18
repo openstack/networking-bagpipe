@@ -415,7 +415,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         for afi in (self.afi,):
             for safi in (self.safi, exa.SAFI.flow_vpn):
                 if self.needs_cleanup_assist(afi, safi):
-                    self.log.debug("Dataplane driver needs cleanup assistance"
+                    self.log.debug("Dataplane driver needs cleanup assistance "
                                    "for AFI(%s)/SAFI(%s)", afi, safi)
                     self.synthesize_withdraw_all(afi, safi)
 
@@ -687,6 +687,17 @@ class VPNInstance(tracker_worker.TrackerWorker,
             self.endpoint_2_rd[endpoint] = rd
         return rd
 
+    def _raise_if_mac2ip_inconsistency(self, mac_address, ip_address_prefix):
+        if not ip_address_prefix:
+            return
+
+        if mac_address not in self.ip_address_2_mac[ip_address_prefix]:
+            raise exc.APIException(
+                "Inconsistent endpoint info: IP %s already bound to a MAC "
+                "address different from %s (%s)" %
+                (ip_address_prefix, mac_address,
+                 self.ip_address_2_mac[ip_address_prefix]))
+
     def _check_ip_mac(self, mac_address, ip_address_prefix, advertise_subnet):
         (ip_prefix, plen) = self._parse_ipaddress_prefix(ip_address_prefix)
 
@@ -702,14 +713,10 @@ class VPNInstance(tracker_worker.TrackerWorker,
         # - Verify (MAC address, IP address) tuple consistency
         refresh_only = False
         if ip_address_prefix in self.ip_address_2_mac and plen == 32:
-            if mac_address not in self.ip_address_2_mac[ip_address_prefix]:
-                raise exc.APIException("Inconsistent endpoint info: %s "
-                                       "already bound to a MAC address "
-                                       "different from %s" %
-                                       (ip_address_prefix, mac_address))
-            else:
-                LOG.debug("IP/MAC already plugged, only updating route")
-                refresh_only = True
+            self._raise_if_mac2ip_inconsistency(mac_address, ip_address_prefix)
+
+            LOG.debug("IP/MAC already plugged, only updating route")
+            refresh_only = True
 
         return ip_prefix, plen, refresh_only
 
@@ -764,8 +771,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
             if forward_to_port(direction):
                 endpoint_rd = self._rd_for_endpoint(
                     endpoint,
-                    "Route distinguisher for %s, interface %s, "
-                    "endpoint %s" % (self, linuxif, endpoint)
+                    "Route distinguisher for %s, interface %s, endpoint %s" %
+                    (self, linuxif, endpoint)
                 )
 
                 rd = self.instance_rd if plen == 32 else endpoint_rd
@@ -801,10 +808,10 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
             raise
 
-        self.log.info("localport_2_endpoints: %s", self.localport_2_endpoints)
-        self.log.info("endpoint_2_rd: %s", self.endpoint_2_rd)
-        self.log.info("mac_2_localport_data: %s", self.mac_2_localport_data)
-        self.log.info("ip_address_2_mac: %s", self.ip_address_2_mac)
+        self.log.debug("localport_2_endpoints: %s", self.localport_2_endpoints)
+        self.log.debug("endpoint_2_rd: %s", self.endpoint_2_rd)
+        self.log.debug("mac_2_localport_data: %s", self.mac_2_localport_data)
+        self.log.debug("ip_address_2_mac: %s", self.ip_address_2_mac)
 
     @utils.synchronized
     @log_decorator.log_info
@@ -814,16 +821,15 @@ class VPNInstance(tracker_worker.TrackerWorker,
         endpoint = (mac_address, ip_address_prefix)
         # Verify port and endpoint (MAC address, IP address) tuple consistency
         pdata = self.mac_2_localport_data.get(mac_address)
-        if (not pdata or
-                (ip_address_prefix in self.ip_address_2_mac and
-                 mac_address not in self.ip_address_2_mac[ip_address_prefix])
-                or endpoint not in self.endpoint_2_rd):
-            self.log.error("vif_unplugged called for endpoint (%s, %s), but "
-                           "no consistent informations or was not plugged yet",
-                           *endpoint)
-            raise exc.APIException("Inconsistent endpoint (%s, %s) info "
-                                   "or endpoint wasn't plugged yet, "
-                                   "cannot unplug" % endpoint)
+
+        if not pdata:
+            raise exc.APIException("Endpoint %s not plugged yet, can't unplug"
+                                   % (endpoint,))
+
+        self._raise_if_mac2ip_inconsistency(mac_address, ip_address_prefix)
+
+        if endpoint not in self.endpoint_2_rd:
+            raise Exception("Endpoint record missing: %s" % (endpoint,))
 
         # Finding label and local port informations
         label = pdata.get('label')
@@ -889,9 +895,10 @@ class VPNInstance(tracker_worker.TrackerWorker,
                            " port data is incomplete", endpoint)
             raise Exception("bagpipe-bgp bug, check its logs")
 
-        self.log.info("localport_2_endpoints: %s", self.localport_2_endpoints)
-        self.log.info("mac_2_localport_data: %s", self.mac_2_localport_data)
-        self.log.info("ip_address_2_mac: %s", self.ip_address_2_mac)
+        self.log.debug("localport_2_endpoints: %s", self.localport_2_endpoints)
+        self.log.debug("endpoint_2_rd: %s", self.endpoint_2_rd)
+        self.log.debug("mac_2_localport_data: %s", self.mac_2_localport_data)
+        self.log.debug("ip_address_2_mac: %s", self.ip_address_2_mac)
 
     @utils.synchronized
     def register_redirected_instance(self, instance_id):

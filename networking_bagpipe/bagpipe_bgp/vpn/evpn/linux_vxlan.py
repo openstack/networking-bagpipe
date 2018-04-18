@@ -42,8 +42,6 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                 BRIDGE_NAME_PREFIX +
                 self.external_instance_id)[:consts.LINUX_DEV_LEN]
 
-        self.log.info("EVI %d: Initializing bridge %s",
-                      self.instance_id, self.bridge_name)
         if not self._interface_exists(self.bridge_name):
             self.log.debug("Starting bridge %s", self.bridge_name)
 
