@@ -55,6 +55,7 @@ class TestBaGPipeAgentExtensionMixin(object):
                         mac_address=base.PORT10['mac_address'],
                         local_port=local_port['local_port'],
                         linuxbr=local_port['linuxbr'],
+                        vni=base.NETWORK1['segmentation_id'],
                         **self._rts_for_network(base.NETWORK1)
                     )]
                 ),
@@ -89,6 +90,7 @@ class TestBaGPipeAgentExtensionMixin(object):
                             mac_address=port['mac_address'],
                             local_port=local_port['local_port'],
                             linuxbr=local_port['linuxbr'],
+                            vni=base.NETWORK1['segmentation_id'],
                             **self._rts_for_network(base.NETWORK1)
                         )]
                     ),
