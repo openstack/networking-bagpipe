@@ -227,18 +227,12 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             self._get_network_port_infos(network_id, port_id)
         )
 
-        if data['admin_state_up']:
-            port_info.admin_state_up = True
-        else:
-            previous_admin_state_up = port_info.admin_state_up
-            if previous_admin_state_up:
-                self._delete_port(context, {'port_id': port_info.id})
-                port_info.admin_state_up = False
-            else:
-                LOG.debug("admin state up False, nothing to do for port %s",
-                          port_info.id)
-                port_info.admin_state_up = False
-                return
+        def delete_hook():
+            self._delete_port(context, {'port_id': port_info.id})
+
+        port_info.update_admin_state(data, delete_hook)
+        if not port_info.admin_state_up:
+            return
 
         if data['network_type'] == n_const.TYPE_VXLAN:
             net_info.segmentation_id = data['segmentation_id']
@@ -794,8 +788,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
     @log_helpers.log_method_call
     def build_bgpvpn_attach_info(self, port_id):
         if port_id not in self.ports_info:
-            LOG.debug("%s service has no PortInfo for port %s",
-                      bgpvpn_const.BGPVPN_SERVICE, port_id)
+            LOG.debug("no info for port %s", port_id)
             return {}
 
         port_info = self.ports_info[port_id]

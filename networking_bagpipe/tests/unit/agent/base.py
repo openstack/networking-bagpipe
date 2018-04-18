@@ -225,6 +225,11 @@ class BaseTestLinuxBridgeAgentExtension(base.BaseTestCase,
         self.agent_ext.initialize(self.connection,
                                   lnx_agt_constants.EXTENSION_DRIVER_TYPE)
 
+        patcher = mock.patch('neutron.agent.linux.ip_lib.device_exists',
+                             return_value=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _get_expected_local_port(self, bbgp_vpn_type, network_id, port_id,
                                  detach=False):
         linuxbr = lnx_agt.LinuxBridgeManager.get_bridge_name(network_id)
