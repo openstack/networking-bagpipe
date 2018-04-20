@@ -17,9 +17,9 @@
 
 import mock
 
-from networking_bagpipe.bagpipe_bgp import constants as consts
-
+from networking_bagpipe.bagpipe_bgp.common import exceptions
 from networking_bagpipe.bagpipe_bgp.common import utils
+from networking_bagpipe.bagpipe_bgp import constants as consts
 from networking_bagpipe.bagpipe_bgp.vpn import manager
 from networking_bagpipe.tests.unit.bagpipe_bgp import base as t
 
@@ -31,7 +31,8 @@ MAC = "00:00:de:ad:be:ef"
 IP = "10.0.0.1/32"
 BRIDGE_NAME = "br-test"
 LOCAL_PORT = {'linuxif': 'tap1'}
-VPN_EXT_ID = 1
+VPN_EXT_ID = "ext_id_1"
+VPN_EXT_ID_bis = "ext_id_2"
 GW_IP = "10.0.0.1"
 GW_MASK = 24
 VNID = 255
@@ -53,6 +54,8 @@ class MockVPNInstance(object):
 
         self.import_rts = import_rts
         self.export_rts = export_rts
+
+        self.forced_vni = False
 
     def __repr__(self):
         return "%s:%s:%s" % (self.instance_type,
@@ -222,6 +225,36 @@ class TestVPNManager(t.TestCase):
 
         self.assertIsNot(0, instannce.instance_label,
                          "VPN instance label should be assigned locally")
+
+    def test_forced_vni_same_vni_twice(self):
+        instannce, _ = self.manager._get_vpn_instance(VPN_EXT_ID,
+                                                      consts.IPVPN,
+                                                      [], [],
+                                                      GW_IP, GW_MASK,
+                                                      None, None,
+                                                      vni=VNID)
+        instannce.start()
+
+        self.assertRaises(exceptions.AlreadyUsedVNI,
+                          self.manager._get_vpn_instance,
+                          VPN_EXT_ID_bis,
+                          consts.EVPN,
+                          [], [],
+                          GW_IP, GW_MASK,
+                          None, None,
+                          vni=VNID)
+
+        # unregister first VPN instance (free the VNI)
+        self.manager.unregister_vpn_instance(instannce)
+
+        # this time, using the VNI should work
+        instance2, _ = self.manager._get_vpn_instance(VPN_EXT_ID,
+                                                      consts.IPVPN,
+                                                      [], [],
+                                                      GW_IP, GW_MASK,
+                                                      None, None,
+                                                      vni=VNID)
+        instance2.start()
 
     def test_instance_id_uniqueness(self):
         with mock.patch.object(manager.VPNManager, 'type2class',

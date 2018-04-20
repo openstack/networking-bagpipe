@@ -66,3 +66,9 @@ class APIMissingParameterException(APIException):
     def __init__(self, parameter):
         super(APIMissingParameterException, self).__init__(
             "Missing parameter: '%s'" % parameter)
+
+
+class AlreadyUsedVNI(APIException):
+    def __init__(self, vni):
+        super(AlreadyUsedVNI, self).__init__(
+            "A VPN instance using vni %d already exists." % vni)

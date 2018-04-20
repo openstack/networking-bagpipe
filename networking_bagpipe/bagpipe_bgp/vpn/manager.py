@@ -85,7 +85,11 @@ class VPNManager(lg.LookingGlassMixin):
         # from an evpn  (keys: ipvpn instances)
         self._evpn_ipvpn_ifs = {}
 
-        self.lock = threading.Lock()
+        # keys: vni
+        # value: VPNInstance
+        self.vpn_instance_by_vni = {}
+
+        self.lock = threading.RLock()
 
     def _run_command(self, *args, **kwargs):
         run_command.run_command(LOG, *args, run_as_root=True, **kwargs)
@@ -242,6 +246,11 @@ class VPNManager(lg.LookingGlassMixin):
         if not kwargs.pop('create_if_none', True):
             raise exc.VPNNotFound(external_instance_id)
 
+        # if a vni is specified, check that no VPN instance with same VNI
+        # already exists...
+        if 'vni' in kwargs and kwargs['vni'] in self.vpn_instance_by_vni:
+            raise exc.AlreadyUsedVNI(kwargs['vni'])
+
         vpn_instance_class = VPNManager.type2class[instance_type]
         dataplane_driver = self.dataplane_drivers[instance_type]
 
@@ -259,14 +268,24 @@ class VPNManager(lg.LookingGlassMixin):
                                           readvertise, attract_traffic,
                                           fallback, **kwargs)
 
-        self.vpn_instances[external_instance_id] = vpn_instance
+        self.register_vpn_instance(vpn_instance)
 
         return vpn_instance, False
 
     @utils.synchronized
     @log_decorator.log_info
-    def remove_from_vpn_instances(self, external_instance_id):
-        del self.vpn_instances[external_instance_id]
+    def register_vpn_instance(self, vpn_instance):
+        self.vpn_instances[vpn_instance.external_instance_id] = vpn_instance
+        if vpn_instance.forced_vni:
+            self.vpn_instance_by_vni[
+                vpn_instance.instance_label] = vpn_instance
+
+    @utils.synchronized
+    @log_decorator.log_info
+    def unregister_vpn_instance(self, vpn_instance):
+        del self.vpn_instances[vpn_instance.external_instance_id]
+        if vpn_instance.forced_vni:
+            del self.vpn_instance_by_vni[vpn_instance.instance_label]
 
     def _check_instance_type(self, params):
         if 'vpn_type' not in params:
@@ -394,14 +413,14 @@ class VPNManager(lg.LookingGlassMixin):
             self._detach_evpn_2_ipvpn(vpn_instance)
 
         if vpn_instance.stop_if_empty():
-            self.remove_from_vpn_instances(external_instance_id)
+            self.unregister_vpn_instance(vpn_instance)
 
     def redirect_instance_for_rt(self, redirected_type, redirect_rt,
                                  stop=False):
         external_instance_id = redirect_instance_extid(redirected_type,
                                                        redirect_rt)
-        LOG.info("Need VPN instance %s for traffic redirection to route "
-                 "target %s", external_instance_id, redirect_rt)
+        LOG.info("Need VPN instance %s for traffic redirection to RT %s",
+                 external_instance_id, redirect_rt)
 
         # Convert route target string to RouteTarget dictionary
         import_rts = utils.convert_route_targets([redirect_rt])
@@ -439,10 +458,8 @@ class VPNManager(lg.LookingGlassMixin):
                                                           redirect_rt,
                                                           stop=True)
         redirect_instance.unregister_redirected_instance(redirected_id)
-
         if redirect_instance.stop_if_no_redirected_instance():
-            self.remove_from_vpn_instances(
-                redirect_instance.external_instance_id)
+            self.unregister_vpn_instance(redirect_instance)
 
     @log_decorator.log_info
     def stop(self):
@@ -497,7 +514,8 @@ class VPNManager(lg.LookingGlassMixin):
         return {
             "instances": (lg.COLLECTION, (self.get_lg_vpn_list,
                                           self.get_lg_vpn_from_path_item)),
-            "dataplane": (lg.DELEGATE, dataplane_hook)
+            "dataplane": (lg.DELEGATE, dataplane_hook),
+            "instances_per_vni": (lg.SUBITEM, self.get_lg_instances_per_vni)
         }
 
     def get_lg_vpn_list(self):
@@ -509,6 +527,12 @@ class VPNManager(lg.LookingGlassMixin):
 
     def get_vpn_instances_count(self):
         return len(self.vpn_instances)
+
+    def get_lg_instances_per_vni(self):
+        return {vni: {'name': str(instance),
+                      'external_instance_id': instance.external_instance_id
+                      }
+                for vni, instance in self.vpn_instance_by_vni.items()}
 
     def get_lg_dataplanes_list(self):
         return [{"id": i} for i in self.dataplane_drivers.keys()]
