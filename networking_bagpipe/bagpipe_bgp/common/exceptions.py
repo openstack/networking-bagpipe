@@ -72,3 +72,9 @@ class APIAlreadyUsedVNI(APIException):
     def __init__(self, vni):
         super(APIAlreadyUsedVNI, self).__init__(
             "A VPN instance using vni %d already exists." % vni)
+
+
+class APINotPluggedYet(APIException):
+    def __init__(self, endpoint):
+        super(APINotPluggedYet, self).__init__(
+            "Endpoint %s not plugged yet, can't unplug" % (endpoint,))

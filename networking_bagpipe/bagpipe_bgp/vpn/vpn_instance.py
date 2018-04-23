@@ -309,7 +309,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         self.endpoint_2_route = dict()
         # One MAC address -> One local port
         self.mac_2_localport_data = dict()
-        # One IP address ->  Multiple MAC address
+        # One IP address prefix ->  Multiple MAC address
         self.ip_address_2_mac = collections.defaultdict(set)
 
         # One endpoint (MAC and IP addresses tuple) -> BGP local_pref
@@ -320,6 +320,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         # endpoint (MAC and IP addresses tuple) -> direction
         self.endpoint_2_direction = dict()
+
+        # MAC -> set of IP addresses
+        self.mac_2_ips = collections.defaultdict(set)
 
         # Redirected instances list from which traffic is attracted (based on
         # FlowSpec 5-tuple classification)
@@ -794,6 +797,19 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
             if ip_address_prefix:
                 self.ip_address_2_mac[ip_address_prefix].add(mac_address)
+                self.mac_2_ips[mac_address].add(ip_address_prefix)
+
+                # we've a non-wildcard plug, so if a wildcard IP was plugged
+                # for this MAC, consider it replaced:
+                # - withdraw the corresponding route
+                # - cleanup the wildcard endpoint records
+                wildcard_endpoint = (mac_address, None)
+                if wildcard_endpoint in self.localport_2_endpoints[linuxif]:
+                    self._withdraw_route(self.endpoint_2_route.pop(
+                        wildcard_endpoint))
+                    self.localport_2_endpoints[linuxif].remove(
+                        wildcard_endpoint)
+                    del self.endpoint_2_desc[wildcard_endpoint]
 
         except Exception as e:
             self.log.error("Error in vif_plugged: %s", e)
@@ -816,6 +832,31 @@ class VPNInstance(tracker_worker.TrackerWorker,
     @utils.synchronized
     @log_decorator.log_info
     def vif_unplugged(self, mac_address, ip_address_prefix):
+        if ip_address_prefix is None:
+            # wildcard IP address case...
+            errors = False
+            for ip_addr_pfx in list(self.mac_2_ips[mac_address]):
+                try:
+                    self.vif_unplugged_real(mac_address, ip_addr_pfx)
+                except Exception:
+                    LOG.exception("Exception while unplugging (%s, %s)",
+                                  mac_address, ip_addr_pfx)
+                    errors = True
+            if errors:
+                raise Exception("There were errors on at least one of the "
+                                "unplug resulting from the wildcard unplug")
+            # remove the wildcard endpoint itself, if any:
+            if (mac_address, None) in self.endpoint_2_rd:
+                try:
+                    self.vif_unplugged_real(mac_address, None)
+                except exc.APINotPluggedYet:
+                    LOG.debug("Wildcard unplug failed because not-plugged-yet,"
+                              " ignoring.")
+        else:
+            self.vif_unplugged_real(mac_address, ip_address_prefix)
+
+    @log_decorator.log_info
+    def vif_unplugged_real(self, mac_address, ip_address_prefix):
         # NOTE(tmorin): move this as a vif_unplugged_precheck, so that
         # in ipvpn.VRF this is done before readvertised route withdrawal
         endpoint = (mac_address, ip_address_prefix)
@@ -823,8 +864,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         pdata = self.mac_2_localport_data.get(mac_address)
 
         if not pdata:
-            raise exc.APIException("Endpoint %s not plugged yet, can't unplug"
-                                   % (endpoint,))
+            raise exc.APINotPluggedYet(endpoint)
 
         self._raise_if_mac2ip_inconsistency(mac_address, ip_address_prefix)
 
@@ -885,9 +925,12 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
             if ip_address_prefix:
                 self.ip_address_2_mac[ip_address_prefix].discard(mac_address)
-
                 if not self.ip_address_2_mac[ip_address_prefix]:
                     del self.ip_address_2_mac[ip_address_prefix]
+
+                self.mac_2_ips[mac_address].discard(ip_address_prefix)
+                if not self.mac_2_ips[mac_address]:
+                    del self.mac_2_ips[mac_address]
 
             del self.endpoint_2_desc[endpoint]
         else:

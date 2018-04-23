@@ -728,6 +728,26 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.assertEqual({}, self.vpn.ip_address_2_mac)
         self.assertEqual({}, self.vpn.localport_2_endpoints)
 
+    def test_plug_unplug_wildcard_ip(self):
+        self.vpn.vif_plugged(MAC1, None, LOCAL_PORT1)
+        self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
+        self.vpn.vif_plugged(MAC1, IP2, LOCAL_PORT1)
+
+        # 3 advertisements should be seen: one without IP, then one for each IP
+        self.assertEqual(3, self.vpn._advertise_route.call_count)
+        # the wildcard should be removed
+        self.assertEqual(1, self.vpn._withdraw_route.call_count)
+
+        self.vpn.vif_unplugged(MAC1, None)
+        # 3 withdraw should be seen, one for each IP, one without IP
+        self.assertEqual(3, self.vpn._withdraw_route.call_count)
+
+    def test_plug_unplug_wildcard_ip_no_ip(self):
+        self.vpn.vif_plugged(MAC1, None, LOCAL_PORT1)
+        self.assertEqual(1, self.vpn._advertise_route.call_count)
+        self.vpn.vif_unplugged(MAC1, None)
+        self.assertEqual(1, self.vpn._withdraw_route.call_count)
+
     def test_get_lg_localport_data(self):
         self.vpn.vif_plugged(MAC1, IP1, LOCAL_PORT1)
         self.vpn.vif_plugged(MAC2, IP2, LOCAL_PORT1)

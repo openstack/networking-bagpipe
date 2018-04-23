@@ -8,7 +8,7 @@ export DEVSTACK_LOCAL_CONFIG+=$'\n'"ENABLE_BAGPIPE_L2=True"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"BAGPIPE_BGP_PEERS=-"
 
 # uncomment to periodically log the full content of the looking-glass
-#export DEVSTACK_LOCAL_CONFIG+=$'\n'"enable_service neutron-bagpipe-bgp-lg"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"enable_service neutron-bagpipe-bgp-lg"
 
 # Restrict Tempest test suite, for now
 # (partially and shamelessly stolen from networking-ovn/devstack/devstackgaterc)
