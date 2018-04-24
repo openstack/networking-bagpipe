@@ -20,7 +20,6 @@ from neutron_lib.api.definitions import bgpvpn as bgpvpn_def
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.plugins import directory
 
-from oslo_config import cfg
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
@@ -31,7 +30,6 @@ from neutron.api.rpc.handlers import resources_rpc
 
 from neutron.db import models_v2
 
-from networking_bagpipe._i18n import _
 from networking_bagpipe.db import sfc_db
 from networking_bagpipe.driver import constants
 from networking_bagpipe.objects import sfc as sfc_obj
@@ -42,19 +40,6 @@ from networking_sfc.services.sfc.drivers import base as driver_base
 
 LOG = logging.getLogger(__name__)
 
-sfc_bagpipe_opts = [
-    cfg.IntOpt('as_number', default=64512,
-               help=_("Autonomous System number used to generate BGP Route "
-                      "Targets that will be used for Port Chain allocations")),
-    cfg.ListOpt('rtnn',
-                default=[5000, 5999],
-                help=_("List containing <rtnn_min>, <rtnn_max> "
-                       "defining a range of BGP Route Targets that will "
-                       "be used for Port Chain allocations")),
-]
-
-cfg.CONF.register_opts(sfc_bagpipe_opts, "sfc_bagpipe")
-
 
 class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                        sfc_db.BaGPipeSfcDriverDB):
@@ -62,7 +47,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
     def initialize(self):
         super(BaGPipeSfcDriver, self).initialize()
-        self.rt_allocator = sfc_db.RTAllocator(cfg.CONF.sfc_bagpipe)
+        self.rt_allocator = sfc_db.RTAllocator()
         self._push_rpc = resources_rpc.ResourcesPushRpcApi()
 
     def _parse_ipaddress_prefix(self, cidr):
@@ -145,8 +130,9 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
         core_plugin = directory.get_plugin()
         network = core_plugin.get_network(self.admin_context, network_id)
 
-        return ':'.join([str(cfg.CONF.sfc_bagpipe.as_number),
-                         str(network[pnet.SEGMENTATION_ID])])
+        return (
+            self.rt_allocator._get_rt_from_rtnn(network[pnet.SEGMENTATION_ID])
+        )
 
     def _get_bgpvpn_rts(self, bgpvpn_list):
         import_rts = set()

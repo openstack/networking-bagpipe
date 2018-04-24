@@ -16,6 +16,7 @@
 import six
 import sqlalchemy as sa
 
+from oslo_config import cfg
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 
@@ -25,6 +26,21 @@ from neutron_lib.db import model_base
 from neutron.db import common_db_mixin
 
 LOG = logging.getLogger(__name__)
+
+sfc_bagpipe_opts = [
+    cfg.IntOpt('as_number', default=64512,
+               help=_("Autonomous System number used to generate BGP Route "
+                      "Targets that will be used for Port Chain allocations")),
+    cfg.ListOpt('rtnn',
+                default=[5000, 5999],
+                help=_("List containing <rtnn_min>, <rtnn_max> "
+                       "defining a range of BGP Route Targets that will "
+                       "be used for Port Chain allocations. This range MUST "
+                       "not intersect the one used for network segmentation "
+                       "identifiers")),
+]
+
+cfg.CONF.register_opts(sfc_bagpipe_opts, "sfc_bagpipe")
 
 
 class BaGPipePpgRTAssoc(model_base.BASEV2, model_base.HasId):
@@ -49,8 +65,8 @@ def singleton(class_):
 
 @singleton
 class RTAllocator(object):
-    def __init__(self, config):
-        self.config = config
+    def __init__(self):
+        self.config = cfg.CONF.sfc_bagpipe
         self.session = n_context.get_admin_context().session
 
     def _get_rt_from_rtnn(self, rtnn):
