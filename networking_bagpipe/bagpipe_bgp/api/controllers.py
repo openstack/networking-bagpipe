@@ -328,12 +328,7 @@ class LookingGlassController(VPNManagerController,
         return {
             "BGP_established_peers":
                 self.manager.bgp_manager.get_established_peers_count(),
-            "local_routes_count":
-                self.manager.bgp_manager.rtm.
-                get_local_routes_count(),
-            "received_routes_count":
-                self.manager.bgp_manager.rtm.
-                get_received_routes_count(),
+            "route_counts": self.manager.bgp_manager.get_lg_route_counts(),
             "vpn_instances_count": self.manager.get_vpn_instances_count(),
             "warnings_and_errors": len(self.catchall_lg_log_handler),
             "start_time": time.strftime("%Y-%m-%d %H:%M:%S",
