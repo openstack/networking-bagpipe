@@ -35,42 +35,41 @@ class MaxIDReached(exceptions.NeutronException):
 class IDAllocator(lg.LookingGlassMixin):
 
     MIN = 0
-    MAX = None
+    MAX = 2**32-1  # no id > MAX will be allocated
 
     def __init__(self):
         self.allocated_ids = dict()
-        self.released_ids = set()
+        self.released_ids = list()
         self.current_id = self.MIN
 
         self.lock = threading.Lock()
 
     @utils.synchronized
-    def get_new_id(self, description):
-        if len(self.released_ids) > 0:
-            new_id = self.released_ids.pop()
-        else:
-            if self.current_id > self.MAX:
-                LOG.error("All the %d possible identifiers have been "
-                          "allocated.", self.MAX)
-                raise MaxIDReached(max=self.MAX)
+    def get_new_id(self, description=None):
 
+        if self.current_id > self.MAX:
+            if len(self.released_ids) > 0:
+                # FIFO (pop the id that was released the earliest)
+                new_id = self.released_ids.pop(0)
+            else:
+                raise MaxIDReached(max=self.MAX)
+        else:
             new_id = self.current_id
             self.current_id += 1
+
         self.allocated_ids[new_id] = description
 
-        LOG.debug("Allocated identifier %d for '%s'", new_id, description)
-
+        LOG.debug("Allocated id %d for '%s'", new_id, description)
         return new_id
 
     @utils.synchronized
     def release(self, id):
         if id in self.allocated_ids:
-            LOG.debug("Released identifier %d ('%s')", id,
-                      self.allocated_ids[id])
+            LOG.debug("Released id %d ('%s')", id, self.allocated_ids[id])
             del self.allocated_ids[id]
-            self.released_ids.add(id)
+            self.released_ids.append(id)
         else:
-            LOG.warn("Asked to release a non registered identifier: %d", id)
+            raise Exception("Asked to release a non-allocated id: %d" % id)
 
     def get_lg_local_info(self, prefix):
         return self.allocated_ids

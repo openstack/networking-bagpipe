@@ -54,6 +54,8 @@ class Worker(engine.EventSource, lg.LookingGlassMixin):
         # private data for RouteTableManager
         self._rtm_matches = set()
 
+        self._was_stopped = False
+
         LOG.debug("Instantiated %s worker", self.name)
 
     def stop(self):
@@ -63,10 +65,14 @@ class Worker(engine.EventSource, lg.LookingGlassMixin):
         and indicate to the route table manager that this worker is stopped.
         Then call _stopped() to let a subclass implement any further work.
         """
+        if self._was_stopped:
+            LOG.debug("not running, nothing to do to stop")
+            return
         LOG.info("Stop worker %s", self)
         self.stop_event_loop()
         self._cleanup()
         self._stopped()
+        self._was_stopped = True
 
     def stop_event_loop(self):
         self._please_stop.set()

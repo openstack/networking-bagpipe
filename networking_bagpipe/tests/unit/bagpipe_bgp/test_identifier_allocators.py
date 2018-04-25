@@ -60,3 +60,48 @@ class TestIDAllocator(testtools.TestCase):
         self.assertRaises(identifier_allocators.MaxIDReached,
                           self.test_allocator.get_new_id,
                           "Test max reached identifier")
+
+
+class TestIDAllocatorReUse(testtools.TestCase):
+
+    def setUp(self):
+        testtools.TestCase.setUp(self)
+
+    def test_do_not_reuse_at_once(self):
+        test_allocator = identifier_allocators.IDAllocator()
+
+        x = test_allocator.get_new_id()
+        test_allocator.release(x)
+        y = test_allocator.get_new_id()
+
+        self.assertTrue(x != y)
+
+    def test_reuse_as_late_as_possible(self):
+        # create an allocator for 4 values
+        test_allocator = identifier_allocators.IDAllocator()
+        test_allocator.MAX = 3
+
+        # allocate one value, and release it at once
+        x = test_allocator.get_new_id()
+        test_allocator.release(x)
+
+        # allocate 3 values, check that none is x
+        intermediate_ids = [test_allocator.get_new_id(desc)
+                            for desc in ('one', 'two', 'three')]
+        for y in intermediate_ids:
+            self.assertTrue(x != y)
+
+        # allocate one more, this can't be anything else than x
+        z1 = test_allocator.get_new_id()
+        self.assertEqual(x, z1)
+
+        # we reached MAX, we are now allocating from released_ids()
+        # free x
+        test_allocator.release(x)
+        # free the intermediate ids
+        for y in intermediate_ids:
+            test_allocator.release(y)
+
+        # check that the next id given to us is x
+        z2 = test_allocator.get_new_id()
+        self.assertEqual(x, z2)

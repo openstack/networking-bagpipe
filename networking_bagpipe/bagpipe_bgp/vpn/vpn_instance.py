@@ -413,6 +413,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
     @utils.synchronized
     @log_decorator.log
     def stop(self):
+        if self._was_stopped:
+            LOG.debug("was already stopped, nothing to do to stop")
+            return
         self.stop_event_loop()
 
         for afi in (self.afi,):
