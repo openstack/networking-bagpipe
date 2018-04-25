@@ -18,9 +18,12 @@ import os
 from sys import stdout
 
 import optparse
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 import six
 import urllib2
+
+from networking_bagpipe.bagpipe_bgp.api import config as api_config
 
 
 BAGPIPE_PORT = 8082
@@ -114,6 +117,11 @@ def pretty_print_recurse(data, indent, recursive_requests, url,
 
 
 def main():
+    api_config.register_config()
+    cfg.CONF(args=[],
+             project='bagpipe-looking-glass',
+             default_config_files=['/etc/bagpipe-bgp/bgp.conf'])
+
     usage = """ %prog [--server <ip>] path to object in looking-glass
 
 e.g.: %prog vpns instances"""
@@ -124,7 +132,7 @@ e.g.: %prog vpns instances"""
         help="IP address of BaGPipe BGP (optional, default: %default)")
 
     parser.add_option(
-        "--port", dest="port", type="int", default=BAGPIPE_PORT,
+        "--port", dest="port", type="int", default=cfg.CONF.API.port,
         help="Port of BaGPipe BGP (optional, default: %default)")
 
     parser.add_option(

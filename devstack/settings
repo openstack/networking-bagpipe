@@ -12,7 +12,7 @@ if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
     BAGPIPE_DATAPLANE_DRIVER_EVPN=${BAGPIPE_DATAPLANE_DRIVER_EVPN:-linux}
 fi
 
-# common to BGPVPN driver and bagpipe ML2:
+# common to BGPVPN driver, SFC driver and bagpipe ML2:
 if is_service_enabled neutron-agent || is_service_enabled q-agt ; then
     enable_service neutron-bagpipe-bgp
 fi

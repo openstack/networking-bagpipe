@@ -26,6 +26,7 @@ import pbr.version
 from neutron.common import config as n_config  # noqa
 
 from networking_bagpipe.bagpipe_bgp.api import api
+from networking_bagpipe.bagpipe_bgp.api import config as api_config
 from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.engine import exabgp_peer_worker
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as drivers
@@ -35,6 +36,7 @@ LOG = logging.getLogger(__name__)
 
 
 def setup_config():
+    api_config.register_config()
     config.register()
     cfg.CONF(args=sys.argv[1:],
              project='bagpipe-bgp',

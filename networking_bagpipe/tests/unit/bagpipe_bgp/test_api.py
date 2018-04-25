@@ -18,11 +18,19 @@
 import six
 import testtools
 
+from oslo_config import fixture as config_fixture
+
 from networking_bagpipe.bagpipe_bgp.api import api
+from networking_bagpipe.bagpipe_bgp.api import config as api_config
 from networking_bagpipe.tests.unit.bagpipe_bgp import base
 
 
 class TestAPI(base.TestCase):
+
+    def setUp(self):
+        super(TestAPI, self).setUp()
+        cfg_fixture = self.useFixture(config_fixture.Config())
+        cfg_fixture.register_opts(api_config.common_opts, "API")
 
     @testtools.skipIf(six.PY3, 'dataplane driver init fails under py3')
     def test_api_init(self):

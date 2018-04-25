@@ -21,18 +21,6 @@ from six.moves import socketserver
 from wsgiref import simple_server
 
 
-common_opts = [
-    cfg.HostAddressOpt("host", default="127.0.0.1",
-                       help="IP address on which the API server should listen",
-                       deprecated_name="api_host"),
-    cfg.PortOpt("port", default=8082,
-                help="Port on which the API server should listen",
-                deprecated_name="api_port")
-]
-
-cfg.CONF.register_opts(common_opts, "API")
-
-
 ROOT_CTRL = 'networking_bagpipe.bagpipe_bgp.api.controllers.RootController'
 
 

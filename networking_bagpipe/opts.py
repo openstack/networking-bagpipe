@@ -12,7 +12,7 @@
 
 from networking_bagpipe.agent.bagpipe_ml2 import agent_extension as ml2_agt_ext
 from networking_bagpipe.agent.bgpvpn import agent_extension as bgpvpn_agt_ext
-from networking_bagpipe.bagpipe_bgp.api import api
+from networking_bagpipe.bagpipe_bgp.api import config as api_config
 from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.common import run_command
 from networking_bagpipe.bagpipe_bgp import constants
@@ -38,7 +38,7 @@ def list_bagpipe_bgp_agent_opts():
 
 def list_api_opts():
     return [
-        ('api', api.common_opts),
+        ('api', api_config.common_opts),
     ]
 
 

@@ -17,11 +17,13 @@
 import os
 
 import optparse
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 import urllib2
 
+from networking_bagpipe.bagpipe_bgp.api import config as api_config
 
-BAGPIPE_PORT = 8082
+
 LOOKING_GLASS_BASE = "looking-glass"
 
 
@@ -109,6 +111,11 @@ def vpn_short(vpn):
 
 
 def main():
+    api_config.register_config()
+    cfg.CONF(args=[],
+             project='bagpipe-impex2dot',
+             default_config_files=['/etc/bagpipe-bgp/bgp.conf'])
+
     usage = """ %prog [options]
 
 Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
@@ -120,7 +127,7 @@ Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
         help="IP address of a BaGPipe BGP instances (default: localhost)")
 
     parser.add_option(
-        "--port", dest="port", type="int", default=BAGPIPE_PORT,
+        "--port", dest="port", type="int", default=cfg.CONF.API.port,
         help="Port of BaGPipe BGP (optional, default: %default)")
 
     parser.add_option(

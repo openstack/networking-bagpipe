@@ -10,6 +10,13 @@ if [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
 elif [[ "$1" == "stack" && "$2" == "install" ]]; then
     setup_develop $NETWORKING_BAGPIPE_DIR
 elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
+    if is_service_enabled neutron-agent || is_service_enabled q-agt ; then
+        if is_neutron_legacy_enabled; then
+            iniset /$Q_PLUGIN_CONF_FILE bagpipe bagpipe_bgp_port $BAGPIPE_SERVICE_PORT
+        else
+            iniset $NEUTRON_CORE_PLUGIN_CONF bagpipe_bgp_port $BAGPIPE_SERVICE_PORT
+        fi
+    fi
     if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
         if is_service_enabled neutron-agent || is_service_enabled q-agt ; then
             echo_summary "Configuring linuxbridge agent for bagpipe"

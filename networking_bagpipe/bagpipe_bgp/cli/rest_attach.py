@@ -23,9 +23,11 @@ import sys
 
 import netaddr
 import optparse
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 import urllib2
 
+from networking_bagpipe.bagpipe_bgp.api import config as api_config
 from networking_bagpipe.bagpipe_bgp.common import net_utils
 from networking_bagpipe.bagpipe_bgp.common import run_command
 from networking_bagpipe.bagpipe_bgp import constants as const
@@ -123,6 +125,11 @@ def classifier_callback(option, opt_str, value, parser):
 
 
 def main():
+    api_config.register_config()
+    cfg.CONF(args=[],
+             project='bagpipe-rest-attach',
+             default_config_files=['/etc/bagpipe-bgp/bgp.conf'])
+
     usage = "usage: %prog [--attach|--detach] --network-type (ipvpn|evpn) "\
         "--port (<port>|netns) --ip <ip>[/<mask>] [options] (see --help)"
     parser = optparse.OptionParser(usage)
@@ -403,8 +410,8 @@ def main():
     print("request: %s" % json_data)
 
     os.environ['NO_PROXY'] = "127.0.0.1"
-    req = urllib2.Request("http://127.0.0.1:8082/%s_localport" %
-                          options.operation, json_data,
+    req = urllib2.Request("http://127.0.0.1:%d/%s_localport" %
+                          (cfg.CONF.API.port, options.operation), json_data,
                           {'Content-Type': 'application/json'})
     try:
         response = urllib2.urlopen(req)
