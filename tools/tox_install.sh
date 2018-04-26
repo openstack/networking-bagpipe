@@ -64,6 +64,11 @@ shift
 install_project neutron
 install_project networking-bgpvpn
 
+if [ -z "$*" ]; then
+    echo "No packages to be installed."
+    exit 0
+fi
+
 # install the rest of dependencies
 $install_cmd -U $*
 exit $?
