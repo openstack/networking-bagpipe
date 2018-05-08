@@ -11,10 +11,15 @@ elif [[ "$1" == "stack" && "$2" == "install" ]]; then
     setup_develop $NETWORKING_BAGPIPE_DIR
 elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
     if [[ "$ENABLE_BAGPIPE_L2" == "True" ]]; then
-        if is_service_enabled q-agt ; then
+        if is_service_enabled neutron-agent || is_service_enabled q-agt ; then
             echo_summary "Configuring linuxbridge agent for bagpipe"
-            iniset /$Q_PLUGIN_CONF_FILE ml2_bagpipe_extension as_number ${BAGPIPE_RT_ASN:-64512}
-	    iniset /$Q_PLUGIN_CONF_FILE vxlan arp_responder True
+            if is_neutron_legacy_enabled; then
+                iniset /$Q_PLUGIN_CONF_FILE ml2_bagpipe_extension as_number ${BAGPIPE_RT_ASN:-64512}
+                iniset /$Q_PLUGIN_CONF_FILE vxlan arp_responder True
+            else
+                iniset $NEUTRON_CORE_PLUGIN_CONF ml2_bagpipe_extension as_number ${BAGPIPE_RT_ASN:-64512}
+                iniset $NEUTRON_CORE_PLUGIN_CONF vxlan arp_responder True
+            fi
             source $NEUTRON_DIR/devstack/lib/l2_agent
             plugin_agent_add_l2_agent_extension bagpipe
             configure_l2_agent

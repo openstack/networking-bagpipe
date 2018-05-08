@@ -26,7 +26,7 @@ $exec ip rule add iif $if_a table $table_to_b prio 1000
 $exec ip rule add iif $if_b table $table_to_a prio 1000
 
 for if_ in $if_a $if_b; do
-	$exec sysctl "net.ipv4.conf.${if_}.forwarding=1"
+	$exec sysctl -w "net.ipv4.conf.${if_}.forwarding=1"
 done
 
 
