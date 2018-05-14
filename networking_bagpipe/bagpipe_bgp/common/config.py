@@ -98,3 +98,14 @@ bgp_opts = [
 def register():
     cfg.CONF.register_cli_opts(cli_opts)
     cfg.CONF.register_opts(bgp_opts, "BGP")
+
+
+def set_default_root_helper():
+    # copy bagpipe-bgp root helper configuration into neutron's config, so
+    # that neutron classes find the right configuration to execute commands
+    cfg.CONF.set_default('root_helper',
+                         cfg.CONF.COMMON.root_helper,
+                         group="AGENT")
+    cfg.CONF.set_default('root_helper_daemon',
+                         cfg.CONF.COMMON.root_helper_daemon,
+                         group="AGENT")

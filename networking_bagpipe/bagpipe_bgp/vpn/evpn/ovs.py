@@ -18,6 +18,7 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 
+from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.common import dataplane_utils
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp import constants as consts
@@ -241,14 +242,7 @@ class OVSDataplaneDriver(dp_drivers.DataplaneDriver):
     def __init__(self, *args, **kwargs):
         super(OVSDataplaneDriver, self).__init__(*args, **kwargs)
 
-        # copy bagpipe-bgp root helper configuration into neutron's config, so
-        # that neutron classes find the right configuration to execute commands
-        cfg.CONF.set_default('root_helper',
-                             cfg.CONF.COMMON.root_helper,
-                             group="AGENT")
-        cfg.CONF.set_default('root_helper_daemon',
-                             cfg.CONF.COMMON.root_helper_daemon,
-                             group="AGENT")
+        config.set_default_root_helper()
 
         self.bridge = dataplane_utils.OVSBridgeWithGroups(
             br_tun.OVSTunnelBridge(self.config.ovs_bridge)
