@@ -31,7 +31,7 @@ BaGPipe-BGP is typically driven via its HTTP REST interface, by
 Openstack Neutron agent extensions found in this package.
 
 Moreover, BaGPipe-BGP can also be used standalone (in particular for testing
-purposes), with for instance VMs tap interfaces or <ith veth interfaces to
+purposes), with for instance VMs tap interfaces or with veth interfaces to
 network namespaces (see `below <#netns-example>`__).
 
 BGP and Route Reflection
@@ -47,7 +47,7 @@ up a BGP Route Reflector (see :ref:`bgp_implementation` and
 for BGP peerings.
 
 The term "BGP Route Reflector" refers to a BGP implementation that
-redistribute routes between iBGP peers
+redistributes routes between iBGP peers
 `RFC4456 <http://tools.ietf.org/html/RFC4456>`__.
 
 When using bagpipe-bgp on more than one compute node, we thus need each
