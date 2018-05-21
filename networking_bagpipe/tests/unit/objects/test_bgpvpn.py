@@ -190,7 +190,7 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
         self.update_obj_fields(
             {'router_id': self.router_id,
              'bgpvpn_id': self._create_test_bgpvpn_id,
-             'routes': []})
+             })
         self.context = context.get_admin_context()
 
     def test_get_objects_queries_constant(self):
