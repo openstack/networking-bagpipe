@@ -511,10 +511,10 @@ class BaGPipeSfcDriverTestCase(
                             ingress_ports=[egress_port1['port']['id']],
                             egress_ports=[ingress_port2['port']['id']],
                             rts=['64512:5002'],
-                            readv_from_rts=[],
-                            readv_to_rt=None,
+                            readv_from_rts=['64512:5001'],
+                            readv_to_rt='64512:5003',
                             redirect_rts=['64512:5002'],
-                            attract_to_rt='64512:5003',
+                            attract_to_rt=None,
                             classifiers=[
                                 dict(protocol='tcp',
                                      sourcePrefix=sfc_base.SRC_CIDR,

@@ -395,30 +395,54 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                     is_redirect=True,
                     reverse=reverse)
 
-                prev_readv_from_rts = ((src_rts if reverse else dest_rts)
-                                       if egress_bgpvpns else None)
-                prev_readv_to_rt = (prev_redirect_rt
-                                    if egress_bgpvpns else None)
-                prev_attract_to_rt = (prev_redirect_rt
-                                      if not egress_bgpvpns else None)
+                if position+1 == len(reversed_ppg)-1:
+                    # Advertise FlowSpec routes from last intermediate hop
+                    prev_readv_from_rts = ((src_rts if reverse else dest_rts)
+                                           if egress_bgpvpns else None)
+                    prev_readv_to_rt = (prev_redirect_rt
+                                        if egress_bgpvpns else None)
+                    prev_attract_to_rt = (prev_redirect_rt
+                                          if not egress_bgpvpns else None)
 
-                hop_detail_obj = sfc_obj.BaGPipeChainHop(
-                    context._plugin_context,
-                    id=uuidutils.generate_uuid(),
-                    project_id=project_id,
-                    portchain_id=port_chain['id'],
-                    rts=[prev_ppg_rt],
-                    ingress_gw=current_subnet['gateway_ip'],
-                    egress_gw=prev_subnet['gateway_ip'],
-                    reverse_hop=reverse,
-                    ingress_ppg=current_ppg['id'],
-                    egress_ppg=prev_ppg['id'],
-                    readv_from_rts=prev_readv_from_rts,
-                    readv_to_rt=prev_readv_to_rt,
-                    attract_to_rt=prev_attract_to_rt,
-                    redirect_rts=[prev_ppg_rt],
-                    classifiers=jsonutils.dumps(classifiers)
-                )
+                    hop_detail_obj = sfc_obj.BaGPipeChainHop(
+                        context._plugin_context,
+                        id=uuidutils.generate_uuid(),
+                        project_id=project_id,
+                        portchain_id=port_chain['id'],
+                        rts=[prev_ppg_rt],
+                        ingress_gw=current_subnet['gateway_ip'],
+                        egress_gw=prev_subnet['gateway_ip'],
+                        reverse_hop=reverse,
+                        ingress_ppg=current_ppg['id'],
+                        egress_ppg=prev_ppg['id'],
+                        readv_from_rts=prev_readv_from_rts,
+                        readv_to_rt=prev_readv_to_rt,
+                        attract_to_rt=prev_attract_to_rt,
+                        redirect_rts=[prev_ppg_rt],
+                        classifiers=jsonutils.dumps(classifiers)
+                    )
+                else:
+                    # Readvertise FlowSpec routes between intermediate hops
+                    from_redirect_rt = (
+                        self.rt_allocator.get_redirect_rt_by_ppg(
+                            reversed_ppg[position+2]))
+
+                    hop_detail_obj = sfc_obj.BaGPipeChainHop(
+                        context._plugin_context,
+                        id=uuidutils.generate_uuid(),
+                        project_id=project_id,
+                        portchain_id=port_chain['id'],
+                        rts=[prev_ppg_rt],
+                        ingress_gw=current_subnet['gateway_ip'],
+                        egress_gw=prev_subnet['gateway_ip'],
+                        reverse_hop=reverse,
+                        ingress_ppg=current_ppg['id'],
+                        egress_ppg=prev_ppg['id'],
+                        readv_from_rts=[from_redirect_rt],
+                        readv_to_rt=prev_redirect_rt,
+                        redirect_rts=[prev_ppg_rt],
+                        classifiers=jsonutils.dumps(classifiers)
+                    )
                 hop_detail_obj.create()
                 hop_details.append(hop_detail_obj)
 
