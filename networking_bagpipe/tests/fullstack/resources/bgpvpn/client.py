@@ -39,13 +39,13 @@ class BGPVPNClientFixture(neutron_client.ClientFixture):
                 'network_id': network_id
             }
         }
-        assoc = self.client.create_network_association(
+        assoc = self.client.create_bgpvpn_network_assoc(
             bgpvpn_id,
             network_association)
         self.addCleanup(
             neutron_client._safe_method(
-                self.client.delete_network_association),
-            assoc['network_association']['id'], bgpvpn_id)
+                self.client.delete_bgpvpn_network_assoc),
+            bgpvpn_id, assoc['network_association']['id'])
 
     def create_router_association(self, tenant_id, bgpvpn_id, router_id):
         router_association = {
@@ -54,10 +54,10 @@ class BGPVPNClientFixture(neutron_client.ClientFixture):
                 'router_id': router_id
             }
         }
-        assoc = self.client.create_router_association(
+        assoc = self.client.create_bgpvpn_router_assoc(
             bgpvpn_id,
             router_association)
         self.addCleanup(
             neutron_client._safe_method(
-                self.client.delete_router_association),
-            assoc['router_association']['id'], bgpvpn_id)
+                self.client.delete_bgpvpn_router_assoc),
+            bgpvpn_id, assoc['router_association']['id'])
