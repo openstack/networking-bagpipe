@@ -21,10 +21,6 @@ from oslo_utils import uuidutils
 from networking_bagpipe.objects import bgpvpn as bgpvpn_obj
 
 from neutron.common import utils
-from neutron.objects import network
-from neutron.objects import ports
-from neutron.objects import router
-from neutron.objects import subnet
 
 from neutron.tests.unit.objects import test_base
 from neutron.tests.unit import testlib_api
@@ -33,6 +29,7 @@ from neutron_lib.api.definitions import bgpvpn as bgpvpn_api
 from neutron_lib.api.definitions import bgpvpn_routes_control as bgpvpn_rc_api
 from neutron_lib import constants
 from neutron_lib import context
+from neutron_lib.objects import registry as obj_reg
 
 
 test_base.FIELD_TYPE_VALUE_GENERATOR_MAP[bgpvpn_obj.BGPVPNTypeField] = (
@@ -75,32 +72,35 @@ class _BPGVPNObjectsTestCommon(object):
         return self._create_test_bgpvpn().id
 
     def _make_subnet(self, network_id):
-        _subnet = subnet.Subnet(self.context,
-                                network_id=network_id,
-                                ip_version=4,
-                                cidr=netaddr.IPNetwork(CIDR),
-                                gateway_ip=GW_IP)
+        _subnet = obj_reg.new_instance(
+            'Subnet', self.context,
+            network_id=network_id,
+            ip_version=4,
+            cidr=netaddr.IPNetwork(CIDR),
+            gateway_ip=GW_IP)
         _subnet.create()
         return _subnet
 
     def _connect_router_network(self, router_id, network_id,
                                 subnet_id=None, gw_network=False):
-        port = ports.Port(self.context,
-                          network_id=network_id,
-                          mac_address=netaddr.EUI(
-                              GW_MAC,
-                              dialect=netaddr.mac_unix_expanded),
-                          device_id='test_device_id',
-                          device_owner=constants.DEVICE_OWNER_ROUTER_INTF,
-                          status="DUMMY_STATUS",
-                          admin_state_up=True)
+        port = obj_reg.new_instance(
+            'Port', self.context,
+            network_id=network_id,
+            mac_address=netaddr.EUI(
+                GW_MAC,
+                dialect=netaddr.mac_unix_expanded),
+            device_id='test_device_id',
+            device_owner=constants.DEVICE_OWNER_ROUTER_INTF,
+            status="DUMMY_STATUS",
+            admin_state_up=True)
         if gw_network:
             port.device_owner = constants.DEVICE_OWNER_ROUTER_GW
 
         port.create()
 
         if subnet_id:
-            allocation = ports.IPAllocation(
+            allocation = obj_reg.new_instance(
+                'IPAllocation',
                 self.context,
                 port_id=port.id,
                 subnet_id=subnet_id,
@@ -111,9 +111,10 @@ class _BPGVPNObjectsTestCommon(object):
             port.fixed_ips = [allocation]
             port.update()
 
-        router_if = router.RouterPort(self.context,
-                                      router_id=router_id,
-                                      port_id=port.id)
+        router_if = obj_reg.new_instance(
+            'RouterPort', self.context,
+            router_id=router_id,
+            port_id=port.id)
         router_if.create()
 
 
@@ -162,7 +163,7 @@ class BGPVPNNetAssociationTest(test_base.BaseDbObjectTestCase,
             self.assertItemsEqual(obj.subnets, [_subnet_dict()])
 
         # plug a router
-        _router = router.Router(self.context)
+        _router = obj_reg.new_instance('Router', self.context)
         _router.create()
 
         self._connect_router_network(_router.id,
@@ -229,13 +230,13 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
                                   [])
 
     def test_get_objects_from_network_id(self):
-        router_ = router.Router(self.context)
+        router_ = obj_reg.new_instance('Router', self.context)
         router_.create()
 
         self.project = uuidutils.generate_uuid()
 
         # put a network behind a router
-        network_ = network.Network(self.context)
+        network_ = obj_reg.new_instance('Network', self.context)
         network_.create()
 
         subnet_ = self._make_subnet(network_.id)
@@ -253,7 +254,7 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
         router_assoc_.create()
 
         # unrelated router and BGPVPN
-        router_2 = router.Router(self.context)
+        router_2 = obj_reg.new_instance('Router', self.context)
         router_2.create()
         router_assoc_2 = bgpvpn_obj.BGPVPNRouterAssociation(
             self.context,
