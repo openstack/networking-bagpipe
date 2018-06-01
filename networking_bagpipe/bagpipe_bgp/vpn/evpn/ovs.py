@@ -49,7 +49,7 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         # OpenFlow 1.3 is needed for mod_vlan_vid
         self.bridge.use_at_least_protocol(ovs_const.OPENFLOW13)
 
-        self.tunnel_mgr = dataplane_utils.ObjectLifecycleManagerProxy(
+        self.tunnel_mgr = dataplane_utils.SharedObjectLifecycleManagerProxy(
             self.driver.tunnel_mgr,
             self.instance_id
         )

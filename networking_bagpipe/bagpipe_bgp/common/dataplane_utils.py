@@ -121,8 +121,12 @@ class ObjectLifecycleManager(object):
         self.objects = dict()
         self.object_used_for = collections.defaultdict(set)
 
+    def is_object_user(self, object_key, user_key):
+        return (object_key in self.objects and
+                user_key in self.object_used_for[object_key])
+
     @abc.abstractmethod
-    def create_object(self, object_key):
+    def create_object(self, object_key, *args, **kwargs):
         pass
 
     @abc.abstractmethod
@@ -130,15 +134,15 @@ class ObjectLifecycleManager(object):
         pass
 
     @log_decorator.log_info
-    def get_object(self, object_key, user_key=None):
+    def get_object(self, object_key, user_key=None, *args, **kwargs):
         obj = self.objects.get(object_key)
-        if obj:
+        if obj is not None:
             LOG.debug("existing object for %s: %s", object_key, obj)
         else:
             if not user_key:
                 return None
 
-            obj = self.create_object(object_key)
+            obj = self.create_object(object_key, *args, **kwargs)
             self.objects[object_key] = obj
             LOG.debug("object for %s: %s", object_key, obj)
 
@@ -167,6 +171,15 @@ class ObjectLifecycleManager(object):
             LOG.debug("remaining users for object %s: %s", object_key,
                       self.object_used_for[object_key])
 
+    def clear_objects(self, filter_method):
+        for object_key, users in self.object_used_for.items():
+            for user in users:
+                if filter_method(object_key, user):
+                    self.delete_object(self.objects[object_key])
+                    del self.objects[object_key]
+                    del self.object_used_for[object_key]
+                    break
+
     def infos(self):
         return self.objects
 
@@ -177,17 +190,37 @@ class ObjectLifecycleManagerProxy(object):
         self.manager = manager
         self.parent_user = parent_user
 
-    def get_object(self, object_key, user_key=None):
-        if user_key:
-            return self.manager.get_object(object_key,
+    def _object_key(self, object_key):
+        return (self.parent_user, object_key)
+
+    def is_object_user(self, object_key, user_key):
+        return self.manager.is_object_user(self._object_key(object_key),
                                            (self.parent_user, user_key))
+
+    def get_object(self, object_key, user_key=None, *args, **kwargs):
+        if user_key:
+            return self.manager.get_object(self._object_key(object_key),
+                                           (self.parent_user, user_key),
+                                           *args, **kwargs)
         else:
-            return self.manager.get_object(object_key)
+            return self.manager.get_object(self._object_key(object_key))
 
     def free_object(self, object_key, user_key):
         if user_key:
-            return self.manager.free_object(object_key,
+            return self.manager.free_object(self._object_key(object_key),
                                             (self.parent_user, user_key))
+
+    def clear_objects(self, filter_method=lambda obj_key, user_key: True):
+        self.manager.clear_objects(
+            lambda obj_key, user_key: (user_key[0] == self.parent_user and
+                                       filter_method(obj_key, user_key[1]))
+        )
 
     def infos(self):
         return self.manager.infos()
+
+
+class SharedObjectLifecycleManagerProxy(ObjectLifecycleManagerProxy):
+
+    def _object_key(self, object_key):
+        return object_key
