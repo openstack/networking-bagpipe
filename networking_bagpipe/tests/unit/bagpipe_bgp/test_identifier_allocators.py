@@ -105,3 +105,41 @@ class TestIDAllocatorReUse(testtools.TestCase):
         # check that the next id given to us is x
         z2 = test_allocator.get_new_id()
         self.assertEqual(x, z2)
+
+
+class TestIDAllocatorRequestValue(testtools.TestCase):
+
+    def setUp(self):
+        testtools.TestCase.setUp(self)
+
+    def test_request_not_allocated(self):
+        test_allocator = identifier_allocators.IDAllocator()
+
+        x = test_allocator.get_new_id()
+        # Request to allocate id greater than current_id value
+        y = test_allocator.get_new_id(hint_value=x+3)
+
+        self.assertEqual(y, x+3)
+        self.assertEqual(test_allocator.current_id, x+1)
+
+    def test_request_allocated(self):
+        test_allocator = identifier_allocators.IDAllocator()
+
+        x = test_allocator.get_new_id()
+        y = test_allocator.get_new_id(hint_value=x)
+
+        self.assertTrue(y != x)
+        self.assertEqual(y, x+1)
+        self.assertEqual(test_allocator.current_id, x+2)
+
+    def test_request_next_already_allocated(self):
+        test_allocator = identifier_allocators.IDAllocator()
+
+        x = test_allocator.get_new_id()
+        # Request to allocate id equal to current_id value
+        y = test_allocator.get_new_id(hint_value=x+1)
+        z = test_allocator.get_new_id()
+
+        self.assertTrue(z != y)
+        self.assertEqual(z, x+2)
+        self.assertEqual(test_allocator.current_id, x+3)

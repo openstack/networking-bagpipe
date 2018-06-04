@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import itertools
 import threading
 
 from oslo_log import log as logging
@@ -44,23 +45,36 @@ class IDAllocator(lg.LookingGlassMixin):
 
         self.lock = threading.Lock()
 
-    @utils.synchronized
-    def get_new_id(self, description=None):
+    def _allocate(self, id, description, update_current=False):
+        self.allocated_ids[id] = description
 
-        if self.current_id > self.MAX:
+        # Update current_id to the next free id
+        if update_current and id == self.current_id:
+            for next_id in itertools.count(self.current_id+1):
+                if next_id not in self.allocated_ids:
+                    self.current_id = next_id
+                    break
+
+        LOG.debug("Allocated id %d for '%s'", id, description)
+        return id
+
+    @utils.synchronized
+    def get_new_id(self, description=None, hint_value=None):
+
+        if hint_value is not None and hint_value > self.MAX:
+            LOG.warning("Allocator hint value cannot be beyond MAX")
+
+        if hint_value is not None and hint_value not in self.allocated_ids:
+            return self._allocate(hint_value, description, update_current=True)
+        elif self.current_id > self.MAX:
             if len(self.released_ids) > 0:
                 # FIFO (pop the id that was released the earliest)
-                new_id = self.released_ids.pop(0)
+                return self._allocate(self.released_ids.pop(0), description)
             else:
                 raise MaxIDReached(max=self.MAX)
         else:
-            new_id = self.current_id
-            self.current_id += 1
-
-        self.allocated_ids[new_id] = description
-
-        LOG.debug("Allocated id %d for '%s'", new_id, description)
-        return new_id
+            return self._allocate(self.current_id, description,
+                                  update_current=True)
 
     @utils.synchronized
     def release(self, id):
