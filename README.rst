@@ -55,8 +55,7 @@ The networking-bagpipe package includes:
 
 * compute code common to both: agent extensions for Neutron agent
   (linuxbridge or openvswitch) to consolidate and pass information via
-  its REST API to :ref:`bagpipe-bgp`: a lightweight BGP VPN implementation
-  (note that a previous version of bagpipe-bgp was hosted under github)
+  its REST API to BaGPipe-BGP (a lightweight BGP VPN implementation)
 
 .. _networking-bgpvpn: https://github.com/openstack/networking-bgpvpn
 .. _RFC4364: http://tools.ietf.org/html/rfc4364
