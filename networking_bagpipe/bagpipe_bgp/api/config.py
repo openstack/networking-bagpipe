@@ -17,11 +17,13 @@
 
 from oslo_config import cfg
 
+DEFAULT_PORT = 8082
+
 common_opts = [
     cfg.HostAddressOpt("host", default="127.0.0.1",
                        help="IP address on which the API server should listen",
                        deprecated_name="api_host"),
-    cfg.PortOpt("port", default=8082,
+    cfg.PortOpt("port", default=DEFAULT_PORT,
                 help="Port on which the API server should listen",
                 deprecated_name="api_port")
 ]
