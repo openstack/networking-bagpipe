@@ -134,20 +134,26 @@ class ObjectLifecycleManager(object):
         pass
 
     @log_decorator.log_info
-    def get_object(self, object_key, user_key=None, *args, **kwargs):
-        obj = self.objects.get(object_key)
-        if obj is not None:
-            LOG.debug("existing object for %s: %s", object_key, obj)
-        else:
-            if not user_key:
-                return None
-
+    def get_object(self, object_key, user_key, *args, **kwargs):
+        obj = self.find_object(object_key)
+        if obj is None:
             obj = self.create_object(object_key, *args, **kwargs)
             self.objects[object_key] = obj
             LOG.debug("object for %s: %s", object_key, obj)
 
-        if user_key:
-            self.object_used_for[object_key].add(user_key)
+        first = not self.object_used_for[object_key]
+        self.object_used_for[object_key].add(user_key)
+
+        if first:
+            LOG.debug("%s is first user for %s", user_key, object_key)
+
+        return (obj, first)
+
+    @log_decorator.log_info
+    def find_object(self, object_key):
+        obj = self.objects.get(object_key)
+        if obj is not None:
+            LOG.debug("existing object for %s: %s", object_key, obj)
 
         return obj
 
@@ -158,7 +164,9 @@ class ObjectLifecycleManager(object):
             return
 
         self.object_used_for[object_key].discard(user_key)
-        if not self.object_used_for[object_key]:
+
+        last = not self.object_used_for[object_key]
+        if last:
             obj = self.objects[object_key]
 
             LOG.debug("%s was last user for %s, clearing", user_key,
@@ -170,6 +178,8 @@ class ObjectLifecycleManager(object):
         else:
             LOG.debug("remaining users for object %s: %s", object_key,
                       self.object_used_for[object_key])
+
+        return last
 
     def clear_objects(self, filter_method):
         for object_key, users in self.object_used_for.items():
@@ -197,13 +207,13 @@ class ObjectLifecycleManagerProxy(object):
         return self.manager.is_object_user(self._object_key(object_key),
                                            (self.parent_user, user_key))
 
-    def get_object(self, object_key, user_key=None, *args, **kwargs):
-        if user_key:
-            return self.manager.get_object(self._object_key(object_key),
-                                           (self.parent_user, user_key),
-                                           *args, **kwargs)
-        else:
-            return self.manager.get_object(self._object_key(object_key))
+    def get_object(self, object_key, user_key, *args, **kwargs):
+        return self.manager.get_object(self._object_key(object_key),
+                                       (self.parent_user, user_key),
+                                       *args, **kwargs)
+
+    def find_object(self, object_key):
+        return self.manager.find_object(self._object_key(object_key))
 
     def free_object(self, object_key, user_key):
         if user_key:

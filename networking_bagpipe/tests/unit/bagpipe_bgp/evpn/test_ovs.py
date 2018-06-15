@@ -42,7 +42,7 @@ class TestTunnelManager(t.TestCase):
         self.manager = ovs.TunnelManager(self.bridge, LOCAL_IP)
 
     def test_get_tunnel(self):
-        t1 = self.manager.get_object("2.2.2.2", "A")
+        t1, _ = self.manager.get_object("2.2.2.2", "A")
         self.bridge.add_tunnel_port.assert_called_once_with(mock.ANY,
                                                             "2.2.2.2",
                                                             LOCAL_IP,
@@ -52,7 +52,7 @@ class TestTunnelManager(t.TestCase):
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.setup_tunnel_port.reset_mock()
 
-        t2 = self.manager.get_object("2.2.2.2", "B")
+        t2, _ = self.manager.get_object("2.2.2.2", "B")
         self.bridge.add_tunnel_port.assert_not_called()
         self.bridge.setup_tunnel_port.assert_not_called()
 
@@ -61,7 +61,7 @@ class TestTunnelManager(t.TestCase):
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.setup_tunnel_port.reset_mock()
 
-        t3 = self.manager.get_object("3.3.3.3", "A")
+        t3, _ = self.manager.get_object("3.3.3.3", "A")
         self.bridge.add_tunnel_port.assert_called_once()
         self.bridge.setup_tunnel_port.assert_called_once()
 
@@ -70,9 +70,9 @@ class TestTunnelManager(t.TestCase):
         self.assertTrue(len(self.manager.infos()))
 
     def test_free_object(self):
-        t1 = self.manager.get_object("2.2.2.2", "A")
+        t1, _ = self.manager.get_object("2.2.2.2", "A")
         self.manager.get_object("2.2.2.2", "B")
-        t2 = self.manager.get_object("3.3.3.3", "A")
+        t2, _ = self.manager.get_object("3.3.3.3", "A")
 
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.delete_port.reset_mock()
@@ -80,7 +80,7 @@ class TestTunnelManager(t.TestCase):
 
         self.manager.free_object("2.2.2.2", "A")
         self.bridge.delete_port.assert_not_called()
-        t1bis = self.manager.get_object("2.2.2.2")
+        t1bis = self.manager.find_object("2.2.2.2")
         self.assertTrue(t1bis == t1)
 
         self.bridge.add_tunnel_port.reset_mock()
@@ -117,6 +117,8 @@ class TestOVSEVIDataplane(t.TestCase):
 
         self.bridge = mock.Mock(spec=FakeBridgeMockSpec)
         self.tunnel_mgr = mock.Mock(spec=ovs.TunnelManager)
+        self.tunnel_mgr.get_object.return_value = ("TUNNEL1", None)
+        self.tunnel_mgr.find_object.return_value = "TUNNEL1"
 
         self.dp_driver = mock.Mock(spec=dp_drivers.DataplaneDriver)
         self.dp_driver.bridge = self.bridge
