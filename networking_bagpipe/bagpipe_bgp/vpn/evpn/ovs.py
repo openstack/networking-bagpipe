@@ -106,7 +106,7 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         if remote_pe == self.local_ip:
             actions = self._local_vni_actions(vni)
         else:
-            port = self.tunnel_mgr.get_object(remote_pe, (vni, mac))
+            port, _ = self.tunnel_mgr.get_object(remote_pe, (vni, mac))
             actions = "set_tunnel:%d,output:%s" % (vni, port)
         self.bridge.add_flow(table=ovs_const.UCAST_TO_TUN,
                              priority=FLOW_PRIORITY,
@@ -139,7 +139,7 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         if remote_pe == self.local_ip:
             port = "local"
         else:
-            port = self.tunnel_mgr.get_object(remote_pe, (vni, FLOOD))
+            port, _ = self.tunnel_mgr.get_object(remote_pe, (vni, FLOOD))
         self.flooding_ports.add((port, vni))
 
         self._update_flooding_buckets()
@@ -150,7 +150,7 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
         if remote_pe == self.local_ip:
             port = "local"
         else:
-            port = self.tunnel_mgr.get_object(remote_pe)
+            port = self.tunnel_mgr.find_object(remote_pe)
 
         if port:
             self.flooding_ports.remove((port, vni))
