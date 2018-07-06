@@ -18,9 +18,7 @@ import netaddr
 from oslo_utils import uuidutils
 
 from neutron_lib import context
-
-from neutron.objects import network
-from neutron.objects import ports
+from neutron_lib.objects import registry as obj_reg
 
 from networking_bagpipe.objects import sfc as sfc_obj
 
@@ -167,32 +165,34 @@ class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase,
         super(BaGPipePortHopsObjectTestCase, self).setUp()
         self.context = context.get_admin_context()
 
-        self.ingress_network = network.Network(self.context)
+        self.ingress_network = obj_reg.new_instance('Network', self.context)
         self.ingress_network.create()
 
-        self.ingress_port = ports.Port(self.context,
-                                       network_id=self.ingress_network.id,
-                                       mac_address=netaddr.EUI(
-                                           INGRESS_MAC,
-                                           dialect=netaddr.mac_unix_expanded),
-                                       device_id='test_device_id',
-                                       device_owner='compute:None',
-                                       status="DUMMY_STATUS",
-                                       admin_state_up=True)
+        self.ingress_port = obj_reg.new_instance(
+            'Port', self.context,
+            network_id=self.ingress_network.id,
+            mac_address=netaddr.EUI(
+                INGRESS_MAC,
+                dialect=netaddr.mac_unix_expanded),
+            device_id='test_device_id',
+            device_owner='compute:None',
+            status="DUMMY_STATUS",
+            admin_state_up=True)
         self.ingress_port.create()
 
-        self.egress_network = network.Network(self.context)
+        self.egress_network = obj_reg.new_instance('Network', self.context)
         self.egress_network.create()
 
-        self.egress_port = ports.Port(self.context,
-                                      network_id=self.egress_network.id,
-                                      mac_address=netaddr.EUI(
-                                          EGRESS_MAC,
-                                          dialect=netaddr.mac_unix_expanded),
-                                      device_id='test_device_id',
-                                      device_owner='compute:None',
-                                      status="DUMMY_STATUS",
-                                      admin_state_up=True)
+        self.egress_port = obj_reg.new_instance(
+            'Port', self.context,
+            network_id=self.egress_network.id,
+            mac_address=netaddr.EUI(
+                EGRESS_MAC,
+                dialect=netaddr.mac_unix_expanded),
+            device_id='test_device_id',
+            device_owner='compute:None',
+            status="DUMMY_STATUS",
+            admin_state_up=True)
         self.egress_port.create()
 
         self.port_chain1 = self._create_test_port_chain()
