@@ -47,14 +47,22 @@ class OVSBridgeWithGroups(object):
 
     def do_action_groups(self, action, kwargs_list):
         group_strs = [_build_group_expr_str(kw, action) for kw in kwargs_list]
+        options = ['-']
         if action == 'add' or action == 'del':
             cmd = '%s-groups' % action
         elif action == 'mod':
             cmd = '%s-group' % action
+            options.insert(0, '--may-create')
+        elif action == 'insert-buckets' or action == 'remove-buckets':
+            cmd = action
         else:
             msg = _("Action is illegal")
             raise exceptions.InvalidInput(error_message=msg)
-        self.run_ofctl(cmd, ['--may-create', '-'], '\n'.join(group_strs))
+
+        if action == 'del' and {} in kwargs_list:
+            self.run_ofctl(cmd, [])
+        else:
+            self.run_ofctl(cmd, options, '\n'.join(group_strs))
 
     @log_decorator.log_info
     def add_group(self, **kwargs):
@@ -67,6 +75,14 @@ class OVSBridgeWithGroups(object):
     @log_decorator.log_info
     def delete_group(self, **kwargs):
         self.do_action_groups('del', [kwargs])
+
+    @log_decorator.log_info
+    def insert_bucket(self, **kwargs):
+        self.do_action_groups('insert-buckets', [kwargs])
+
+    @log_decorator.log_info
+    def remove_bucket(self, **kwargs):
+        self.do_action_groups('remove-buckets', [kwargs])
 
     def dump_group_for_id(self, group_id):
         retval = None
@@ -97,11 +113,12 @@ def _build_group_expr_str(group_dict, cmd):
             raise exceptions.InvalidInput(error_message=msg)
         group_id = "group_id=%s" % group_dict.pop('group_id')
 
-        if "buckets" not in group_dict:
-            msg = _("Must specify one or more buckets on group addition"
-                    " or modification")
-            raise exceptions.InvalidInput(error_message=msg)
-        buckets = "%s" % group_dict.pop('buckets')
+        if cmd != 'remove-buckets':
+            if "buckets" not in group_dict:
+                msg = _("Must specify one or more buckets on group addition/"
+                        "modification or buckets insertion/deletion")
+                raise exceptions.InvalidInput(error_message=msg)
+            buckets = "%s" % group_dict.pop('buckets')
 
     if group_id:
         group_expr_arr.append(group_id)
@@ -115,12 +132,37 @@ def _build_group_expr_str(group_dict, cmd):
     return ','.join(group_expr_arr)
 
 
+class OVSExtendedBridge(ovs_lib.OVSBridge):
+
+    def add_flow_extended(self, flow_matches=[], actions=[]):
+        flow_args = {}
+        for match in flow_matches:
+            flow_args.update(match)
+
+        if actions:
+            flow_args["actions"] = join_s(*actions)
+
+        self.add_flow(**flow_args)
+
+    def delete_flows_extended(self, flow_matches=[]):
+        flow_args = {}
+        for match in flow_matches:
+            flow_args.update(match)
+
+        self.delete_flows(**flow_args)
+
+
+def join_s(*args):
+    return ','.join([_f for _f in args if _f])
+
+
 class ObjectLifecycleManager(object):
 
     def __init__(self):
         self.objects = dict()
         self.object_used_for = collections.defaultdict(set)
 
+    @log_decorator.log_info
     def is_object_user(self, object_key, user_key):
         return (object_key in self.objects and
                 user_key in self.object_used_for[object_key])
@@ -181,6 +223,7 @@ class ObjectLifecycleManager(object):
 
         return last
 
+    @log_decorator.log_info
     def clear_objects(self, filter_method):
         for object_key, users in self.object_used_for.items():
             for user in users:

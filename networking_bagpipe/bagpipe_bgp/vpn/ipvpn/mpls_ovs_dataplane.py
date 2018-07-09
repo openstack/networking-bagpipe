@@ -15,14 +15,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import operator
 import re
 
+import collections
 from distutils import version  # pylint: disable=no-name-in-module
 import netaddr
 from oslo_config import cfg
 from oslo_config import types
+from oslo_log import log as logging
 
+from networking_bagpipe.bagpipe_bgp.common import config
+from networking_bagpipe.bagpipe_bgp.common import dataplane_utils
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -30,7 +33,12 @@ from networking_bagpipe.bagpipe_bgp.common import net_utils
 from networking_bagpipe.bagpipe_bgp import constants as consts
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
+from networking_bagpipe.bagpipe_bgp.vpn import identifier_allocators
 from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
+
+from neutron.agent.common import ovs_lib
+from neutron.plugins.ml2.drivers.openvswitch.agent.common import \
+    constants as ovs_const
 
 # man ovs-ofctl /32768
 DEFAULT_OVS_FLOW_PRIORITY = 0x8000
@@ -76,21 +84,25 @@ ARP_RESPONDER_ACTIONS = ('move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],'
                          '%(vlan_action)soutput:%(in_port)d')
 
 VRF_REGISTER = 0
-LB_HOP_REGISTER = 1
-
-
-def join_s(*args):
-    return ','.join([_f for _f in args if _f])
 
 
 def _match_from_prefix(prefix):
     # A zero-length prefix is a default route, no nw_dst is needed/possible
     # in this case
     prefix_length = netaddr.IPNetwork(prefix).prefixlen
-    return 'nw_dst=%s' % prefix if prefix_length != 0 else None
+    return {'nw_dst': prefix} if prefix_length != 0 else {}
 
 
 def _priority_from_prefix(prefix):
+    # FIXME: use a priority depending on the prefix len
+    #        to compensate the fact that "OpenFlow  leaves  behavior
+    #        undefined when two or more flows with the same priority
+    #        can match a single packet.  Some users expect ``sensible''
+    #        behavior, such as more specific flows taking precedence
+    #        over less specific flows, but OpenFlow does not specify
+    #        this and Open vSwitch does not implement it.  Users should
+    #        therefore  take  care  to  use  priorities  to ensure the
+    #        behavior that they expect.
     prefix_length = netaddr.IPNetwork(prefix).prefixlen
     # to implement a longest-match lookup we give longest prefixes
     # the higher priority
@@ -107,15 +119,18 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         # bound IP address)
         self._ovs_port_info = dict()
 
-        # Initialize dict where we store label, remote_pe and
-        # lb_consistent_hash_order infos list per prefix for remote endpoints
-        # load balancing
-        self._lb_endpoints = dict()
-
         self.bridge = self.driver.bridge
 
+        self.nh_group_mgr = NextHopGroupManagerProxy(
+            self.driver.nh_group_mgr,
+            self.instance_id,
+            self.driver.vrf_table,
+            self._vrf_match(),
+            self._cookie
+        )
+
         self.fallback = None
-        self.push_vlan_action = None
+        self.ovs_vlan = None
 
     @log_decorator.log_info
     def cleanup(self):
@@ -126,7 +141,11 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         # Remove all flows for this instance
         for table in self.driver.all_tables.values():
-            self._ovs_flow_del(None, table)
+            self.bridge.delete_flows(table=table,
+                                     cookie=self._cookie(add=False))
+
+        # Remove all groups for this instance
+        self.nh_group_mgr.clear_objects()
 
     @log_decorator.log
     def _extract_mac_address(self, output):
@@ -140,19 +159,19 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         # PING remote IP address
         (_, exit_code) = self._run_command("fping -r4 -t100 -q -I %s %s" %
-                                           (self.driver.bridge, remote_ip),
+                                           (self.bridge.br_name, remote_ip),
                                            raise_on_error=False,
                                            acceptable_return_codes=[-1])
         if exit_code != 0:
             self.log.info("can't ping %s via %s, proceeding anyways",
-                          remote_ip, self.driver.bridge)
+                          remote_ip, self.bridge.br_name)
             # we proceed even if the ping failed, since the ping was
             # just a way to trigger an ARP resolution which may have
             # succeeded even if the ping failed
 
         # Look in ARP cache to find remote MAC address
         (output, _) = self._run_command("ip neigh show to %s dev %s" %
-                                        (remote_ip, self.driver.bridge))
+                                        (remote_ip, self.bridge.br_name))
 
         if (not output or
                 "FAILED" in output[0] or
@@ -197,19 +216,9 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
     def _get_ovs_port_specifics(self, localport):
         # Returns a tuple of:
         # - OVS port number for traffic to/from VMs
-        # - OVS actions and rules, based on whether or not a vlan is specified
-        #   in localport:
-        #     - OVS port match rule
-        #     - OVS push vlan action
-        #     - OVS strip vlan action
-        # - Port unplug action
-        #
-        # For OVS actions, if no VLAN is specified the localport match only
-        # matches the OVS port and actions are empty strings.
-
-        # Retrieve OVS port numbers and port unplug action
+        # - OVS port name
         try:
-            port_unplug_action = None
+            port_name = ""
             if ('ovs' in localport and localport['ovs']['plugged']):
                 try:
                     port = localport['ovs']['port_number']
@@ -219,7 +228,6 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                     port = self.driver.find_ovs_port(
                         localport['ovs']['port_name'])
             else:
-                port_name = ""
                 try:
                     try:
                         port_name = localport['ovs']['port_name']
@@ -232,38 +240,23 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                 try:
                     port = self.driver.find_ovs_port(port_name)
                 except Exception:
-                    self._run_command("ovs-vsctl --may-exist add-port %s %s" %
-                                      (self.bridge, port_name),
-                                      run_as_root=True)
-                    port = self.driver.find_ovs_port(port_name)
+                    port = self.bridge.add_port(port_name)
                 self.log.debug("Corresponding port number: %s", port)
-
-                # Set port unplug action
-                port_unplug_action = "ovs-vsctl del-port %s %s" % (
-                    self.bridge, port_name)
-
         except KeyError as e:
             self.log.error("Incomplete port specification: %s", e)
             raise Exception("Incomplete port specification: %s" % e)
 
-        # Create OVS actions
-        try:
-            localport_match, push_vlan_action = (
-                "in_port=%s,dl_vlan=%d" % (
-                    port, int(localport['ovs']['vlan'])),
-                "push_vlan:0x8100,mod_vlan_vid:%d," % int(
-                    localport['ovs']['vlan'])
-            )
-        except KeyError:
-            localport_match, push_vlan_action = (
-                "in_port=%s" % port,
-                None
-            )
+        return (port, port_name)
 
-        return (port, localport_match, push_vlan_action, port_unplug_action)
+    def _vlan_match(self):
+        return {'dl_vlan': self.ovs_vlan} if self.ovs_vlan else {}
 
-    def get_vlan_action(self):
-        return self.push_vlan_action if self.push_vlan_action else ""
+    def get_push_vlan_action(self):
+        return ("push_vlan:0x8100,mod_vlan_vid:%d" % self.ovs_vlan
+                if self.ovs_vlan else "")
+
+    def get_strip_vlan_action(self):
+        return "strip_vlan" if self.ovs_vlan else ""
 
     @log_decorator.log_info
     def update_fallback(self, fallback=None):
@@ -280,75 +273,74 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         # use priority -1 so that the route only hits when the packet
         # does not matches any VRF route
-        self._ovs_flow_add(self._vrf_match(None, proto=None),
-                           'mod_dl_src=%s,mod_dl_dst=%s,%soutput:%d' %
-                           (self.fallback.get('src_mac'),
-                            self.fallback.get('dst_mac'),
-                            self.get_vlan_action(),
-                            self.fallback.get('ovs_port_number')),
-                           self.driver.vrf_table,
-                           priority=FALLBACK_PRIORITY)
+        self.bridge.add_flow_extended(
+            flow_matches=[dict(table=self.driver.vrf_table,
+                               cookie=self._cookie(add=True),
+                               priority=FALLBACK_PRIORITY),
+                          self._vrf_match()],
+            actions=[self.get_push_vlan_action(),
+                     'mod_dl_src:%s' % self.fallback.get('src_mac'),
+                     'mod_dl_dst:%s' % self.fallback.get('dst_mac'),
+                     'output:%d' % self.fallback.get('ovs_port_number')])
 
     @log_decorator.log_info
     def setup_arp_responder(self, ovs_port):
         if not self.driver.config.arp_responder:
             return
 
-        actions = ARP_RESPONDER_ACTIONS % {
-            'mac': netaddr.EUI(GATEWAY_MAC, dialect=netaddr.mac_unix),
-            'vlan_action': self.get_vlan_action(),
-            'in_port': ovs_port
-        }
-
-        vrf_match = self._vrf_match(
-            'dl_dst=ff:ff:ff:ff:ff:ff,arp_op=0x1', proto='arp'
-        )
-        # Respond to all IP addresses if proxy ARP is enabled, otherwise only
-        # for gateway
-        if not self.driver.config.proxy_arp:
-            vrf_match += ',arp_tpa=%s' % self.gateway_ip
-
-        self._ovs_flow_add(vrf_match, actions, self.driver.vrf_table)
+        self.bridge.add_flow_extended(
+            flow_matches=[dict(table=self.driver.vrf_table,
+                               cookie=self._cookie(add=True),
+                               priority=DEFAULT_RULE_PRIORITY,
+                               proto='arp',
+                               dl_dst='ff:ff:ff:ff:ff:ff',
+                               arp_op='0x1'),
+                          self._vrf_match(),
+                          # Respond to all IP addresses if proxy ARP is
+                          # enabled, otherwise only for gateway
+                          {'arp_tpa': self.gateway_ip}
+                          if not self.driver.config.proxy_arp else {}],
+            actions=[ARP_RESPONDER_ACTIONS % {
+                'mac': netaddr.EUI(GATEWAY_MAC, dialect=netaddr.mac_unix),
+                'vlan_action': self.get_push_vlan_action(),
+                'in_port': ovs_port
+            }])
 
     @log_decorator.log_info
     def remove_arp_responder(self):
-        self._ovs_flow_del(
-            self._vrf_match(None, proto='arp'),
-            self.driver.vrf_table)
+        self.bridge.delete_flows_extended(
+            flow_matches=[dict(table=self.driver.vrf_table,
+                               cookie=self._cookie(add=False),
+                               proto='arp'),
+                          self._vrf_match()])
 
-    def _check_vlan_use(self, push_vlan_action):
+    def _check_vlan_use(self, localport):
         # checks that if a vlan_action is used, it is the same
-        # for all interfaces plugged into the VRF,
-        # and returns a string definition of (if any)
-        # push and strip_vlan action to apply
-
+        # for all interfaces plugged into the VRF
         # on first plug we update
-        if self.push_vlan_action is None:
-            self.push_vlan_action = push_vlan_action
+        try:
+            ovs_vlan = int(localport['ovs']['vlan'])
+        except KeyError:
+            return
+
+        if self.ovs_vlan is None:
+            self.ovs_vlan = ovs_vlan
         else:
             # on a subsequent plug, we check
-            if self.push_vlan_action != push_vlan_action:
+            if self.ovs_vlan != ovs_vlan:
                 self.log.error("different VLAN for different interfaces: "
-                               "%s vs %s", self.push_vlan_action,
-                               push_vlan_action)
+                               "%s vs %s", self.ovs_vlan,
+                               ovs_vlan)
                 raise Exception("can't specify a different VLAN for different"
                                 " interfaces")
-
-        if self.push_vlan_action is None:
-            return ("", "")
-        else:
-            return (push_vlan_action, "strip_vlan,")
 
     @log_decorator.log
     def vif_plugged(self, mac_address, ip_address, localport, label,
                     direction):
 
-        (ovs_port, localport_match, push_vlan_action, port_unplug_action) = (
-            self._get_ovs_port_specifics(localport)
-        )
+        (ovs_port, ovs_port_name) = self._get_ovs_port_specifics(localport)
 
-        (push_vlan_action_str, strip_vlan_action_str) = (
-            self._check_vlan_use(push_vlan_action))
+        self._check_vlan_use(localport)
 
         # need to update fallback, in case it was called before the
         # first vifPlugged call could define the push_vlan action
@@ -370,17 +362,19 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             #
             # ( see http://docs.openvswitch.org/en/latest/faq/openflow/
             # "Q: I added a flow to send packets out the ingress port..." )
-            actions = ('%s'
-                       'load:0->NXM_OF_IN_PORT[],'
-                       'set_field:%d->reg%d,'
-                       'resubmit(,%d)') % (
-                strip_vlan_action_str, self.instance_id, VRF_REGISTER,
-                self.driver.vrf_table
-            )
             for proto in ('ip', 'arp'):
-                self._ovs_flow_add(join_s(localport_match, proto),
-                                   actions,
-                                   self.driver.input_table)
+                self.bridge.add_flow_extended(
+                    flow_matches=[dict(table=self.driver.input_table,
+                                       cookie=self._cookie(add=True),
+                                       priority=DEFAULT_RULE_PRIORITY,
+                                       proto=proto,
+                                       in_port=ovs_port),
+                                  self._vlan_match()],
+                    actions=[self.get_strip_vlan_action(),
+                             'load:0->NXM_OF_IN_PORT[],',
+                             'set_field:%d->reg%d,' % (self.instance_id,
+                                                       VRF_REGISTER),
+                             'resubmit(,%d)' % self.driver.vrf_table])
 
         # Map ARP responder if necessary
         if not self._ovs_port_info:
@@ -388,19 +382,30 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         if vpn_instance.forward_to_port(direction):
             # Map incoming MPLS traffic going to the VM port
-            incoming_actions = ("%smod_dl_src:%s,mod_dl_dst:%s,output:%s" %
-                                (push_vlan_action_str, GATEWAY_MAC,
-                                 mac_address, ovs_port))
+            incoming_actions = [self.get_push_vlan_action(),
+                                "mod_dl_src:%s,mod_dl_dst:%s" % (GATEWAY_MAC,
+                                                                 mac_address),
+                                "output:%s" % ovs_port]
 
-            self._ovs_flow_add(self._match_mpls_in(label),
-                               "pop_mpls:0x0800,%s" % incoming_actions,
-                               self.driver.encap_in_table)
+            self.bridge.add_flow_extended(
+                flow_matches=[dict(table=self.driver.encap_in_table,
+                                   cookie=self._cookie(add=True),
+                                   priority=DEFAULT_RULE_PRIORITY,
+                                   proto="mpls",
+                                   mpls_label=label,
+                                   mpls_bos=1)],
+                actions=["pop_mpls:0x0800"] + incoming_actions)
 
             # additional incoming traffic rule for VXLAN
             if self.driver.vxlan_encap:
-                self._ovs_flow_add(self._match_vxlan_in(label),
-                                   incoming_actions,
-                                   self.driver.encap_in_table)
+                self.bridge.add_flow_extended(
+                    flow_matches=[
+                        dict(table=self.driver.encap_in_table,
+                             cookie=self._cookie(add=True),
+                             priority=DEFAULT_RULE_PRIORITY,
+                             in_port=self.driver.vxlan_tunnel_port_number,
+                             tun_id=label)],
+                    actions=incoming_actions)
 
         # Add OVS port number in list for local port plugged in VRF
         # FIXME: check check check, is linuxif the right key??
@@ -408,63 +413,63 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                        "%s, to the list of ports plugged in VRF",
                        localport['linuxif'], ovs_port, ip_address)
         self._ovs_port_info[localport['linuxif']] = {
-            "localport_match": localport_match,
-            "port_unplug_action": port_unplug_action,
+            "ovs_port": ovs_port,
+            "ovs_port_name": ovs_port_name,
         }
-
-    def _match_mpls_in(self, label):
-        return 'mpls,mpls_label=%d,mpls_bos=1' % label
-
-    def _match_vxlan_in(self, vnid):
-        return ('in_port=%s,tun_id=%d' %
-                (self.driver.vxlan_tunnel_port_number, vnid))
 
     @log_decorator.log
     def vif_unplugged(self, mac_address, ip_address, localport, label,
                       direction, last_endpoint=True):
 
-        localport_match = self._ovs_port_info[
-            localport['linuxif']]['localport_match']
-        port_unplug_action = self._ovs_port_info[
-            localport['linuxif']]['port_unplug_action']
+        ovs_port = self._ovs_port_info[localport['linuxif']]['ovs_port']
+        ovs_port_name = self._ovs_port_info[
+            localport['linuxif']]['ovs_port_name']
 
         if vpn_instance.forward_to_port(direction):
             # Unmap incoming MPLS traffic going to the VM port
-            self._ovs_flow_del(self._match_mpls_in(label),
-                               self.driver.encap_in_table)
+            self.bridge.delete_flows(table=self.driver.encap_in_table,
+                                     cookie=self._cookie(add=False),
+                                     proto="mpls",
+                                     mpls_label=label,
+                                     mpls_bos=1)
 
             # Unmap incoming VXLAN traffic...
             if self.driver.vxlan_encap:
-                self._ovs_flow_del(self._match_vxlan_in(label),
-                                   self.driver.encap_in_table)
+                self.bridge.delete_flows(
+                    table=self.driver.encap_in_table,
+                    cookie=self._cookie(add=False),
+                    in_port=self.driver.vxlan_tunnel_port_number,
+                    tun_id=label)
 
         if last_endpoint:
             if vpn_instance.forward_from_port(direction):
                 # Unmap all traffic from plugged port
-                self._ovs_flow_del(localport_match, self.driver.input_table)
+                self.bridge.delete_flows_extended(
+                    flow_matches=[dict(table=self.driver.input_table,
+                                       cookie=self._cookie(add=False),
+                                       in_port=ovs_port),
+                                  self._vlan_match()])
 
             # Unmap ARP responder
             self.remove_arp_responder()
 
             # Run port unplug action if necessary (OVS port delete)
-            if port_unplug_action:
-                self._run_command(port_unplug_action,
-                                  run_as_root=True,
-                                  acceptable_return_codes=[0, 1])
+            if ovs_port_name:
+                self.bridge.delete_port(ovs_port_name)
 
             # Remove OVS port number from list for local port plugged in VRF
             del self._ovs_port_info[localport['linuxif']]
 
-    def _match_label_action(self, label, encaps):
+    def _get_label_action(self, label, encaps):
         if (self.driver.vxlan_encap and
                 exa.Encapsulation(exa.Encapsulation.Type.VXLAN) in encaps):
             return "set_field:%d->tunnel_id" % label
         else:
-            return "push_mpls:0x8847,load:%s->OXM_OF_MPLS_LABEL[]" % label
+            return "push_mpls:0x8847,set_mpls_label:%d" % label
 
-    def _match_output_action(self, remote_pe, encaps):
+    def _get_output_action(self, remote_pe, encaps):
         # Check if prefix is from a local VRF
-        if self.driver.get_local_address() == str(remote_pe):
+        if self.driver.get_local_address() == remote_pe:
             self.log.debug("Local route, using a resubmit action")
             # For local traffic, we have to use a resubmit action
             if (self.driver.vxlan_encap and
@@ -480,11 +485,11 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                     exa.Encapsulation(exa.Encapsulation.Type.VXLAN) in encaps):
                 self.log.debug("Will use a VXLAN encap for this destination")
                 return "set_field:%s->tun_dst,output:%s" % (
-                    str(remote_pe), self.driver.vxlan_tunnel_port_number)
+                    remote_pe, self.driver.vxlan_tunnel_port_number)
             elif self.driver.use_gre:
                 self.log.debug("Using MPLS/GRE encap")
                 return "set_field:%s->tun_dst,output:%s" % (
-                    str(remote_pe), self.driver.gre_tunnel_port_number)
+                    remote_pe, self.driver.gre_tunnel_port_number)
             else:
                 self.log.debug("Using bare MPLS encap")
                 # Find remote router MAC address
@@ -509,231 +514,94 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         mask = ""
         if not add:
             mask = "/-1"
-        return "cookie=%d%s" % (self.instance_id, mask)
+        return "%d%s" % (self.instance_id, mask)
 
-    def _vrf_match(self, match, proto="ip"):
-        return join_s('reg%d=%d' % (VRF_REGISTER, self.instance_id),
-                      proto, match)
-
-    def _vrf_lb_match(self, index, match):
-        return self._vrf_match(join_s('reg%d=%d' % (LB_HOP_REGISTER, index),
-                                      match))
-
-    def _get_lb_flows_to_add(self, prefix):
-        dec_ttl_action = ""
-
-        # if destination in same subnet as the VRF, don't decrement TTL
-        if netaddr.IPNetwork(prefix) not in netaddr.IPNetwork(
-                "%s/%s" % (self.gateway_ip, self.network_plen)):
-            dec_ttl_action = "dec_ttl"
-
-        flows_to_add = []
-        for index, endpoint in enumerate(self._lb_endpoints[prefix]):
-            label_action = self._match_label_action(endpoint['label'],
-                                                    endpoint['encaps'])
-            output_action = self._match_output_action(endpoint['remote_pe'],
-                                                      endpoint['encaps'])
-
-            lb_endpoint_flow = self._ovs_flow_add(
-                self._vrf_lb_match(index, _match_from_prefix(prefix)),
-                join_s(dec_ttl_action,
-                       label_action,
-                       output_action),
-                self.driver.post_hash_vrf_table,
-                priority=_priority_from_prefix(prefix),
-                return_flow=True)
-
-            flows_to_add.append(('add', lb_endpoint_flow))
-
-        return flows_to_add
-
-    def _get_lb_flows_to_del(self, prefix):
-        flows_to_del = []
-        for index, _ in enumerate(self._lb_endpoints[prefix]):
-            lb_endpoint_flow = self._ovs_flow_del(
-                self._vrf_lb_match(index, _match_from_prefix(prefix)),
-                self.driver.post_hash_vrf_table,
-                return_flow=True)
-            flows_to_del.append(('del', lb_endpoint_flow))
-
-        return flows_to_del
-
-    def _get_lb_multipath_flow_mod(self, prefix):
-        if self._lb_endpoints[prefix]:
-            multipath_action = ('multipath(symmetric_l3l4+udp,1024,hrw,%d,0,'
-                                'NXM_NX_REG%d[])' % (
-                                    len(self._lb_endpoints[prefix]),
-                                    LB_HOP_REGISTER
-                                ))
-            multipath_output = (
-                'resubmit(,%d)' % self.driver.post_hash_vrf_table)
-
-            lb_multipath_flow = self._ovs_flow_add(
-                self._vrf_match(_match_from_prefix(prefix)),
-                join_s(multipath_action, multipath_output),
-                self.driver.vrf_table,
-                priority=_priority_from_prefix(prefix),
-                return_flow=True)
-            self.log.debug('Multipath flow: %s', lb_multipath_flow)
-            if len(self._lb_endpoints[prefix]) > 1:
-                # TODO(tmorin): should use consts here from some OVS lib
-                return 'modify_strict', lb_multipath_flow
-            else:
-                # TODO(tmorin): should use consts here from some OVS lib
-                return 'add', lb_multipath_flow
-        else:
-            lb_multipath_flow = (
-                self._ovs_flow_del(self._vrf_match(_match_from_prefix(prefix)),
-                                   self.driver.vrf_table,
-                                   priority=_priority_from_prefix(prefix),
-                                   strict=True,
-                                   return_flow=True)
-            )
-            # TODO(tmorin): should use consts here from some OVS lib
-            return 'delete_strict', lb_multipath_flow
+    def _vrf_match(self):
+        return {'reg%d' % VRF_REGISTER: self.instance_id}
 
     @log_decorator.log_info
     def setup_dataplane_for_remote_endpoint(self, prefix, remote_pe, label,
                                             nlri, encaps,
                                             lb_consistent_hash_order=0):
-        # FIXME: use a priority depending on the prefix len
-        #        to compensate the fact that "OpenFlow  leaves  behavior
-        #        undefined when two or more flows with the same priority
-        #        can match a single packet.  Some users expect ``sensible''
-        #        behavior, such as more specific flows taking precedence
-        #        over less specific flows, but OpenFlow does not specify
-        #        this and Open vSwitch does not implement it.  Users should
-        #        therefore  take  care  to  use  priorities  to ensure the
-        #        behavior that they expect.
-        lb_endpoint_info = {
-            'label': label,
-            'remote_pe': remote_pe,
-            'encaps': encaps,
-            'lb_consistent_hash_order': lb_consistent_hash_order
-        }
+        nexthop = NextHop(label, remote_pe, encaps, lb_consistent_hash_order)
 
-        if (prefix in self._lb_endpoints and
-                lb_endpoint_info in self._lb_endpoints[prefix]):
+        if self.nh_group_mgr.is_object_user(prefix, nexthop):
             self.log.debug("Dataplane already in place for %s, %s, skipping",
-                           prefix, lb_endpoint_info)
+                           prefix, nexthop)
             return
 
-        lb_flows = list()
-        if prefix in self._lb_endpoints:
-            lb_flows.extend(self._get_lb_flows_to_del(prefix))
-        else:
-            self._lb_endpoints[prefix] = list()
-
-        self._lb_endpoints[prefix].append(lb_endpoint_info)
-
-        if len(self._lb_endpoints[prefix]) > 1:
-            self._lb_endpoints[prefix] = sorted(
-                self._lb_endpoints[prefix],
-                key=operator.itemgetter('lb_consistent_hash_order')
-            )
-
-        lb_flows.append(self._get_lb_multipath_flow_mod(prefix))
-
-        lb_flows.extend(self._get_lb_flows_to_add(prefix))
-
-        self.driver._ovs_flow_mods(lb_flows)
+        dec_ttl = (netaddr.IPNetwork(prefix) not in netaddr.IPNetwork(
+                   "%s/%s" % (self.gateway_ip, self.network_plen)))
+        label_action = self._get_label_action(nexthop.label,
+                                              nexthop.encaps)
+        output_action = self._get_output_action(nexthop.remote_pe,
+                                                nexthop.encaps)
+        self.nh_group_mgr.new_nexthop(prefix, nexthop,
+                                      actions=["dec_ttl" if dec_ttl else "",
+                                               label_action,
+                                               output_action])
 
     @log_decorator.log_info
     def remove_dataplane_for_remote_endpoint(self, prefix, remote_pe, label,
                                              nlri, encaps,
                                              lb_consistent_hash_order=0):
-        if prefix in self._lb_endpoints:
-            lb_flows = []
 
-            lb_flows.extend(self._get_lb_flows_to_del(prefix))
+        nexthop = NextHop(label, remote_pe, encaps, lb_consistent_hash_order)
 
-            try:
-                self._lb_endpoints[prefix].remove(
-                    {'label': label,
-                     'remote_pe': remote_pe,
-                     'encaps': encaps,
-                     'lb_consistent_hash_order': lb_consistent_hash_order}
-                )
-            except ValueError:
-                pass
-
-            lb_flows.append(self._get_lb_multipath_flow_mod(prefix))
-
-            if self._lb_endpoints[prefix]:
-                lb_flows.extend(self._get_lb_flows_to_add(prefix))
-            else:
-                del self._lb_endpoints[prefix]
-
-            self.driver._ovs_flow_mods(lb_flows)
+        if self.nh_group_mgr.is_object_user(prefix, nexthop):
+            self.nh_group_mgr.del_nexthop(prefix, nexthop)
         else:
-            self.log.warning("remove_dataplane_for_remote_endpoint called, "
-                             "for %s, but we don't know about this prefix",
-                             prefix)
+            self.log.debug("remove_dataplane_for_remote_endpoint called, "
+                           "for %s and %s, but we don't know about this "
+                           "prefix and next-hop", prefix, nexthop.__dict__)
 
     def _create_flow_match_from_tc(self, classifier):
-        flow_match = ''
+        flow_match = dict()
         if classifier.source_pfx:
-            flow_match += ',nw_src=%s' % classifier.source_pfx
+            flow_match.update({'nw_src': classifier.source_pfx})
         if classifier.destination_pfx:
-            flow_match += ',nw_dst=%s' % classifier.destination_pfx
+            flow_match.update({'nw_dst': classifier.destination_pfx})
         if classifier.source_port:
             if type(classifier.source_port) == tuple:
                 port_min, port_max = classifier.source_port
-                flow_match += ',tp_src=%d' % port_min
-                flow_match += '/%d' % 65535 - (port_max - port_min)
+                mask = 65535 - (port_max - port_min)
+                flow_match.update({'tp_src': port_min + '/' + mask})
             else:
-                flow_match += ',tp_src=%d' % classifier.source_port
+                flow_match.update({'tp_src': classifier.source_port})
         if classifier.destination_port:
             if type(classifier.destination_port) == tuple:
                 port_min, port_max = classifier.destination_port
-                flow_match += ',tp_dst=%d' % port_min
-                flow_match += '/%d' % 65535 - (port_max - port_min)
+                mask = 65535 - (port_max - port_min)
+                flow_match.update({'tp_dst': port_min + '/' + mask})
             else:
-                flow_match += ',tp_dst=%d' % classifier.destination_port
+                flow_match.update({'tp_dst': classifier.destination_port})
 
         return flow_match
 
     @log_decorator.log_info
     def add_dataplane_for_traffic_classifier(self, classifier,
                                              redirect_to_instance_id):
-        flow_match = self._create_flow_match_from_tc(classifier)
-
         # Add traffic redirection to redirection VRF
-        self._ovs_flow_add(self._vrf_match('%s%s' % (classifier.protocol,
-                                                     flow_match)),
-                           'set_field:%d->reg%d,resubmit(,%d)' % (
-                               redirect_to_instance_id, VRF_REGISTER,
-                               self.driver.vrf_table
-                               ),
-                           self.driver.vrf_table)
+        self.bridge.add_flow_extended(
+            flow_matches=[dict(table=self.driver.vrf_table,
+                               cookie=self._cookie(add=True),
+                               priority=DEFAULT_RULE_PRIORITY,
+                               proto=classifier.protocol),
+                          self._vrf_match(),
+                          self._create_flow_match_from_tc(classifier)],
+            actions=['set_field:%d->reg%d' % (redirect_to_instance_id,
+                                              VRF_REGISTER),
+                     'resubmit(,%d)' % self.driver.vrf_table])
 
     @log_decorator.log_info
     def remove_dataplane_for_traffic_classifier(self, classifier):
-        flow_match = self._create_flow_match_from_tc(classifier)
-
         # Remove traffic redirection
-        self._ovs_flow_del(self._vrf_match('%s%s' % (classifier.protocol,
-                                                     flow_match)),
-                           self.driver.vrf_table)
-
-    @log_decorator.log
-    def _ovs_flow_add(self, flow, actions, table, return_flow=False,
-                      priority=DEFAULT_RULE_PRIORITY):
-        return self.driver._ovs_flow_add(join_s(self._cookie(add=True),
-                                                flow),
-                                         actions, table, return_flow, priority)
-
-    @log_decorator.log
-    def _ovs_flow_del(self, flow, table, return_flow=False,
-                      priority=DEFAULT_RULE_PRIORITY, strict=False):
-        priority_spec = None
-        if strict:
-            priority_spec = "priority=%d" % priority
-        return self.driver._ovs_flow_del(
-            join_s(self._cookie(add=False),
-                   priority_spec,
-                   flow),
-            table, return_flow)
+        self.bridge.delete_flows_extended(
+            flow_matches=[dict(table=self.driver.vrf_table,
+                               cookie=self._cookie(add=False),
+                               proto=classifier.protocol),
+                          self._vrf_match(),
+                          self._create_flow_match_from_tc(classifier)])
 
     def get_lg_map(self):
         return {
@@ -741,8 +609,163 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         }
 
     def get_lg_ovs_flows(self, path_prefix):
-        return self.driver.get_lg_ovs_flows(path_prefix,
-                                            self._cookie(add=False))
+        return self.driver.get_lg_ovs_flows(
+            path_prefix, 'cookie=%s' % self._cookie(add=False))
+
+
+class OVSGroupAllocator(identifier_allocators.IDAllocator):
+
+    MAX = 2**32-1
+
+
+class OVSBucketAllocator(identifier_allocators.IDAllocator):
+
+    # Values greater than 0xFFFFFF00 are reserved
+    MAX = 2**32-2**8-1
+
+
+class NextHop(object):
+
+    def __init__(self, label, remote_pe, encaps, lb_consistent_hash_order):
+        self.label = label
+        self.remote_pe = str(remote_pe)
+        self.encaps = frozenset(encaps)
+        self.lb_consistent_hash_order = lb_consistent_hash_order
+
+    def __eq__(self, other):
+        return ((self.label, self.remote_pe, self.encaps) ==
+                (other.label, other.remote_pe, other.encaps))
+
+    def __hash__(self):
+        return hash((self.label,
+                     self.remote_pe,
+                     self.encaps))
+
+    def __repr__(self):
+        return "NextHop(%s,%s,%s,%s)" % (self.label,
+                                         self.remote_pe,
+                                         self.encaps,
+                                         self.lb_consistent_hash_order)
+
+
+class NextHopGroupManager(dataplane_utils.ObjectLifecycleManager):
+
+    def __init__(self, bridge, hash_method, hash_method_param, hash_fields):
+        super(NextHopGroupManager, self).__init__()
+
+        self.bridge = bridge
+        self.hash_method = hash_method
+        self.hash_method_param = hash_method_param
+        self.hash_fields = hash_fields
+
+        self.group_allocator = OVSGroupAllocator()
+
+    def get_selection_method(self):
+        selection_method = self.hash_method
+        if self.hash_fields and self.hash_method == 'hash':
+            selection_method += ",fields(%s)" % ','.join(self.hash_fields)
+
+        return selection_method
+
+    @log_decorator.log_info
+    def create_object(self, prefix, *args, **kwargs):
+        buckets = (
+            {'buckets': kwargs['buckets']} if kwargs.get('buckets') else {}
+        )
+
+        group_id = self.group_allocator.get_new_id("Group ID for prefix %s" %
+                                                   str(prefix))
+
+        self.bridge.add_group(group_id=group_id,
+                              type='select',
+                              selection_method=self.get_selection_method(),
+                              selection_method_param=self.hash_method_param,
+                              **buckets)
+
+        return group_id
+
+    @log_decorator.log_info
+    def delete_object(self, group_id):
+        self.bridge.delete_group(group_id=group_id)
+        self.group_allocator.release(group_id)
+
+
+class NextHopGroupManagerProxy(dataplane_utils.ObjectLifecycleManagerProxy):
+
+    def __init__(self, manager, parent_key, vrf_table, vrf_match, cookie_func):
+        super(NextHopGroupManagerProxy, self).__init__(manager, parent_key)
+
+        self.vrf_table = vrf_table
+        self.vrf_match = vrf_match
+        self.cookie_func = cookie_func
+
+        self.bucket_allocators = (
+            collections.defaultdict(OVSBucketAllocator)
+        )
+
+        self.prefix_nexthop_2_bucket = dict()
+
+    def _update_group_buckets(self, group_id, prefix):
+        buckets = []
+        for prefix_nh, bucket in self.prefix_nexthop_2_bucket.items():
+            if prefix == prefix_nh[0]:
+                buckets.append('bucket=bucket_id=%d,%s' % (
+                    bucket[0], dataplane_utils.join_s(*bucket[1])))
+
+        self.manager.bridge.mod_group(
+            group_id=group_id,
+            type='select',
+            selection_method=self.manager.get_selection_method(),
+            selection_method_param=self.manager.hash_method_param,
+            buckets=','.join(buckets))
+
+    def new_nexthop(self, prefix, nexthop, actions=[]):
+        bucket_allocator = self.bucket_allocators[prefix]
+        bucket_id = bucket_allocator.get_new_id(
+            "Bucket ID for prefix %s and nexthop %s" % (str(prefix), nexthop),
+            hint_value=nexthop.lb_consistent_hash_order
+        )
+        bucket = 'bucket=bucket_id=%d,%s' % (bucket_id,
+                                             dataplane_utils.join_s(*actions))
+
+        self.prefix_nexthop_2_bucket[(prefix, nexthop)] = (bucket_id, actions)
+
+        group_id, first = self.get_object(prefix, nexthop, buckets=bucket)
+        if first:
+            self.manager.bridge.add_flow_extended(
+                flow_matches=[dict(table=self.vrf_table,
+                                   cookie=self.cookie_func(add=True),
+                                   priority=_priority_from_prefix(prefix),
+                                   proto='ip'),
+                              self.vrf_match,
+                              _match_from_prefix(prefix)],
+                actions=["group:%d" % group_id])
+        else:
+            self._update_group_buckets(group_id, prefix)
+
+    def del_nexthop(self, prefix, nexthop):
+        group_id = self.find_object(prefix)
+
+        bucket_id, _ = self.prefix_nexthop_2_bucket.pop((prefix, nexthop))
+
+        bucket_allocator = self.bucket_allocators[prefix]
+        bucket_allocator.release(bucket_id)
+
+        self._update_group_buckets(group_id, prefix)
+
+        last = self.free_object(prefix, nexthop)
+
+        if last:
+            self.manager.bridge.delete_flows_extended(
+                flow_matches=[dict(strict=True,
+                                   table=self.vrf_table,
+                                   cookie=self.cookie_func(add=False),
+                                   priority=_priority_from_prefix(prefix),
+                                   proto='ip'),
+                              self.vrf_match,
+                              _match_from_prefix(prefix)])
+
+            del self.bucket_allocators[prefix]
 
 
 class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
@@ -821,11 +844,30 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                           ", ...') that will be added as OVS tunnel "
                           "interface options (e.g. 'options:packet_type="
                           "legacy_l3 options:...')")),
-        cfg.IntOpt("ovsbr_interfaces_mtu", advanced=True)
+        cfg.IntOpt("ovsbr_interfaces_mtu", advanced=True),
+        cfg.StrOpt("hash_method",
+                   choices=["hash", "dp_hash"],
+                   default="dp_hash",
+                   advanced=True,
+                   help=("Can be used to control the OVS group bucket "
+                         "selection method (mapped to ovs "
+                         "'selection_method')")),
+        cfg.StrOpt("hash_method_param",
+                   default=0,
+                   advanced=True,
+                   help=("Can be used to control the OVS group bucket "
+                         "selection method (mapped to ovs "
+                         "'selection_method_param')")),
+        cfg.ListOpt("hash_fields", default=[], advanced=True,
+                    help=("Can be used to control the fields used by the OVS "
+                          "group bucket selection method (mapped to ovs "
+                          "'fields')"))
     ]
 
     def __init__(self):
         super(MPLSOVSDataplaneDriver, self).__init__()
+
+        config.set_default_root_helper()
 
         try:
             (o, _) = self._run_command("ovs-ofctl -V | head -1 |"
@@ -871,7 +913,6 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                 self.log.info("Will use bare MPLS on interface %s",
                               self.mpls_interface)
 
-        self.bridge = self.config.ovs_bridge
         self.input_table = self.config.input_table
 
         if self.config.ovs_table_id_start == self.input_table:
@@ -882,11 +923,9 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
 
         self.encap_in_table = self.config.ovs_table_id_start
         self.vrf_table = self.config.ovs_table_id_start+1
-        self.post_hash_vrf_table = self.config.ovs_table_id_start+2
 
         self.all_tables = {'incoming': self.input_table,
                            'vrf': self.vrf_table,
-                           'vrf_post_hash': self.post_hash_vrf_table,
                            'encap_in': self.encap_in_table}
 
         # Used to control whether this VRF will support
@@ -907,35 +946,30 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         if not self.use_gre:
             self._run_command("fping -v", raise_on_error=True)
 
+        self.bridge = dataplane_utils.OVSBridgeWithGroups(
+            dataplane_utils.OVSExtendedBridge(self.config.ovs_bridge)
+        )
         # Check if OVS bridge exist
-        (_, exit_code) = self._run_command("ovs-vsctl br-exists %s" %
-                                           self.bridge,
-                                           run_as_root=True,
-                                           raise_on_error=False)
+        if not self.bridge.bridge_exists(self.bridge.br_name):
+            raise exc.OVSBridgeNotFound(self.bridge.br_name)
 
-        if exit_code == 2:
-            raise exc.OVSBridgeNotFound(self.bridge)
+        self.bridge.use_at_least_protocol(ovs_const.OPENFLOW15)
 
-        # Fixup OpenFlow versions
-        self._run_command("ovs-vsctl set bridge %s "
-                          "protocols=OpenFlow10,OpenFlow12,OpenFlow13"
-                          ",OpenFlow14" % self.bridge,
-                          run_as_root=True)
+        self.nh_group_mgr = NextHopGroupManager(self.bridge,
+                                                self.config.hash_method,
+                                                self.config.hash_method_param,
+                                                self.config.hash_fields)
 
         if not self.use_gre:
             self.log.info("Will not force the use of GRE/MPLS, trying to bind "
                           "physical interface %s", self.mpls_interface)
             # Check if MPLS interface is attached to OVS bridge
-            (output, _) = self._run_command("ovs-vsctl port-to-br %s" %
-                                            self.mpls_interface,
-                                            run_as_root=True,
-                                            raise_on_error=False)
-            if not output or output[0] != self.bridge:
+            if not self.bridge.port_exists(self.mpls_interface):
                 raise Exception("Specified mpls_interface %s is not plugged to"
                                 " OVS bridge %s" % (self.mpls_interface,
-                                                    self.bridge))
+                                                    self.bridge.br_name))
             else:
-                self.ovs_mpls_if_port_number = self.find_ovs_port(
+                self.ovs_mpls_if_port_number = self.bridge.get_port_ofport(
                     self.mpls_interface)
 
     def supported_encaps(self):
@@ -960,69 +994,75 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
 
     @log_decorator.log_info
     def reset_state(self):
-        # Flush all MPLS and ARP flows, if bridge exists
+        # Flush all MPLS and ARP flows, all groups, if bridge exists
 
-        (_, exit_code) = self._run_command("ovs-vsctl br-exists %s" %
-                                           self.bridge,
-                                           run_as_root=True,
-                                           raise_on_error=False,
-                                           acceptable_return_codes=[0, 2])
-        if exit_code == 0:
+        if self.bridge.bridge_exists(self.bridge.br_name):
             self.log.info("Cleaning up OVS rules")
 
-            self._ovs_flow_del('mpls', self.input_table)
+            self.bridge.delete_flows(table=self.input_table,
+                                     cookie=ovs_lib.COOKIE_ANY,
+                                     proto='mpls')
             if self.vxlan_encap:
                 try:
-                    self._ovs_flow_del('in_port=%d' %
-                                       self.find_ovs_port(VXLAN_TUNNEL),
-                                       self.input_table)
+                    self.bridge.delete_flows(
+                        table=self.input_table,
+                        in_port=self.find_ovs_port(VXLAN_TUNNEL))
                 except Exception:
                     self.log.info("no VXLAN tunnel port, nothing to clean up")
                 # the above won't clean up flows if the vxlan_tunnel interface
                 # has changed...
-                self._ovs_flow_del('tun_id=2/1', self.input_table)
-                self._ovs_flow_del('tun_id=1/1', self.input_table)
+                self.bridge.delete_flows(table=self.input_table,
+                                         cookie=ovs_lib.COOKIE_ANY,
+                                         tun_id='2/1')
+                self.bridge.delete_flows(table=self.input_table,
+                                         cookie=ovs_lib.COOKIE_ANY,
+                                         tun_id='1/1')
 
             # clean input_table rule for plugged ports
             # NOTE(tmorin): would be cleaner using a cookie
-            self._ovs_flow_del('ip', self.input_table)
-            self._ovs_flow_del('arp', self.input_table)
+            self.bridge.delete_flows(table=self.input_table,
+                                     cookie=ovs_lib.COOKIE_ANY,
+                                     proto='ip')
+            self.bridge.delete_flows(table=self.input_table,
+                                     cookie=ovs_lib.COOKIE_ANY,
+                                     proto='arp')
 
-            self._ovs_flow_del(None, self.encap_in_table)
-            self._ovs_flow_del(None, self.vrf_table)
-            self._ovs_flow_del(None, self.post_hash_vrf_table)
+            self.bridge.delete_flows(table=self.encap_in_table,
+                                     cookie=ovs_lib.COOKIE_ANY)
+            self.bridge.delete_flows(table=self.vrf_table,
+                                     cookie=ovs_lib.COOKIE_ANY)
 
-            if self.log.debug:
-                self.log.debug("All our rules have been flushed")
-                self._run_command("ovs-ofctl dump-flows %s" % self.bridge,
-                                  run_as_root=True)
+            # clean all groups
+            self.bridge.delete_group()
+
+            if self.log.isEnabledFor(logging.DEBUG):
+                self.log.debug("All our rules have been flushed:\n%s",
+                               '\n'.join(self.bridge.dump_all_flows()))
+                self.log.debug("All groups have been flushed:\n%s",
+                               self.bridge.run_ofctl("dump-groups", []))
         else:
             self.log.info("No OVS bridge (%s), no need to cleanup OVS rules",
-                          self.bridge)
+                          self.bridge.br_name)
 
     def initialize(self):
         if self.use_gre:
             self.log.info("Setting up tunnel for MPLS/GRE (%s)",
                           self.config.gre_tunnel)
 
-            self._run_command("ovs-vsctl del-port %s %s" %
-                              (self.bridge, self.config.gre_tunnel),
-                              run_as_root=True,
-                              acceptable_return_codes=[0, 1])
-            self._run_command("ovs-vsctl add-port %s %s -- set Interface %s"
-                              " type=gre options:local_ip=%s "
-                              "options:remote_ip=flow %s" %
-                              (self.bridge, self.config.gre_tunnel,
-                               self.config.gre_tunnel,
-                               self.get_local_address(),
-                               " ".join([
-                                   "options:%s" % o
-                                   for o in self.config.gre_tunnel_options])
-                               ),
-                              run_as_root=True)
+            self.bridge.delete_port(self.config.gre_tunnel)
 
-            self.gre_tunnel_port_number = self.find_ovs_port(
-                self.config.gre_tunnel)
+            gre_tunnel_options = dict(
+                o.split('=') for o in self.config.gre_tunnel_options)
+            gre_tunnel_attrs = [
+                ('type', 'gre'),
+                ('options', dict({'local_ip': self.get_local_address(),
+                                  'remote_ip': 'flow'},
+                                 **gre_tunnel_options))
+            ]
+
+            self.gre_tunnel_port_number = (
+                self.bridge.add_port(self.config.gre_tunnel, *gre_tunnel_attrs)
+            )
             self.mpls_if_mac_address = None
         else:
             # Find ethX MPLS interface MAC address
@@ -1037,28 +1077,30 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                     self._run_command,
                     self.bridge)
 
-        self._ovs_flow_add("in_port=%d,mpls" % self.mpls_in_port(),
-                           "resubmit(,%d)" % self.encap_in_table,
-                           self.input_table)
+        self.bridge.add_flow(table=self.input_table,
+                             priority=DEFAULT_RULE_PRIORITY,
+                             in_port=self.mpls_in_port(),
+                             proto='mpls',
+                             actions="resubmit(,%d)" % self.encap_in_table)
 
         if self.vxlan_encap:
             self.log.info("Enabling VXLAN encapsulation")
+            self.bridge.delete_port(VXLAN_TUNNEL)
 
-            self._run_command("ovs-vsctl del-port %s %s" % (self.bridge,
-                                                            VXLAN_TUNNEL),
-                              run_as_root=True,
-                              acceptable_return_codes=[0, 1])
-            self._run_command("ovs-vsctl add-port %s %s -- set Interface %s"
-                              " type=vxlan options:local_ip=%s "
-                              "options:remote_ip=flow options:key=flow" %
-                              (self.bridge, VXLAN_TUNNEL, VXLAN_TUNNEL,
-                               self.get_local_address()),
-                              run_as_root=True)
-            self.vxlan_tunnel_port_number = self.find_ovs_port(VXLAN_TUNNEL)
+            vxlan_tunnel_attrs = [
+                ('type', 'vxlan'),
+                ('options', {'local_ip': self.get_local_address(),
+                             'remote_ip': 'flow',
+                             'key': 'flow'})
+            ]
+            self.vxlan_tunnel_port_number = (
+                self.bridge.add_port(VXLAN_TUNNEL, *vxlan_tunnel_attrs)
+            )
 
-            self._ovs_flow_add("in_port=%d" % self.vxlan_tunnel_port_number,
-                               "resubmit(,%d)" % self.encap_in_table,
-                               self.input_table)
+            self.bridge.add_flow(table=self.input_table,
+                                 priority=DEFAULT_RULE_PRIORITY,
+                                 in_port=self.vxlan_tunnel_port_number,
+                                 actions="resubmit(,%d)" % self.encap_in_table)
 
     def validate_directions(self, direction):
         # this driver supports all combinations of directions
@@ -1067,57 +1109,12 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
     def find_ovs_port(self, dev_name):
         """Find OVS port number from port name"""
 
-        (output, code) = self._run_command("ovs-vsctl get Interface %s "
-                                           "ofport" % dev_name,
-                                           run_as_root=True,
-                                           acceptable_return_codes=[0, 1])
-        if code == 1:
-            raise Exception("OVS port not found for device %s, "
-                            "(known by ovs-vsctl but not by ovs-ofctl?)"
-                            % dev_name)
-        else:
-            try:
-                port = int(output[0])
-                if port == -1:
-                    raise Exception("OVS port not found for device %s, (known"
-                                    " by ovs-vsctl but not by ovs-ofctl?)"
-                                    % dev_name)
-                return port
-            except Exception:
-                raise Exception("OVS port not found for device %s" % dev_name)
+        ofport = self.bridge.get_port_ofport(dev_name)
 
-    def _ovs_flow_add(self, flow, actions, table, return_flow=False,
-                      priority=DEFAULT_RULE_PRIORITY):
-        ovs_flow = join_s("table=%d" % table,
-                          "priority=%d" % priority,
-                          flow,
-                          "actions=%s" % actions)
-        if not return_flow:
-            self._run_command("ovs-ofctl add-flow %s --protocol OpenFlow14 %s"
-                              % (self.bridge, ovs_flow),
-                              run_as_root=True)
-        else:
-            return ovs_flow
+        if ofport is None:
+            raise Exception("OVS port not found for device %s" % dev_name)
 
-    def _ovs_flow_mods(self, flow_mods):
-        """flow mods is an array of (operation, flow) tuples"""
-        stdin = "\n".join(["%s %s" % op_flow
-                           for op_flow in flow_mods])
-        self.log.debug('Flows:\n%s', stdin)
-        self._run_command("ovs-ofctl --bundle add-flows %s --protocol "
-                          "OpenFlow14 -" % self.bridge,
-                          run_as_root=True,
-                          stdin=stdin)
-
-    def _ovs_flow_del(self, flow, table, return_flow=False):
-        ovs_flow = join_s('table=%d' % table, flow)
-
-        if not return_flow:
-            self._run_command("ovs-ofctl del-flows %s --protocol OpenFlow14 %s"
-                              % (self.bridge, ovs_flow),
-                              run_as_root=True)
-        else:
-            return ovs_flow
+        return ofport
 
     # Looking glass code ####
 
@@ -1129,7 +1126,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
 
     def get_lg_local_info(self, path_prefix):
         d = {
-            "ovs_bridge": self.bridge,
+            "ovs_bridge": self.bridge.br_name,
             "mpls_interface": self.mpls_interface,
             "gre": {'enabled': self.use_gre},
             "vxlan": {'enabled': self.vxlan_encap},
@@ -1148,9 +1145,11 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         for (table_name, table_id) in self.all_tables.items():
             output.update({
                 "%s (%d)" % (table_name, table_id): self._run_command(
-                    "ovs-ofctl dump-flows --names %s '%s' %s" % (
-                        self.bridge,
-                        join_s("table=%d" % table_id, cookie_spec),
+                    "ovs-ofctl -O %s dump-flows --names %s '%s' %s" % (
+                        ovs_const.OPENFLOW15,
+                        self.bridge.br_name,
+                        dataplane_utils.join_s("table=%d" % table_id,
+                                               cookie_spec),
                         OVS_DUMP_FLOW_FILTER),
                     run_as_root=True, shell=True
                     )[0]
@@ -1159,7 +1158,8 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
 
     def get_lg_ovs_ports(self, path_prefix):
         (output, _) = self._run_command(
-            "ovs-ofctl show %s |grep addr" % self.bridge,
+            "ovs-ofctl -O %s show %s |grep addr" % (ovs_const.OPENFLOW15,
+                                                    self.bridge.br_name),
             run_as_root=True,
             acceptable_return_codes=[0, 1],
             shell=True)
