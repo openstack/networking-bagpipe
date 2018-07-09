@@ -468,34 +468,61 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                     is_redirect=True,
                     reverse=reverse)
 
-                first_readv_from_rts = ((src_rts if reverse else dest_rts)
-                                        if egress_bgpvpns else None)
-                first_readv_to_rt = (first_redirect_rt
-                                     if egress_bgpvpns else None)
-                first_attract_to_rt = (first_redirect_rt
-                                       if not egress_bgpvpns else None)
                 first_rts = ((dest_rts if reverse else src_rts)
                              if ingress_bgpvpns else [first_ppg_rt])
 
-                hop_detail_obj = sfc_obj.BaGPipeChainHop(
-                    context._plugin_context,
-                    id=uuidutils.generate_uuid(),
-                    project_id=project_id,
-                    portchain_id=port_chain['id'],
-                    rts=first_rts,
-                    ingress_gw=(dest_subnet['gateway_ip'] if reverse
-                                else src_subnet['gateway_ip']),
-                    egress_gw=first_subnet['gateway_ip'],
-                    reverse_hop=reverse,
-                    ingress_network=(dest_subnet['network_id'] if reverse
-                                     else src_subnet['network_id']),
-                    egress_ppg=first_ppg['id'],
-                    readv_from_rts=first_readv_from_rts,
-                    readv_to_rts=first_readv_to_rt,
-                    attract_to_rt=first_attract_to_rt,
-                    redirect_rts=first_rts,
-                    classifiers=jsonutils.dumps(classifiers)
-                )
+                if len(reversed_ppg) == 1:
+                    first_readv_from_rts = ((src_rts if reverse else dest_rts)
+                                            if egress_bgpvpns else None)
+                    first_readv_to_rt = (first_redirect_rt
+                                         if egress_bgpvpns else None)
+                    first_attract_to_rt = (first_redirect_rt
+                                           if not egress_bgpvpns else None)
+                    first_rts = ((dest_rts if reverse else src_rts)
+                                 if ingress_bgpvpns else [first_ppg_rt])
+
+                    hop_detail_obj = sfc_obj.BaGPipeChainHop(
+                        context._plugin_context,
+                        id=uuidutils.generate_uuid(),
+                        project_id=project_id,
+                        portchain_id=port_chain['id'],
+                        rts=first_rts,
+                        ingress_gw=(dest_subnet['gateway_ip'] if reverse
+                                    else src_subnet['gateway_ip']),
+                        egress_gw=first_subnet['gateway_ip'],
+                        reverse_hop=reverse,
+                        ingress_network=(dest_subnet['network_id'] if reverse
+                                         else src_subnet['network_id']),
+                        egress_ppg=first_ppg['id'],
+                        readv_from_rts=first_readv_from_rts,
+                        readv_to_rt=first_readv_to_rt,
+                        attract_to_rt=first_attract_to_rt,
+                        redirect_rts=first_rts,
+                        classifiers=jsonutils.dumps(classifiers)
+                    )
+                else:
+                    from_redirect_rt = (
+                        self.rt_allocator.get_redirect_rt_by_ppg(
+                            reversed_ppg[position+1]))
+
+                    hop_detail_obj = sfc_obj.BaGPipeChainHop(
+                        context._plugin_context,
+                        id=uuidutils.generate_uuid(),
+                        project_id=project_id,
+                        portchain_id=port_chain['id'],
+                        rts=first_rts,
+                        ingress_gw=(dest_subnet['gateway_ip'] if reverse
+                                    else src_subnet['gateway_ip']),
+                        egress_gw=first_subnet['gateway_ip'],
+                        reverse_hop=reverse,
+                        ingress_network=(dest_subnet['network_id'] if reverse
+                                         else src_subnet['network_id']),
+                        egress_ppg=first_ppg['id'],
+                        readv_from_rts=[from_redirect_rt],
+                        readv_to_rt=first_redirect_rt,
+                        redirect_rts=first_rts,
+                        classifiers=jsonutils.dumps(classifiers)
+                    )
                 hop_detail_obj.create()
                 hop_details.append(hop_detail_obj)
 
