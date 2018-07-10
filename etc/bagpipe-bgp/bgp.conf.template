@@ -70,8 +70,13 @@ mpls_interface=*gre*
 ovsbr_interfaces_mtu=4000
 
 # for ovs driver, control whether or not the VRF will
-# reply to all ARP requests on the subnet and impersonate the gateway
-# (defaults to True)
+# reply to ARP requests on the subnet and impersonate the gateway
+# (defaults to False)
+#arp_responder=False
+
+# for ovs driver, control if VRF will reply to ARP requests for all IP
+# addresses if enabled, otherwise only for gateway
+# (defaults to False)
 #proxy_arp=False
 
 [DATAPLANE_DRIVER_EVPN]
