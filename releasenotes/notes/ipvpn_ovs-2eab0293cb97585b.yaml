@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    Rewrite of the IPVPN dataplane driver for OVS, mainly with the
+    objective of implementing ECMP using OVS `select` groups instead
+    of the `multipath` action (which requires maintaining per-flow
+    state in the datapath, losing wildcarding).
