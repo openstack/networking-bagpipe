@@ -24,6 +24,8 @@ from oslo_config import cfg
 from oslo_config import types
 from oslo_log import log as logging
 
+from neutron.common import utils as n_utils
+
 from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.common import dataplane_utils
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
@@ -555,53 +557,99 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                            "for %s and %s, but we don't know about this "
                            "prefix and next-hop", prefix, nexthop.__dict__)
 
-    def _create_flow_match_from_tc(self, classifier):
-        flow_match = dict()
-        if classifier.source_pfx:
-            flow_match.update({'nw_src': classifier.source_pfx})
-        if classifier.destination_pfx:
-            flow_match.update({'nw_dst': classifier.destination_pfx})
+    def _get_port_range_from_classifier(self, classifier_port):
+        if classifier_port:
+            if type(classifier_port) == tuple:
+                port_min, port_max = classifier_port
+            else:
+                port_min = port_max = classifier_port
+
+        return port_min, port_max
+
+    def _create_port_range_flow_matches(self, classifier_match, classifier):
+        flow_matches = []
+        src_port_match = '{:s}_src'.format(classifier.protocol)
+
         if classifier.source_port:
             if type(classifier.source_port) == tuple:
-                port_min, port_max = classifier.source_port
-                mask = 65535 - (port_max - port_min)
-                flow_match.update({'tp_src': port_min + '/' + mask})
+                src_port_min, src_port_max = classifier.source_port
             else:
-                flow_match.update({'tp_src': classifier.source_port})
+                src_port_min = src_port_max = classifier.source_port
+
+        dst_port_match = '{:s}_dst'.format(classifier.protocol)
+
         if classifier.destination_port:
             if type(classifier.destination_port) == tuple:
-                port_min, port_max = classifier.destination_port
-                mask = 65535 - (port_max - port_min)
-                flow_match.update({'tp_dst': port_min + '/' + mask})
+                dst_port_min, dst_port_max = classifier.destination_port
             else:
-                flow_match.update({'tp_dst': classifier.destination_port})
+                dst_port_min = dst_port_max = classifier.destination_port
 
-        return flow_match
+        dst_port_range = []
+        if dst_port_min and dst_port_max:
+            dst_port_range = n_utils.port_rule_masking(dst_port_min,
+                                                       dst_port_max)
+        src_port_range = []
+        if src_port_min and src_port_max:
+            src_port_range = n_utils.port_rule_masking(src_port_min,
+                                                       src_port_max)
+            for port in src_port_range:
+                flow_match = classifier_match.copy()
+                flow_match[src_port_match] = port
+                if dst_port_range:
+                    for port in dst_port_range:
+                        dst_flow = flow_match.copy()
+                        dst_flow[dst_port_match] = port
+                        flow_matches.append(dst_flow)
+                else:
+                    flow_matches.append(flow_match)
+        else:
+            for port in dst_port_range:
+                flow_match = classifier_match.copy()
+                flow_match[dst_port_match] = port
+                flow_matches.append(flow_match)
+
+        return flow_matches
+
+    def _create_classifier_flow_matches(self, classifier):
+        classifier_match = dict(proto=classifier.protocol)
+
+        if classifier.source_pfx:
+            classifier_match.update({'nw_src': classifier.source_pfx})
+
+        if classifier.destination_pfx:
+            classifier_match.update({'nw_dst': classifier.destination_pfx})
+
+        return self._create_port_range_flow_matches(classifier_match,
+                                                    classifier)
 
     @log_decorator.log_info
     def add_dataplane_for_traffic_classifier(self, classifier,
                                              redirect_to_instance_id):
-        # Add traffic redirection to redirection VRF
-        self.bridge.add_flow_extended(
-            flow_matches=[dict(table=self.driver.vrf_table,
-                               cookie=self._cookie(add=True),
-                               priority=DEFAULT_RULE_PRIORITY,
-                               proto=classifier.protocol),
-                          self._vrf_match(),
-                          self._create_flow_match_from_tc(classifier)],
-            actions=['set_field:%d->reg%d' % (redirect_to_instance_id,
-                                              VRF_REGISTER),
-                     'resubmit(,%d)' % self.driver.vrf_table])
+        classifier_matches = self._create_classifier_flow_matches(classifier)
+
+        # Add traffic redirection to redirection VRF for classifier matches
+        for classifier_match in classifier_matches:
+            self.bridge.add_flow_extended(
+                flow_matches=[dict(table=self.driver.vrf_table,
+                                   cookie=self._cookie(add=True),
+                                   priority=DEFAULT_RULE_PRIORITY),
+                              self._vrf_match(),
+                              classifier_match],
+                actions=['set_field:%d->reg%d' % (redirect_to_instance_id,
+                                                  VRF_REGISTER),
+                         'resubmit(,%d)' % self.driver.vrf_table])
 
     @log_decorator.log_info
     def remove_dataplane_for_traffic_classifier(self, classifier):
-        # Remove traffic redirection
-        self.bridge.delete_flows_extended(
-            flow_matches=[dict(table=self.driver.vrf_table,
-                               cookie=self._cookie(add=False),
-                               proto=classifier.protocol),
-                          self._vrf_match(),
-                          self._create_flow_match_from_tc(classifier)])
+        classifier_matches = self._create_classifier_flow_matches(classifier)
+
+        # Remove traffic redirection to redirection VRF for classifier matches
+        for classifier_match in classifier_matches:
+            self.bridge.delete_flows_extended(
+                flow_matches=[dict(table=self.driver.vrf_table,
+                                   cookie=self._cookie(add=False)),
+                              self._vrf_match(),
+                              classifier_match])
 
     def get_lg_map(self):
         return {
