@@ -1,0 +1,99 @@
+- project:
+    templates:
+      - openstack-python-jobs-neutron
+      - openstack-python35-jobs-neutron
+      - publish-openstack-sphinx-docs
+      - release-notes-jobs
+      - check-requirements
+      - periodic-stable-jobs-neutron
+    check:
+      jobs:
+        - build-openstack-sphinx-docs:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - build-openstack-releasenotes
+        - openstack-tox-pep8:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py27:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py35:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-cover:
+            required-projects:
+              - openstack/neutron
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - legacy-tempest-dsvm-networking-bagpipe:
+            irrelevant-files:
+              - ^(test-|)requirements.txt$
+              - ^setup.cfg$
+        - legacy-tempest-dsvm-networking-bgpvpn-bagpipe:
+            irrelevant-files:
+              - ^(test-|)requirements.txt$
+              - ^setup.cfg$
+        - legacy-networking-bagpipe-dsvm-fullstack:
+            voting: false
+    gate:
+      jobs:
+        - build-openstack-sphinx-docs:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - build-openstack-releasenotes
+        - openstack-tox-pep8:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py27:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py35:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-cover:
+            required-projects:
+              - openstack/neutron
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - legacy-tempest-dsvm-networking-bagpipe:
+            irrelevant-files:
+              - ^(test-|)requirements.txt$
+              - ^setup.cfg$
+        - legacy-tempest-dsvm-networking-bgpvpn-bagpipe:
+            irrelevant-files:
+              - ^(test-|)requirements.txt$
+              - ^setup.cfg$
+    post:
+      jobs:
+        - publish-openstack-python-branch-tarball:
+            required-projects:
+              - openstack/neutron
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - publish-openstack-releasenotes
+    periodic:
+      jobs:
+        - openstack-tox-py35-with-neutron-lib-master:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+    periodic-stable:
+      jobs:
+        - build-openstack-sphinx-docs:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py27:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+
