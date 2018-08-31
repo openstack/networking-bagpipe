@@ -49,7 +49,7 @@ from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
 from neutron.plugins.ml2.drivers.linuxbridge.agent import \
     linuxbridge_neutron_agent as lnx_agt
 from neutron.plugins.ml2.drivers.openvswitch.agent.common \
-    import constants as ovs_agt_constants
+    import constants as ovs_agt_consts
 from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 from neutron_lib.agent import l2_extension
@@ -186,7 +186,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         self._setup_rpc(connection)
 
     def _is_ovs_extension(self):
-        return self.driver_type == ovs_agt_constants.EXTENSION_DRIVER_TYPE
+        return self.driver_type == ovs_agt_consts.EXTENSION_DRIVER_TYPE
 
     def _is_linuxbridge_extension(self):
         return (
@@ -541,19 +541,19 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         # we need to copy the existing br-tun rules to dispatch to UCAST_TO_TUN
         # and FLOOD_TO_TUN, but only for except_from_src_mac MAC,
         # and with a priority of 2
-        self.tun_br.add_flow(table=ovs_agt_constants.PATCH_LV_TO_TUN,
+        self.tun_br.add_flow(table=ovs_agt_consts.PATCH_LV_TO_TUN,
                              priority=2,
                              dl_src=bgpvpn_const.FALLBACK_SRC_MAC,
                              dl_dst="00:00:00:00:00:00/01:00:00:00:00:00",
                              actions=("resubmit(,%s)" %
-                                      ovs_agt_constants.UCAST_TO_TUN))
+                                      ovs_agt_consts.UCAST_TO_TUN))
 
-        self.tun_br.add_flow(table=ovs_agt_constants.PATCH_LV_TO_TUN,
+        self.tun_br.add_flow(table=ovs_agt_consts.PATCH_LV_TO_TUN,
                              priority=2,
                              dl_src=bgpvpn_const.FALLBACK_SRC_MAC,
                              dl_dst="01:00:00:00:00:00/01:00:00:00:00:00",
                              actions=("resubmit(,%s)" %
-                                      ovs_agt_constants.FLOOD_TO_TUN))
+                                      ovs_agt_consts.FLOOD_TO_TUN))
 
         # Redirect traffic from the MPLS bridge to br-int
         self.tun_br.add_flow(in_port=self.patch_tun_to_mpls_ofport,
@@ -569,7 +569,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         # traffic that was already fallback'd is not touched
 
         self.int_br.add_flow(
-            table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_TABLE,
+            table=ovs_agt_consts.ACCEPTED_EGRESS_TRAFFIC_NORMAL_TABLE,
             priority=3,
             dl_src=bgpvpn_const.FALLBACK_SRC_MAC,
             actions="NORMAL",
@@ -579,13 +579,13 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         # with a priority of 2
 
         # OVS1.3 needed for push_vlan in _gateway_traffic_redirect
-        self.int_br.use_at_least_protocol(ovs_agt_constants.OPENFLOW13)
+        self.int_br.use_at_least_protocol(ovs_agt_consts.OPENFLOW13)
 
     def _redirect_br_tun_to_mpls(self, dst_mac, vlan):
         # then with a priority of 1, we redirect traffic to the dst_mac
         # address to br-mpls
         self.tun_br.add_flow(
-            table=ovs_agt_constants.PATCH_LV_TO_TUN,
+            table=ovs_agt_consts.PATCH_LV_TO_TUN,
             priority=1,
             in_port=self.patch_tun2int,
             dl_dst=dst_mac,
@@ -596,7 +596,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
     def _stop_redirect_br_tun_to_mpls(self, vlan):
         self.tun_br.delete_flows(
             strict=True,
-            table=ovs_agt_constants.PATCH_LV_TO_TUN,
+            table=ovs_agt_consts.PATCH_LV_TO_TUN,
             priority=1,
             in_port=self.patch_tun2int,
             dl_vlan=vlan
@@ -628,12 +628,12 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         # and then use it here
 
         # (mostly copy-pasted ovs_ofctl....install_arp_responder)
-        actions = ovs_agt_constants.ARP_RESPONDER_ACTIONS % {
+        actions = ovs_agt_consts.ARP_RESPONDER_ACTIONS % {
             'mac': netaddr.EUI(bgpvpn_const.DEFAULT_GATEWAY_MAC,
                                dialect=netaddr.mac_unix),
             'ip': netaddr.IPAddress(gateway_ip),
         }
-        self.tun_br.add_flow(table=ovs_agt_constants.ARP_RESPONDER,
+        self.tun_br.add_flow(table=ovs_agt_consts.ARP_RESPONDER,
                              priority=2,  # see above
                              dl_vlan=vlan,
                              proto='arp',
@@ -651,7 +651,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         # Remove ARP responder entry for default gateway in br-tun
         self.tun_br.delete_flows(
             strict=True,
-            table=ovs_agt_constants.ARP_RESPONDER,
+            table=ovs_agt_consts.ARP_RESPONDER,
             priority=2,
             dl_vlan=vlan,
             proto='arp',
@@ -696,7 +696,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                 # (need push vlan because NORMAL will not be used, and hence
                 # won't the vlan tag)
                 flow = dict(
-                    table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_TABLE,
+                    table=ovs_agt_consts.ACCEPTED_EGRESS_TRAFFIC_NORMAL_TABLE,
                     priority=2,  # before NORMAL action
                     reg_net=vlan,
                     dl_dst=net_info.gateway_info.mac,
@@ -753,7 +753,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             self._stop_redirect_br_tun_to_mpls(vlan)
 
             flow = dict(
-                table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_TABLE,
+                table=ovs_agt_consts.ACCEPTED_EGRESS_TRAFFIC_NORMAL_TABLE,
                 reg_net=vlan,
             )
             ovs_fw.create_reg_numbers(flow)
