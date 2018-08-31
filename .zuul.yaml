@@ -46,6 +46,8 @@
               - ^setup.cfg$
         - legacy-networking-bagpipe-dsvm-fullstack:
             voting: false
+        - openstack-tox-lower-constraints:
+            voting: false
     gate:
       jobs:
         - openstack-tox-lower-constraints
@@ -83,6 +85,8 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
+        - openstack-tox-lower-constraints:
+            voting: false
     post:
       jobs:
         - publish-openstack-python-branch-tarball:

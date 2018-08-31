@@ -1947,7 +1947,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
         )
 
         self.int_br.add_flow.assert_called_once_with(
-            table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_TABLE,
+            table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_NORMAL_TABLE,
             priority=3,
             dl_src="00:00:5e:2a:10:00",
             actions="NORMAL",
@@ -2088,7 +2088,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
             )
 
             int_add_flow.assert_called_once_with(
-                table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_TABLE,
+                table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_NORMAL_TABLE,
                 priority=2,
                 reg6=vlan,
                 dl_dst=GW_MAC,
@@ -2126,7 +2126,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                 any_order=True
             )
             int_delete_flows.assert_called_once_with(
-                table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_TABLE,
+                table=ovs_agt_constants.ACCEPTED_EGRESS_TRAFFIC_NORMAL_TABLE,
                 reg6=vlan)
 
     def test_gateway_redirection_ovs_restart(self):
