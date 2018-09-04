@@ -22,7 +22,7 @@ import signal
 import fixtures
 from oslo_utils import fileutils
 
-from neutron.agent.linux import async_process
+from neutron.agent.common import async_process
 from neutron.tests import base
 from neutron.tests.fullstack import base as neutron_base
 from neutron.tests.fullstack.resources import process as neutron_proc
