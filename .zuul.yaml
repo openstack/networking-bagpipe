@@ -9,12 +9,11 @@
       - periodic-stable-jobs-neutron
     check:
       jobs:
-        - openstack-tox-lower-constraints
-        - openstack-tox-docs:
-            required-projects:
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-        - build-openstack-releasenotes
+        - openstack-tox-lower-constraints:
+            # Currently, we cannot specify that we want neutron
+            # checked out from master using tox-siblings for this
+            # job, so this always fails.
+            voting: false
         - openstack-tox-pep8:
             required-projects:
               - openstack/networking-bgpvpn
@@ -46,16 +45,8 @@
               - ^setup.cfg$
         - legacy-networking-bagpipe-dsvm-fullstack:
             voting: false
-        - openstack-tox-lower-constraints:
-            voting: false
     gate:
       jobs:
-        - openstack-tox-lower-constraints
-        - openstack-tox-docs:
-            required-projects:
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-        - build-openstack-releasenotes
         - openstack-tox-pep8:
             required-projects:
               - openstack/networking-bgpvpn
@@ -72,11 +63,6 @@
             required-projects:
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - openstack-tox-cover:
-            required-projects:
-              - openstack/neutron
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - legacy-tempest-dsvm-networking-bagpipe:
             irrelevant-files:
               - ^(test-|)requirements.txt$
@@ -85,8 +71,6 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
-        - openstack-tox-lower-constraints:
-            voting: false
     post:
       jobs:
         - publish-openstack-python-branch-tarball:
@@ -94,7 +78,6 @@
               - openstack/neutron
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - publish-openstack-releasenotes
     periodic:
       jobs:
         - openstack-tox-py35-with-neutron-lib-master:
