@@ -61,7 +61,6 @@ set -e
 install_cmd="pip install -c$1"
 shift
 
-install_project neutron
 install_project networking-bgpvpn
 install_project networking-sfc
 
