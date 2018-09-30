@@ -15,8 +15,8 @@
 
 import oslo_messaging
 
-from neutron.common import rpc as n_rpc
 from neutron_lib.agent import topics
+from neutron_lib import rpc as n_rpc
 from oslo_log import log as logging
 
 from networking_bagpipe._i18n import _
