@@ -71,13 +71,6 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
-    post:
-      jobs:
-        - publish-openstack-python-branch-tarball:
-            required-projects:
-              - openstack/neutron
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
     periodic:
       jobs:
         - openstack-tox-py35-with-neutron-lib-master:
