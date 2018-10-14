@@ -82,9 +82,3 @@
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - publish-openstack-releasenotes
-    periodic:
-      jobs:
-        - openstack-tox-py35-with-neutron-lib-master:
-            required-projects:
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
