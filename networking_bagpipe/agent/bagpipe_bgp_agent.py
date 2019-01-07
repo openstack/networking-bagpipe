@@ -424,7 +424,7 @@ class BaGPipeBGPAgent(HTTPClientBase):
             LOG.debug("bagpipe-bgp PING response received with "
                       "sequence number %s", response)
             return response
-        except BaGPipeBGPException as e:
+        except Exception as e:
             LOG.warning(str(e))
             return -1
 

@@ -37,7 +37,7 @@ jmespath==0.9.0
 jsonpatch==1.16
 jsonpointer==1.13
 jsonschema==2.6.0
-keystoneauth1==3.4.0
+keystoneauth1==3.6.2
 keystonemiddleware==4.17.0
 kombu==4.0.0
 linecache2==1.0.0
@@ -55,7 +55,7 @@ netaddr==0.7.18
 netifaces==0.10.4
 networking-bgpvpn==9.0.0
 networking-sfc==7.0.0
-neutron==13.0.0.0
+neutron==13.0.2.0
 neutron-lib==1.18.0
 openstackdocstheme==1.18.1
 openstacksdk==0.11.2
@@ -81,7 +81,7 @@ oslo.service==1.24.0
 oslo.utils==3.33.0
 oslo.versionedobjects==1.31.2
 oslotest==3.2.0
-osprofiler==1.4.0
+osprofiler==2.3.0
 ovs==2.8.0
 ovsdbapp==0.10.0
 Paste==2.0.2
@@ -107,7 +107,7 @@ pyroute2==0.4.21
 python-dateutil==2.5.3
 python-designateclient==2.7.0
 python-editor==1.0.3
-python-keystoneclient==3.8.0
+python-keystoneclient==3.15.0
 python-mimeparse==1.6.0
 python-neutronclient==6.7.0
 python-novaclient==9.1.0
