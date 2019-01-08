@@ -42,6 +42,7 @@ def _get_gateway_mac_by_subnet(obj_context, subnet):
                                             network_id=subnet.network_id,
                                             subnet_id=subnet.id,
                                             ip_address=subnet.gateway_ip)
+    # pylint: disable=no-member
     if ip_allocation:
         port = Port.get_object(obj_context, id=ip_allocation.port_id)
         return str(port.mac_address)
@@ -237,6 +238,7 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
 
             router_assocs = []
             for port in ports:
+                # pylint: disable=no-member
                 router_assocs.extend(
                     super(BGPVPNRouterAssociation, cls).get_objects(
                         context, _pager=_pager,
@@ -251,12 +253,13 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
             context, _pager=_pager, validate_filters=validate_filters,
             **kwargs)
 
+    # pylint: disable=no-member
     def _load_connected_networks(self, db_obj=None):
         # NOTE(tmorin): can be improved by directly looking up
         # Ports with device_id=self.router_id
         router_ports = RouterPort.get_objects(
             self.obj_context,
-            router_id=self.router_id)  # pylint: disable=no-member
+            router_id=self.router_id)
         connected_networks = []
         for router_port in router_ports:
             port = Port.get_object(self.obj_context,

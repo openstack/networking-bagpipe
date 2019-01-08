@@ -21,7 +21,7 @@ import optparse
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 import six
-import urllib2
+from six.moves import urllib
 
 from networking_bagpipe.bagpipe_bgp.api import config as api_config
 
@@ -55,7 +55,7 @@ def pretty_print_recurse(data, indent, recursive_requests, url,
             target_url = data["href"]
             if recursive_requests:
                 if target_url.startswith(url):
-                    response = urllib2.urlopen(target_url)
+                    response = urllib.request.urlopen(target_url)
                     if response.getcode() == 200:
                         pretty_print_recurse(jsonutils.load(response),
                                              indent + INDENT_INCREMENT,
@@ -149,19 +149,19 @@ e.g.: %prog vpns instances"""
 
     (options, args) = parser.parse_args()
 
-    quoted_args = [urllib2.quote(arg) for arg in args]
+    quoted_args = [urllib.parse.quote(arg) for arg in args]
     target_url = "http://%s:%d/%s/%s" % (options.server, options.port,
                                          options.prefix, "/".join(quoted_args))
     try:
         os.environ['NO_PROXY'] = options.server
-        response = urllib2.urlopen(target_url)
+        response = urllib.request.urlopen(target_url)
 
         if response.getcode() == 200:
             data = jsonutils.load(response)
 
             if (isinstance(data, dict) and "href" in data):
                 target_url_bis = data["href"]
-                response_bis = urllib2.urlopen(target_url_bis)
+                response_bis = urllib.request.urlopen(target_url_bis)
                 if response.getcode() == 200:
                     target_url = target_url_bis
                     data = jsonutils.load(response_bis)
@@ -169,13 +169,13 @@ e.g.: %prog vpns instances"""
             pretty_print_recurse(data, 0, options.recurse, target_url,
                                  already_anew_line=True)
 
-    except urllib2.HTTPError as e:
+    except urllib.error.HTTPError as e:
         if e.code == 404:
             print("No such looking glass path: %s\n(%s)" %
                   (" ".join(quoted_args), target_url))
         else:
             print("Error code %d: %s" % (e.getcode(), e.read()))
         return
-    except urllib2.URLError as e:
+    except urllib.error.URLError as e:
         print("No server at http://%s:%d : %s" % (options.server,
                                                   options.port, e))
