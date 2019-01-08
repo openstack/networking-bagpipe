@@ -14,6 +14,7 @@
 #    under the License.
 
 import netaddr
+from neutron_lib.db import model_query
 import sqlalchemy as sa
 from sqlalchemy.orm import exc
 
@@ -23,7 +24,6 @@ from sqlalchemy import true
 from oslo_versionedobjects import fields as obj_fields
 
 from neutron.api.rpc.callbacks import resources
-from neutron.db import _model_query as model_query
 from neutron.db import models_v2
 from neutron.objects import base
 from neutron.objects import common_types
