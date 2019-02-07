@@ -18,6 +18,7 @@ from netaddr.ip import IPNetwork
 
 from neutron_lib.api.definitions import bgpvpn as bgpvpn_def
 from neutron_lib.api.definitions import provider_net as pnet
+from neutron_lib.db import model_query
 from neutron_lib.plugins import directory
 
 from oslo_log import helpers as log_helpers
@@ -187,7 +188,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
             logical_port = fc['logical_' + side + '_port']
             if logical_port is not None:
-                port = self._get_by_id(
+                port = model_query.get_by_id(
                     self.admin_context, models_v2.Port, logical_port
                 )
                 if fc[side + '_ip_prefix'] is None:
