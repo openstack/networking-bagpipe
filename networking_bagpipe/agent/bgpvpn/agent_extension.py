@@ -604,7 +604,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
     @log_helpers.log_method_call
     @lockutils.synchronized('bagpipe-bgpvpn')
-    def ovs_restarted(self, resources, event, trigger):
+    def ovs_restarted(self, resources, event, trigger, payload=None):
         self._setup_ovs_bridge()
         for net_info in self.networks_info.values():
             if (net_info.ports and
