@@ -40,10 +40,18 @@
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
         - legacy-tempest-dsvm-networking-bgpvpn-bagpipe:
+            required-projects:
+              - openstack/neutron
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
         - legacy-networking-bagpipe-dsvm-fullstack:
+            required-projects:
+              - openstack/neutron
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
             voting: false
     gate:
       jobs:
@@ -64,10 +72,18 @@
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - legacy-tempest-dsvm-networking-bagpipe:
+            required-projects:
+              - openstack/neutron
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
         - legacy-tempest-dsvm-networking-bgpvpn-bagpipe:
+            required-projects:
+              - openstack/neutron
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
