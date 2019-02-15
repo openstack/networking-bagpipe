@@ -3,6 +3,7 @@
       - openstack-python-jobs-neutron
       - openstack-python35-jobs-neutron
       - openstack-python36-jobs-neutron
+      - openstack-python37-jobs-neutron
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
       - check-requirements
@@ -27,6 +28,10 @@
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py36:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py37:
             required-projects:
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
@@ -68,6 +73,10 @@
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py36:
+            required-projects:
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py37:
             required-projects:
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
