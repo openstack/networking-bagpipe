@@ -54,7 +54,7 @@ munch==2.1.0
 netaddr==0.7.18
 netifaces==0.10.4
 networking-bgpvpn==9.0.0
-networking-sfc==7.0.0
+networking-sfc==8.0.0.0b1
 neutron==13.0.2.0
 neutron-lib==1.18.0
 openstackdocstheme==1.18.1
