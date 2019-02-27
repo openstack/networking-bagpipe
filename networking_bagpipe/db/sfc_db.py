@@ -23,7 +23,6 @@ from oslo_log import log as logging
 from neutron_lib import context as n_context
 from neutron_lib.db import model_base
 
-from neutron.db import common_db_mixin
 
 LOG = logging.getLogger(__name__)
 
@@ -153,7 +152,7 @@ class BaGPipeChainHop(model_base.BASEV2, model_base.HasId,
                              primary_key=True)
 
 
-class BaGPipeSfcDriverDB(common_db_mixin.CommonDbMixin):
+class BaGPipeSfcDriverDB(object):
 
     def initialize(self):
         self.admin_context = n_context.get_admin_context()
