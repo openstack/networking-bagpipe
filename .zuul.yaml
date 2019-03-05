@@ -34,10 +34,6 @@
               - openstack/neutron
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - legacy-tempest-dsvm-networking-bagpipe:
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^setup.cfg$
         - neutron-tempest-plugin-bgpvpn-bagpipe:
             irrelevant-files:
               - ^(test-|)requirements.txt$
@@ -48,6 +44,7 @@
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
             voting: false
+        - networking-bagpipe-tempest
     gate:
       jobs:
         - openstack-tox-pep8:
@@ -66,15 +63,22 @@
             required-projects:
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - legacy-tempest-dsvm-networking-bagpipe:
-            required-projects:
-              - openstack/neutron
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^setup.cfg$
         - neutron-tempest-plugin-bgpvpn-bagpipe:
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
+        - networking-bagpipe-tempest
+
+- job:
+    name: networking-bagpipe-tempest
+    parent: tempest-full-py3
+    timeout: 10800
+    required-projects:
+      - openstack/tempest
+      - openstack/neutron
+      - openstack/networking-bagpipe
+    vars:
+      tempest_concurrency: 4
+    irrelevant-files:
+      - ^(test-|)requirements.txt$
+      - ^setup.cfg$
