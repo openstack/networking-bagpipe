@@ -1,2 +1,2 @@
-enable_plugin networking-bagpipe git://git.openstack.org/openstack/networking-bagpipe
+enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe
 
