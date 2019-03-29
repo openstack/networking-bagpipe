@@ -1123,7 +1123,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                 # bridge MAC address instead
                 self.mpls_if_mac_address = net_utils.get_device_mac(
                     self._run_command,
-                    self.bridge)
+                    self.bridge.br_name)
 
         self.bridge.add_flow(table=self.input_table,
                              priority=DEFAULT_RULE_PRIORITY,
