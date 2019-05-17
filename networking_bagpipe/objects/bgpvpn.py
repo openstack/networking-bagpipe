@@ -18,7 +18,6 @@ from oslo_versionedobjects import fields as obj_fields
 from networking_bgpvpn.neutron.db import bgpvpn_db
 
 from neutron.api.rpc.callbacks import resources
-from neutron.common import utils
 from neutron.objects import base
 from neutron.objects import common_types
 from neutron.objects.ports import IPAllocation
@@ -29,6 +28,7 @@ from neutron.objects.subnet import Subnet
 from neutron_lib.api.definitions import bgpvpn as bgpvpn_api
 from neutron_lib.api.definitions import bgpvpn_routes_control as bgpvpn_rc_api
 from neutron_lib import constants
+from neutron_lib.utils import net as net_utils
 
 LOG = logging.getLogger(__name__)
 
@@ -392,7 +392,7 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
         fields = super(BGPVPNPortAssociationRoute,
                        cls).modify_fields_from_db(db_obj)
         if 'prefix' in fields and fields['prefix'] is not None:
-            fields['prefix'] = utils.AuthenticIPNetwork(fields['prefix'])
+            fields['prefix'] = net_utils.AuthenticIPNetwork(fields['prefix'])
 
         return fields
 

@@ -20,8 +20,6 @@ from oslo_utils import uuidutils
 
 from networking_bagpipe.objects import bgpvpn as bgpvpn_obj
 
-from neutron.common import utils
-
 from neutron.tests.unit.objects import test_base
 from neutron.tests.unit import testlib_api
 
@@ -30,6 +28,7 @@ from neutron_lib.api.definitions import bgpvpn_routes_control as bgpvpn_rc_api
 from neutron_lib import constants
 from neutron_lib import context
 from neutron_lib.objects import registry as obj_reg
+from neutron_lib.utils import net as net_utils
 
 
 test_base.FIELD_TYPE_VALUE_GENERATOR_MAP[bgpvpn_obj.BGPVPNTypeField] = (
@@ -53,7 +52,7 @@ def _subnet_dict(gw_mac=None):
         'id': mock.ANY,
         'ip_version': 4,
         'gateway_mac': gw_mac,
-        'cidr': utils.AuthenticIPNetwork(CIDR),
+        'cidr': net_utils.AuthenticIPNetwork(CIDR),
         'gateway_ip': netaddr.IPAddress(GW_IP)
     }
 
