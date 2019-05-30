@@ -28,7 +28,7 @@ from networking_bagpipe.bagpipe_bgp.vpn import evpn
 
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import \
     constants as ovs_const
-from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import \
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.native import \
     br_tun
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent
 

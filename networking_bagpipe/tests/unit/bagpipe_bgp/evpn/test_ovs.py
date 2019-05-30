@@ -25,7 +25,7 @@ from networking_bagpipe.tests.unit.bagpipe_bgp import base as t
 from neutron.agent.common import ovs_lib
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import \
     constants as ovs_const
-from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import \
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.native import \
     br_tun
 
 LOCAL_IP = "1.2.3.4"

@@ -296,7 +296,7 @@ def add_patch_port_int(patch, peer):
     return BR_INT_PATCHES[patch]
 
 
-class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
+class BaseTestOVSAgentExtension(ovs_test_base.OVSOSKenTestBase,
                                 BaseTestAgentExtension):
 
     driver_type = ovs_agt_constants.EXTENSION_DRIVER_TYPE
@@ -307,7 +307,7 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOFCtlTestBase,
     DUMMY_VIF21 = DummyVif(21, 'VIF21')
 
     def setUp(self):
-        ovs_test_base.OVSOFCtlTestBase.setUp(self)
+        ovs_test_base.OVSOSKenTestBase.setUp(self)
         BaseTestAgentExtension.setUp(self)
 
         self.int_br = self.br_int_cls("br-int")
