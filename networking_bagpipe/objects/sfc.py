@@ -15,6 +15,7 @@
 
 import netaddr
 from neutron_lib.db import model_query
+from neutron_lib.objects import common_types
 import sqlalchemy as sa
 from sqlalchemy.orm import exc
 
@@ -26,7 +27,6 @@ from oslo_versionedobjects import fields as obj_fields
 from neutron.api.rpc.callbacks import resources
 from neutron.db import models_v2
 from neutron.objects import base
-from neutron.objects import common_types
 from neutron.objects.ports import Port
 
 from networking_bagpipe.db import sfc_db as bagpipe_db

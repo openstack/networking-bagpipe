@@ -19,7 +19,6 @@ from networking_bgpvpn.neutron.db import bgpvpn_db
 
 from neutron.api.rpc.callbacks import resources
 from neutron.objects import base
-from neutron.objects import common_types
 from neutron.objects.ports import IPAllocation
 from neutron.objects.ports import Port
 from neutron.objects.router import RouterPort
@@ -28,7 +27,9 @@ from neutron.objects.subnet import Subnet
 from neutron_lib.api.definitions import bgpvpn as bgpvpn_api
 from neutron_lib.api.definitions import bgpvpn_routes_control as bgpvpn_rc_api
 from neutron_lib import constants
+from neutron_lib.objects import common_types
 from neutron_lib.utils import net as net_utils
+
 
 LOG = logging.getLogger(__name__)
 
