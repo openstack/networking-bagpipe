@@ -37,11 +37,11 @@ class keydefaultdict(defaultdict):
     d = keydefaultdict(C)
     d[key] returns C(key)
     """
+    # pylint: disable=not-callable
     def __missing__(self, key):
         if self.default_factory is None:
             raise KeyError(key)
         else:
-            # pylint: disable=not-callable
             ret = self[key] = getattr(self, 'default_factory')(key)
             return ret
 

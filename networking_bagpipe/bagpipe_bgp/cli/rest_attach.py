@@ -25,7 +25,7 @@ import netaddr
 import optparse
 from oslo_config import cfg
 from oslo_serialization import jsonutils
-import urllib2
+from six.moves import urllib
 
 from networking_bagpipe.bagpipe_bgp.api import config as api_config
 from networking_bagpipe.bagpipe_bgp.common import net_utils
@@ -410,16 +410,17 @@ def main():
     print("request: %s" % json_data)
 
     os.environ['NO_PROXY'] = "127.0.0.1"
-    req = urllib2.Request("http://127.0.0.1:%d/%s_localport" %
-                          (cfg.CONF.API.port, options.operation), json_data,
-                          {'Content-Type': 'application/json'})
+    req = urllib.request.Request(
+        "http://127.0.0.1:%d/%s_localport" %
+        (cfg.CONF.API.port, options.operation),
+        json_data, {'Content-Type': 'application/json'})
     try:
-        response = urllib2.urlopen(req)
+        response = urllib.request.urlopen(req)
         response_content = response.read()
         response.close()
 
         print("response: %d %s" % (response.getcode(), response_content))
-    except urllib2.HTTPError as e:
+    except urllib.error.HTTPError as e:
         error_content = e.read()
         print("   %s" % error_content)
         sys.exit("error %d, reason: %s" % (e.code, e.reason))

@@ -19,7 +19,7 @@ import os
 import optparse
 from oslo_config import cfg
 from oslo_serialization import jsonutils
-import urllib2
+from six.moves import urllib
 
 from networking_bagpipe.bagpipe_bgp.api import config as api_config
 
@@ -33,11 +33,11 @@ def request(options, server, args):
     try:
         os.environ['NO_PROXY'] = server
         os.environ['no_proxy'] = server
-        response = urllib2.urlopen(target_url)
+        response = urllib.request.urlopen(target_url)
 
         if response.getcode() == 200:
             return jsonutils.load(response)
-    except urllib2.HTTPError as e:
+    except urllib.error.HTTPError as e:
         if e.code == 404:
             return {}
         print("Error requesting %s" % target_url)
