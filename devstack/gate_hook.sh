@@ -19,19 +19,6 @@ sudo -H pip install virtualenv
 virtualenv /tmp/devstack-tools
 /tmp/devstack-tools/bin/pip install -U devstack-tools==0.4.0
 
-# Inject config from neutron hook into localrc
-function load_neutron_rc_hook {
-    local hook="$1"
-    local tmpfile
-    local config
-    tmpfile=$(tempfile)
-    config=$(cat $GATE_HOOKS/$hook)
-    echo "[[local|localrc]]" > $tmpfile
-    $DSCONF setlc_raw $tmpfile "$config"
-    $DSCONF merge_lc $LOCAL_CONF $tmpfile
-    rm -f $tmpfile
-}
-
 # Inject config from bagipe hook into localrc
 function load_bagpipe_rc_hook {
     local hook="$1"
@@ -70,10 +57,10 @@ case $VENV in
             --assume-yes install fping
 
     # prepare base environment for ./stack.sh
-    load_neutron_rc_hook stack_base
+    load_bagpipe_rc_hook stack_base
 
     # enable monitoring
-    load_neutron_rc_hook dstat
+    load_bagpipe_rc_hook dstat
 
     # have devstack know about our devstack plugin
     load_bagpipe_rc_hook bagpipe
