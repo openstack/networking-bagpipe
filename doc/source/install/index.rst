@@ -32,7 +32,7 @@ If you use ``pip``, follow these steps to install networking-bagpipe:
 
   .. code-block:: console
 
-     $ pip install -c  https://git.openstack.org/cgit/openstack/requirements/plain/upper-constraints.txt?h=stable/queens networking-bagpipe=8.0.0
+     $ pip install -c https://releases.openstack.org/constraints/upper/queens
 
 BaGPipe for Neutron L2
 ----------------------
