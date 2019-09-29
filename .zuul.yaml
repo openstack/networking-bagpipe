@@ -12,7 +12,6 @@
             required-projects:
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - build-openstack-releasenotes
         - openstack-tox-pep8:
             required-projects:
               - openstack/networking-bgpvpn
@@ -46,7 +45,6 @@
             required-projects:
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - build-openstack-releasenotes
         - openstack-tox-pep8:
             required-projects:
               - openstack/networking-bgpvpn
@@ -79,7 +77,6 @@
               - openstack/neutron
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - publish-openstack-releasenotes
     periodic-stable:
       jobs:
         - build-openstack-sphinx-docs:
