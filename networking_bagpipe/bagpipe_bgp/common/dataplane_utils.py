@@ -225,7 +225,7 @@ class ObjectLifecycleManager(object):
 
     @log_decorator.log_info
     def clear_objects(self, filter_method):
-        for object_key, users in self.object_used_for.items():
+        for object_key, users in list(self.object_used_for.items()):
             for user in users:
                 if filter_method(object_key, user):
                     self.delete_object(self.objects[object_key])
