@@ -3,22 +3,33 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. The main title comes from README.rst
+================================
+networking-bagpipe Documentation
+================================
 
-.. include:: ../../README.rst
+Driver and agent code to use BaGPipe lightweight implementation
+of BGP-based VPNs as a backend for Neutron.
 
-Documentation
--------------
+* Free software: Apache license
+* Documentation: https://docs.openstack.org/networking-bagpipe/latest/
+* Source: http://opendev.org/openstack/networking-bagpipe
+* Bugs: https://bugs.launchpad.net/networking-bagpipe
+* Release notes: https://docs.openstack.org/releasenotes/networking-bagpipe/
+
+----
 
 .. toctree::
    :maxdepth: 2
 
+   overview
    user/index
    install/index
    configuration/index
    contributor/index
 
-.. rubric:: Indices and tables
+.. only:: html
 
-* :ref:`genindex`
-* :ref:`search`
+   .. rubric:: Indices and tables
+
+   * :ref:`genindex`
+   * :ref:`search`
