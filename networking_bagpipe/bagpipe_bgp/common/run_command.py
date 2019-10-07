@@ -128,8 +128,8 @@ def run_command(log, command,
         exit_code, output, error = _shell_command(log, command,
                                                   *args, **kwargs)
 
-    output = output.splitlines()
-    error = error.splitlines()
+    output = [line.decode() for line in output.splitlines()]
+    error = [line.decode() for line in error.splitlines()]
 
     if log.isEnabledFor(logging.DEBUG):
         _log_stdx_if(log.debug, output, error)
