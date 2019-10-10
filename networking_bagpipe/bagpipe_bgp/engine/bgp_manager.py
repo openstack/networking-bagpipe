@@ -125,7 +125,7 @@ class Manager(engine.EventSource, lg.LookingGlassMixin, utils.ClassReprMixin):
                                             self.get_lg_peer_path_item)),
                 "routes":  (lg.FORWARD, self.rtm),
                 "workers": (lg.FORWARD, self.rtm),
-                "route_counts": (lg.VALUE, self.get_lg_route_counts)}
+                "route_counts": (lg.SUBITEM, self.get_lg_route_counts)}
 
     def get_established_peers_count(self):
         return reduce(lambda count, peer: count +
