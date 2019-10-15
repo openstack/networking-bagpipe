@@ -122,14 +122,20 @@ class Worker(engine.EventSource, lg.LookingGlassMixin):
         self._queue.put(event)
 
     def _subscribe(self, afi, safi, rt=None):
-        subobj = engine.Subscription(afi, safi, rt, self)
-        LOG.info("Subscribe: %s ", subobj)
-        self.rtm.enqueue(subobj)
+        try:
+            subobj = engine.Subscription(afi, safi, rt, self)
+            LOG.info("Subscribe: %s ", subobj)
+            self.rtm.enqueue(subobj)
+        except engine.UnsupportedRT as e:
+            LOG.debug("unsupported RT, ignoring (%s)", e.rt)
 
     def _unsubscribe(self, afi, safi, rt=None):
-        subobj = engine.Unsubscription(afi, safi, rt, self)
-        LOG.info("Unsubscribe: %s ", subobj)
-        self.rtm.enqueue(subobj)
+        try:
+            subobj = engine.Unsubscription(afi, safi, rt, self)
+            LOG.info("Unsubscribe: %s ", subobj)
+            self.rtm.enqueue(subobj)
+        except engine.UnsupportedRT as e:
+            LOG.debug("unsupported RT, ignoring (%s)", e.rt)
 
     def get_subscriptions(self):
         return sorted(self._rtm_matches)

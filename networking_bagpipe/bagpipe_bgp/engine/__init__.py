@@ -257,11 +257,18 @@ class RouteEvent(object):
                                                self.source)
 
 
+class UnsupportedRT(Exception):
+
+    def __init__(self, rt):
+        self.rt = rt
+
+
 class _SubUnsubCommon(object):
 
     def __init__(self, afi, safi, route_target, worker=None):
-        assert route_target is None or isinstance(route_target,
-                                                  exa.RouteTarget)
+        if not (route_target is None or
+                isinstance(route_target, exa.RouteTarget)):
+            raise UnsupportedRT(route_target)
         self.afi = afi
         self.safi = safi
         self.route_target = route_target
