@@ -1,7 +1,6 @@
 - project:
     templates:
-      - openstack-python-jobs-neutron
-      - openstack-python3-train-jobs-neutron
+      - openstack-python3-ussuri-jobs-neutron
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
       - check-requirements
@@ -14,10 +13,6 @@
             # job, so this always fails.
             voting: false
         - openstack-tox-pep8:
-            required-projects:
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-        - openstack-tox-py27:
             required-projects:
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
@@ -48,10 +43,6 @@
     gate:
       jobs:
         - openstack-tox-pep8:
-            required-projects:
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-        - openstack-tox-py27:
             required-projects:
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
