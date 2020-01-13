@@ -142,7 +142,6 @@ testscenarios==0.4
 testtools==2.2.0
 tinyrpc==0.6
 traceback2==1.4.0
-unittest2==1.1.0
 vine==1.1.4
 waitress==1.1.0
 webcolors==1.7
