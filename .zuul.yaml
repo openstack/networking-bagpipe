@@ -14,18 +14,27 @@
             voting: false
         - openstack-tox-pep8:
             required-projects:
+              - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py36:
             required-projects:
+              - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py37:
             required-projects:
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py38:
+            required-projects:
+              - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-cover:
             required-projects:
+              - openstack/horizon
               - openstack/neutron
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
@@ -33,25 +42,29 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
-        - legacy-networking-bagpipe-dsvm-fullstack:
-            required-projects:
-              - openstack/neutron
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
+        - networking-bagpipe-dsvm-fullstack:
             voting: false
         - networking-bagpipe-tempest
     gate:
       jobs:
         - openstack-tox-pep8:
             required-projects:
+              - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py36:
             required-projects:
+              - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py37:
             required-projects:
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py38:
+            required-projects:
+              - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - neutron-tempest-plugin-bgpvpn-bagpipe:
@@ -73,3 +86,15 @@
     irrelevant-files:
       - ^(test-|)requirements.txt$
       - ^setup.cfg$
+
+- job:
+    name: networking-bagpipe-dsvm-fullstack
+    parent: neutron-fullstack
+    timeout: 7800
+    required-projects:
+      - openstack/neutron
+      - openstack/networking-bgpvpn
+      - openstack/networking-sfc
+    vars:
+      tox_envlist: dsvm-fullstack
+      project_name: networking-bagpipe
