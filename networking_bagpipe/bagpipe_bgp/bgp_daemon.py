@@ -78,12 +78,6 @@ def daemon_main():
 
     setup_config()
 
-    if cfg.CONF.action != "unset":
-        LOG.warning("Running daemonized and using start/stop is not supported "
-                    "anymore, use of systemd is your typical alternative")
-        if cfg.CONF.action == "stop":
-            sys.exit(-1)
-
     log_file_warn = fix_log_file()
 
     setup_logging()

@@ -1,0 +1,5 @@
+---
+upgrade:
+  - |
+    bagpipe-bgp's old daemon CLI option ``action`` deprecated since Pike is now
+    removed permanently.

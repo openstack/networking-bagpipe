@@ -71,14 +71,6 @@ class InterfaceAddress(types.ConfigType):
         return self.__class__ == other.__class__
 
 
-cli_opts = [
-    cfg.StrOpt("action", positional=True, default='unset',
-               choices=('start', 'stop', 'unset'),
-               help=("(deprecated, can be omitted)"),
-               deprecated_for_removal=True
-               )
-]
-
 bgp_opts = [
     cfg.Opt('local_address', required=True,
             type=InterfaceAddress(),
@@ -96,7 +88,6 @@ bgp_opts = [
 
 
 def register():
-    cfg.CONF.register_cli_opts(cli_opts)
     cfg.CONF.register_opts(bgp_opts, "BGP")
 
 
