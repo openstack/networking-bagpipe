@@ -4,6 +4,7 @@
 # the openstack release team.
 sphinx!=1.6.6,!=1.6.7,!=2.1.0,>=1.6.2;python_version>='3.4' # BSD
 openstackdocstheme>=1.17.0 # Apache-2.0
+reno>=2.5.0 # Apache-2.0
 sphinxcontrib-actdiag>=0.8.5 # BSD
 sphinxcontrib-blockdiag>=1.5.4 # BSD
 sphinxcontrib-nwdiag>=0.9.5 # BSD
