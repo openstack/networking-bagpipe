@@ -52,9 +52,9 @@ msgpack-python==0.4.0
 munch==2.1.0
 netaddr==0.7.18
 netifaces==0.10.4
-networking-bgpvpn==10.0.0
-networking-sfc==8.0.0.0b1
-neutron==14.0.0
+networking-bgpvpn==12.0.0.0b1
+networking-sfc==10.0.0.0b1
+neutron==16.0.0.0b1
 neutron-lib==1.26.0
 openstackdocstheme==1.18.1
 openstacksdk==0.11.2

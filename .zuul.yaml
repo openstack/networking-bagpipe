@@ -30,6 +30,10 @@
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - neutron-tempest-plugin-bgpvpn-bagpipe:
+            # TOOD(amotoki/lajoskatona): bagpipe-bgp CLI change breaks the gate.
+            # https://review.opendev.org/#/c/708648/ will fix it and make it
+            # voting again.
+            voting: false
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
@@ -54,10 +58,13 @@
             required-projects:
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - neutron-tempest-plugin-bgpvpn-bagpipe:
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^setup.cfg$
+        # TOOD(amotoki/lajoskatona): bagpipe-bgp CLI change breaks the gate.
+        # https://review.opendev.org/#/c/708648/ will fix it and make it
+        # voting again.
+        # - neutron-tempest-plugin-bgpvpn-bagpipe:
+        #     irrelevant-files:
+        #       - ^(test-|)requirements.txt$
+        #       - ^setup.cfg$
         - networking-bagpipe-tempest
 
 - job:
