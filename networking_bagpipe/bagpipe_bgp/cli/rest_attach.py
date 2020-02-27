@@ -262,7 +262,7 @@ def main():
                       default=None,
                       type="int",
                       help="BGP LOCAL PREF attribute (optional)")
-    (options, _) = parser.parse_args()
+    (options, _unused) = parser.parse_args()
 
     if not(options.operation):
         parser.error("Need to specify --attach or --detach")
@@ -310,7 +310,7 @@ def main():
             options.netns = options.vpn_instance_id
 
         try:
-            (_, options.if2netns) = options.port.split(":")
+            (_unused, options.if2netns) = options.port.split(":")
         except Exception:
             options.if2netns = get_vpn2ns_if_name(options.netns)
 

@@ -233,7 +233,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                 try:
                     try:
                         port_name = localport['ovs']['port_name']
-                    except KeyError as e:
+                    except KeyError:
                         port_name = localport['linuxif']
                 except Exception:
                     raise Exception("Trying to find which port to plug, but no"
@@ -767,7 +767,9 @@ class NextHopGroupManagerProxy(dataplane_utils.ObjectLifecycleManagerProxy):
             selection_method_param=self.manager.hash_method_param,
             buckets=','.join(buckets))
 
-    def new_nexthop(self, prefix, nexthop, actions=[]):
+    def new_nexthop(self, prefix, nexthop, actions=None):
+        if actions is None:
+            actions = []
         bucket_allocator = self.bucket_allocators[prefix]
         bucket_id = bucket_allocator.get_new_id(
             "Bucket ID for prefix %s and nexthop %s" % (str(prefix), nexthop),

@@ -17,7 +17,6 @@
 
 import collections
 import functools
-import inspect
 import logging as python_logging
 import select
 import time
@@ -78,21 +77,10 @@ def setup_exabgp_env():
     exa_logger.Logger._syslog.addHandler = noop
     exa_logger.Logger._syslog.removeHandler = noop
 
-    # patch the exabgp logging method, to avoid formating all the
-    # information twice
-    # we have to use different signature for exabgp (change betweeen
-    # 4.0.1 and 4.0.2)
-    FORMAT_SIG_401 = ['timestamp', 'level', 'source', 'message']
-    if inspect.getargspec(exa_logger.Logger._format).args == FORMAT_SIG_401:
-        def patched_format(self, timestamp, level, source, message):
-            if self.short:
-                return message
-            return "%-13s %s" % (source, message)
-    else:  # 4.0.2 or higher
-        def patched_format(self, message, source, level, timestamp=None):
-            if self.short:
-                return message
-            return "%-13s %s" % (source, message)
+    def patched_format(self, message, source, level, timestamp=None):
+        if self.short:
+            return message
+        return "%-13s %s" % (source, message)
 
     exa_logger.Logger._format = patched_format
 
@@ -237,7 +225,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
                 raise bgp_peer_worker.OpenWaitTimeout(str(e))
             else:
                 raise Exception("Notify received: %s" % e)
-        except exa_reactor.network.error.LostConnection as e:
+        except exa_reactor.network.error.LostConnection:
             raise
 
         # check the capabilities of the session just established...
@@ -369,7 +357,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
         self.log.debug("Sending %d bytes on socket to peer %s",
                        len(data), self.peer_address)
         try:
-            for _ in self.protocol.connection.writer(data):
+            for _unused in self.protocol.connection.writer(data):
                 pass
         except Exception:
             self.log.exception("Was not able to send data")
