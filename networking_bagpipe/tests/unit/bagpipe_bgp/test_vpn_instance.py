@@ -38,8 +38,8 @@
 
 """
 
-import mock
 import testtools
+from unittest import mock
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp import engine

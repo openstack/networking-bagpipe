@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
+from unittest import mock
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions
 from networking_bagpipe.bagpipe_bgp.common import utils

@@ -19,7 +19,7 @@
 # is why you will find very few things here. The code is is expected to be
 # covered by tempest and fullstack test jobstores
 
-import mock
+from unittest import mock
 
 from networking_bagpipe.bagpipe_bgp.common import dataplane_utils
 from networking_bagpipe.bagpipe_bgp.vpn.ipvpn import mpls_ovs_dataplane
