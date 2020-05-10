@@ -44,8 +44,8 @@
 
 import copy
 import threading
+from unittest import mock
 
-import mock
 import testtools
 
 from networking_bagpipe.bagpipe_bgp import engine

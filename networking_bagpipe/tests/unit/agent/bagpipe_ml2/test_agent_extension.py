@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import mock
+from unittest import mock
 
 from networking_bagpipe.agent.bagpipe_ml2 import agent_extension
 from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
