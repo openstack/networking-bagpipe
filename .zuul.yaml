@@ -38,7 +38,7 @@
               - openstack/neutron
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - neutron-tempest-plugin-bgpvpn-bagpipe:
+        - neutron-tempest-plugin-bgpvpn-bagpipe-ussuri:
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
@@ -67,7 +67,7 @@
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - neutron-tempest-plugin-bgpvpn-bagpipe:
+        - neutron-tempest-plugin-bgpvpn-bagpipe-ussuri:
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
