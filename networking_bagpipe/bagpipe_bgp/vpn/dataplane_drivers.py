@@ -20,7 +20,6 @@ import abc
 from distutils import version  # pylint: disable=no-name-in-module
 from oslo_config import cfg
 from oslo_log import log as logging
-import six
 import stevedore
 
 from networking_bagpipe.bagpipe_bgp.common import config
@@ -94,8 +93,8 @@ def instantiate_dataplane_drivers():
     return drivers
 
 
-@six.add_metaclass(abc.ABCMeta)
-class DataplaneDriver(lg.LookingGlassLocalLogger, utils.ClassReprMixin):
+class DataplaneDriver(lg.LookingGlassLocalLogger, utils.ClassReprMixin,
+                      metaclass=abc.ABCMeta):
     '''Dataplane driver
 
     The initialisation workflow is the following:
@@ -262,8 +261,7 @@ class DataplaneDriver(lg.LookingGlassLocalLogger, utils.ClassReprMixin):
         }
 
 
-@six.add_metaclass(abc.ABCMeta)
-class VPNInstanceDataplane(lg.LookingGlassLocalLogger):
+class VPNInstanceDataplane(lg.LookingGlassLocalLogger, metaclass=abc.ABCMeta):
 
     @log_decorator.log_info
     def __init__(self, dataplane_driver, instance_id, external_instance_id,

@@ -17,7 +17,7 @@
 
 from oslo_config import cfg
 import pecan
-from six.moves import socketserver
+import socketserver
 from wsgiref import simple_server
 
 

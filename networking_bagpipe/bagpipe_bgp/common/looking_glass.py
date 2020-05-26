@@ -19,7 +19,6 @@ import logging as python_logging
 import re
 
 from oslo_log import log as logging
-import six
 import urllib
 
 
@@ -317,7 +316,7 @@ class NoSuchLookingGlassObject(Exception):
 
     def __init__(self, path_prefix, path):
         super(NoSuchLookingGlassObject, self).__init__()
-        assert isinstance(path_prefix, six.string_types)
+        assert isinstance(path_prefix, str)
         self.path_prefix = path_prefix
 
         assert isinstance(path, str)

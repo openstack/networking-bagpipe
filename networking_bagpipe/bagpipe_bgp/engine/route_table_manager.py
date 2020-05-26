@@ -17,11 +17,10 @@
 
 import collections
 from functools import reduce
+import queue
 import threading
 
 from oslo_log import log as logging
-import six
-from six.moves import queue
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -35,9 +34,8 @@ from networking_bagpipe.bagpipe_bgp.engine import worker as worker_m
 LOG = logging.getLogger(__name__)
 
 
-if six.PY3:
-    def cmp(a, b):
-        return (a > b) - (b > a)
+def cmp(a, b):
+    return (a > b) - (b > a)
 
 
 class Match(object):
@@ -547,8 +545,7 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin,
                     "\n".join(match_2_entries_dump))
 
         dump.append("~~~ (source,nlri) ->  entries ~~~")
-        for ((source, nlri), entry) in six.iteritems(
-                self._source_nlri_2_entry):
+        for ((source, nlri), entry) in self._source_nlri_2_entry.items():
             dump.append("  (%s, %s): %s" % (source, nlri, entry))
 
         LOG.debug("RouteTableManager data dump:\n\n%s\n", "\n".join(dump))
@@ -584,7 +581,7 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin,
 
     def get_lg_worker_list(self):
         return [{"id": worker.name}
-                for worker in six.itervalues(self._workers)]
+                for worker in self._workers.values()]
 
     def get_lg_worker_from_path_item(self, path_item):
         return self._workers.get(path_item, None)

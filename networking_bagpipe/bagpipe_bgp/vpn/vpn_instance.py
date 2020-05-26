@@ -25,7 +25,6 @@ import threading
 
 import netaddr
 from oslo_log import log as logging
-import six
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
@@ -233,14 +232,14 @@ class TrafficClassifier(object):
                       5: self._parse_destination_port,  # FLowDestinationPort
                       6: self._parse_source_port}  # FlowSourcePort
 
-        for ID, rule in six.iteritems(rules):
+        for ID, rule in rules.items():
             components[ID](rule)
 
 
-@six.add_metaclass(abc.ABCMeta)
 class VPNInstance(tracker_worker.TrackerWorker,
                   threading.Thread,
-                  lg.LookingGlassLocalLogger):
+                  lg.LookingGlassLocalLogger,
+                  metaclass=abc.ABCMeta):
 
     type = None  # set by subclasses: 'ipvpn', 'evpn', etc.
     afi = None
@@ -451,7 +450,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
     def has_only_one_endpoint(self):
         return (len(self.localport_2_endpoints) == 1 and
-                len(six.next(six.itervalues(self.localport_2_endpoints))) == 1)
+                len(next(iter(self.localport_2_endpoints.values()))) == 1)
 
     def all_endpoints(self):
         return itertools.chain(*self.localport_2_endpoints.values())
@@ -594,8 +593,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         # if local_port is not a dict, then assume it designates a linux
         # interface
-        if (isinstance(params['local_port'], six.string_types) or
-                isinstance(params['local_port'], six.text_type)):
+        if isinstance(params['local_port'], str):
             params['local_port'] = {'linuxif': params['local_port']}
 
         for param in ('import_rt', 'export_rt'):
@@ -603,8 +601,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
                 continue
 
             # if import_rt or export_rt are strings, convert them into lists
-            if (isinstance(params[param], six.string_types) or
-                    isinstance(params[param], six.text_type)):
+            if isinstance(params[param], str):
                 try:
                     params[param] = re.split(',+ *', params[param])
                 except Exception:

@@ -21,7 +21,6 @@ import threading
 import time
 
 from oslo_log import log as logging
-import six
 
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp import engine
@@ -107,10 +106,10 @@ class ToIdle(object):
         return "ToIdle(%s)" % self.delay
 
 
-@six.add_metaclass(abc.ABCMeta)
 class BGPPeerWorker(worker.Worker,
                     threading.Thread,
-                    lg.LookingGlassLocalLogger):
+                    lg.LookingGlassLocalLogger,
+                    metaclass=abc.ABCMeta):
 
     '''Partially abstract class for a Worker implementing the BGP protocol.'''
 

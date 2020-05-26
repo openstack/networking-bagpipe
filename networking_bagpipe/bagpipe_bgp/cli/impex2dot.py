@@ -15,11 +15,11 @@
 # limitations under the License.
 
 import os
+import urllib
 
 import optparse
 from oslo_config import cfg
 from oslo_serialization import jsonutils
-from six.moves import urllib
 
 from networking_bagpipe.bagpipe_bgp.api import config as api_config
 

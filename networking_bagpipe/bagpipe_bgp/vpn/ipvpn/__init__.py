@@ -17,7 +17,6 @@
 
 import abc
 import itertools
-import six
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
@@ -34,8 +33,8 @@ from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
 DEFAULT_ADDR_PREFIX = '0.0.0.0/0'
 
 
-@six.add_metaclass(abc.ABCMeta)
-class VPNInstanceDataplane(dp_drivers.VPNInstanceDataplane):
+class VPNInstanceDataplane(dp_drivers.VPNInstanceDataplane,
+                           metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def add_dataplane_for_traffic_classifier(self, classifier,

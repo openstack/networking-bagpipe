@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import six
 import sqlalchemy as sa
 
 from oslo_config import cfg
@@ -81,7 +80,7 @@ class RTAllocator(object):
 
         # Find first one available in range
         start, end = int(self.config.rtnn[0]), int(self.config.rtnn[1]) + 1
-        for rtnn in six.moves.range(start, end):
+        for rtnn in range(start, end):
             if rtnn not in allocated_rtnns:
                 with self.session.begin(subtransactions=True):
                     ppg_rtnn = BaGPipePpgRTAssoc(ppg_id=ppg_id,

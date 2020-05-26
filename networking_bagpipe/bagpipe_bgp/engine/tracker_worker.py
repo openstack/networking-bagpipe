@@ -19,7 +19,6 @@ import abc
 import socket
 
 from oslo_log import log as logging
-import six
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -129,8 +128,8 @@ def compare_no_ecmp(worker, route_a, route_b):
     return (route_a > route_b) - (route_b > route_a)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
+class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger,
+                    metaclass=abc.ABCMeta):
 
     def __init__(self, bgp_manager, worker_name,
                  compare_routes=compare_no_ecmp):
@@ -206,7 +205,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
                     self.log.trace("All best routes have been replaced")
                     self._recompute_best_routes(all_routes, best_routes)
                     if best_routes:
-                        current_best = six.next(iter(best_routes))
+                        current_best = next(iter(best_routes))
                         self.log.trace("We'll need to call new_best_route for "
                                        "all our new best routes")
                         call_new_best_route_4_all = True
@@ -216,7 +215,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
                 else:
                     # (if there is more than one route in the best routes, we
                     # take the first one)
-                    current_best = six.next(iter(best_routes))
+                    current_best = next(iter(best_routes))
 
                     self.log.trace("Current best route: %s", current_best)
 
@@ -466,7 +465,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
     def _dump_state(self):
         if self.log.isEnabledFor(logging.TRACE):
             self.log.trace("--- tracked_entry_2_routes ---")
-            for (entry, routes) in six.iteritems(self.tracked_entry_2_routes):
+            for (entry, routes) in self.tracked_entry_2_routes.items():
                 self.log.trace(
                     "  Entry: %s", TrackerWorker._display_entry(entry))
                 for route in routes:
@@ -474,7 +473,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
 
             self.log.trace("--- tracked_entry_2_best_routes ---")
             for (entry, best_routes) in \
-                    six.iteritems(self.tracked_entry_2_best_routes):
+                    self.tracked_entry_2_best_routes.items():
                 self.log.trace("  Entry: %s",
                                TrackerWorker._display_entry(entry))
                 for route in best_routes:
@@ -485,8 +484,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
     @staticmethod
     def _display_entry(entry):
         if (isinstance(entry, tuple) and len(entry) > 0 and
-                (isinstance(entry[0], type) or
-                 isinstance(entry[0], six.class_types))):
+                isinstance(entry[0], type)):
             return repr(tuple([entry[0].__name__] + list(entry[1:])))
         else:
             return repr(entry)
@@ -507,7 +505,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger):
 
     def _get_lg_routes(self, path_prefix, route_dict):
         routes = {}
-        for entry in six.iterkeys(route_dict):
+        for entry in route_dict.keys():
             entry_repr = self._display_entry(entry)
             routes[entry_repr] = [route.get_looking_glass_info(path_prefix)
                                   for route in route_dict[entry]]

@@ -15,10 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import queue
 import threading
 
 from oslo_log import log as logging
-from six.moves import queue
 
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp import engine

@@ -20,12 +20,12 @@ import logging
 import os
 import re
 import sys
+import urllib
 
 import netaddr
 import optparse
 from oslo_config import cfg
 from oslo_serialization import jsonutils
-from six.moves import urllib
 
 from networking_bagpipe.bagpipe_bgp.api import config as api_config
 from networking_bagpipe.bagpipe_bgp.common import net_utils

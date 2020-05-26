@@ -35,7 +35,6 @@ route table manager (singleton)
 """
 
 from oslo_log import log as logging
-import six
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -96,7 +95,7 @@ class RouteEntry(lg.LookingGlassMixin):
         if filter_ is None:
             def filter_real(ecom):
                 return True
-        elif isinstance(filter_, six.class_types):
+        elif isinstance(filter_, type):
             def filter_real(ecom):
                 return isinstance(ecom, filter_)
         else:

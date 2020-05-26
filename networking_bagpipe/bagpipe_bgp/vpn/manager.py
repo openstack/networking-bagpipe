@@ -18,7 +18,6 @@
 import threading
 
 from oslo_log import log as logging
-import six
 
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
@@ -464,13 +463,13 @@ class VPNManager(lg.LookingGlassMixin, utils.ClassReprMixin):
     @log_decorator.log_info
     def stop(self):
         self.bgp_manager.stop()
-        for vpn_instance in six.itervalues(self.vpn_instances):
+        for vpn_instance in self.vpn_instances.values():
             vpn_instance.stop()
             # Cleanup veth pair
             if (vpn_instance.type == constants.IPVPN and
                     self._evpn_ipvpn_ifs.get(vpn_instance)):
                 self._cleanup_evpn2ipvpn(vpn_instance)
-        for vpn_instance in six.itervalues(self.vpn_instances):
+        for vpn_instance in self.vpn_instances.values():
             vpn_instance.join()
         self.vpn_instances.clear()
 

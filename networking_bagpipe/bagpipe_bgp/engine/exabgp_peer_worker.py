@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import collections
+import functools
 import inspect
 import logging as python_logging
 import select
@@ -31,7 +32,6 @@ from exabgp import reactor as exa_reactor
 from exabgp.reactor import peer as exa_peer
 from oslo_config import cfg
 from oslo_log import log as logging
-import six
 
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp import engine
@@ -57,7 +57,7 @@ def setup_exabgp_env():
     exa_logger.Logger._restart = exa_logger.Logger.restart
 
     def decorated_restart(f):
-        @six.wraps(f)
+        @functools.wraps(f)
         def restart_never_first(self, first):
             # we don't want exabgp to really ever do its first restart stuff
             # that resets the root logger handlers
@@ -289,7 +289,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             if not self.protocol.connection:
                 raise Exception("lost connection")
 
-            message = six.next(self.protocol.read_message())
+            message = next(self.protocol.read_message())
 
             if message.ID != exa_message.NOP.ID:
                 self.log.debug("protocol read message: %s", message)

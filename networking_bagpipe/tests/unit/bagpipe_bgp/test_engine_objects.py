@@ -26,7 +26,6 @@ bagpipe.bgp.engine.__init__ .
 
 """
 
-import six
 from testtools import TestCase
 
 from networking_bagpipe.bagpipe_bgp import engine
@@ -82,7 +81,7 @@ class TestEngineObjects(TestCase):
 
         # Esi
         nlri1 = exa.EVPNMAC(TEST_RD,
-                            exa.ESI(b''.join(six.int2byte(1)
+                            exa.ESI(b''.join(bytes((1,))
                                              for _ in range(0, 10))),
                             exa.EthernetTag(111),
                             exa.MAC("01:02:03:04:05:06"), 6*8,

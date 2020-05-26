@@ -16,12 +16,11 @@
 
 import os
 from sys import stdout
+import urllib
 
 import optparse
 from oslo_config import cfg
 from oslo_serialization import jsonutils
-import six
-from six.moves import urllib
 
 from networking_bagpipe.bagpipe_bgp.api import config as api_config
 
@@ -74,7 +73,7 @@ def pretty_print_recurse(data, indent, recursive_requests, url,
             if not already_anew_line:
                 stdout.write("\n")
             first_val = True
-            for (key, value) in six.iteritems(data):
+            for (key, value) in data.items():
                 if not first_val or not already_anew_line:
                     stdout.write("%s" % (" " * indent))
                 if first_val:
