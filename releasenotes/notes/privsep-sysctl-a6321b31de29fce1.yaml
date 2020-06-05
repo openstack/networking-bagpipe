@@ -1,0 +1,6 @@
+---
+security:
+  - |
+    Change sysctl execution to use oslo.privsep and add necessary filters
+    to rootwrap.d. Privsep daemons are started now for sysctl command
+    execution.

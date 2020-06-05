@@ -15,10 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import shlex
 import socket
 
 from oslo_config import cfg
 from oslo_config import types
+from oslo_privsep import priv_context
 from pyroute2 import IPDB  # pylint: disable=no-name-in-module
 
 
@@ -100,3 +102,7 @@ def set_default_root_helper():
     cfg.CONF.set_default('root_helper_daemon',
                          cfg.CONF.COMMON.root_helper_daemon,
                          group="AGENT")
+
+
+def setup_privsep():
+    priv_context.init(root_helper=shlex.split(cfg.CONF.COMMON.root_helper))

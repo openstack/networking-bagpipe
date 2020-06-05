@@ -6,3 +6,7 @@ mysql-server [platform:dpkg]
 postgresql
 postgresql-client [platform:dpkg]
 
+# cffi (required by oslo.privsep) and PyNaCL (required by paramiko)
+libffi-dev [platform:dpkg]
+libffi-devel [platform:rpm]
+

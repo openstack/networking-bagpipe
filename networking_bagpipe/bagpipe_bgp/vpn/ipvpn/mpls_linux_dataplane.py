@@ -29,6 +29,7 @@ from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp import constants as consts
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
+from networking_bagpipe.privileged import privileged_utils
 
 
 ipr = pyroute2.IPRoute()  # pylint: disable=no-member
@@ -48,14 +49,7 @@ def json_set_default(obj):
 
 
 def sysctl(sysctl_path, val):
-    if isinstance(sysctl_path, (tuple, list)):
-        filename = ('/'.join(sysctl_path))
-    else:
-        filename = sysctl_path.replace('.', '/')
-    filename = '/proc/sys/' + filename
-
-    with open(filename, 'w') as f:
-        f.write(str(val))
+    privileged_utils.sysctl(knob='.'.join(sysctl_path,), value=val)
 
 
 def proxy_arp(ifname, enable):

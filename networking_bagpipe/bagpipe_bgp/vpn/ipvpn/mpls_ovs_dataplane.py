@@ -918,6 +918,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         super(MPLSOVSDataplaneDriver, self).__init__()
 
         config.set_default_root_helper()
+        config.setup_privsep()
 
         try:
             (o, _) = self._run_command("ovs-ofctl -V | head -1 |"
