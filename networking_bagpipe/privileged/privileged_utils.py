@@ -28,3 +28,13 @@ def sysctl(knob, value):
     cmd += ['-w', '%s=%s' % (knob, value)]
     result = processutils.execute(*cmd, check_exit_code=True)
     return 1 if result[1] else 0
+
+
+@privileged.default_cmd.entrypoint
+def modprobe(module_name):
+    """run modprobe command
+
+    :param module_name: the name of the module to check with modprobe
+    """
+    cmd = ['modprobe', module_name]
+    processutils.execute(*cmd, check_exit_code=True)

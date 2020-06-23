@@ -46,3 +46,18 @@ class TestPrivilegedSysctl(base.BaseTestCase):
             'Unexpected error')
         self.assertRaises(processutils.ProcessExecutionError,
                           privileged_utils.sysctl, 'a.b.c', 1)
+
+    @mock.patch('oslo_concurrency.processutils.execute')
+    def test_modprobe_simple(self, mock_execute):
+        mock_execute.return_value = ['', '']
+        privileged_utils.modprobe('foo_module')
+        mock_execute.assert_called_once_with(
+            'modprobe', 'foo_module', check_exit_code=True)
+
+    @mock.patch('oslo_concurrency.processutils.execute')
+    def test_modprobe_failed(self, mock_execute):
+        mock_execute.side_effect = processutils.ProcessExecutionError(
+            'Unexpected error')
+        self.assertRaises(
+            processutils.ProcessExecutionError,
+            privileged_utils.modprobe, 'foo_module')

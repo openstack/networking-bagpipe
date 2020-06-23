@@ -24,7 +24,7 @@ from networking_bagpipe.bagpipe_bgp import constants as consts
 from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 from networking_bagpipe.bagpipe_bgp.vpn import evpn
-
+from networking_bagpipe.privileged import privileged_utils
 
 BRIDGE_NAME_PREFIX = "evpn---"
 VXLAN_INTERFACE_PREFIX = "vxlan--"
@@ -359,7 +359,7 @@ class LinuxVXLANDataplaneDriver(dp_drivers.DataplaneDriver):
     def __init__(self):
         super(LinuxVXLANDataplaneDriver, self).__init__()
 
-        self._run_command("modprobe vxlan", run_as_root=True)
+        privileged_utils.modprobe('vxlan')
 
     @log_decorator.log_info
     def reset_state(self):

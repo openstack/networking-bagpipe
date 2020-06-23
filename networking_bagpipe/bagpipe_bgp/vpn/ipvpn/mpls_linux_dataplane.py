@@ -355,10 +355,10 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
     def __init__(self):
         super(MPLSLinuxDataplaneDriver, self).__init__()
 
-        self._run_command("modprobe mpls_router")
-        self._run_command("modprobe mpls_gso")
-        self._run_command("modprobe mpls_iptunnel")
-        self._run_command("modprobe vrf")
+        privileged_utils.modprobe('mpls_router')
+        privileged_utils.modprobe('mpls_gso')
+        privileged_utils.modprobe('mpls_iptunnel')
+        privileged_utils.modprobe('vrf')
 
         self.ip = pyroute2.IPDB()  # pylint: disable=no-member
 
