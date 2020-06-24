@@ -23,7 +23,7 @@ from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 
 from oslo_concurrency import lockutils
-
+from oslo_serialization import jsonutils
 from oslo_service import loopingcall
 
 from networking_bagpipe._i18n import _
@@ -71,7 +71,7 @@ class BaGPipeBGPException(n_exc.NeutronException):
                REST service: %(reason)s"
 
 
-class SetJSONEncoder(json.JSONEncoder):
+class SetJSONEncoder(jsonutils.JSONEncoder):
     # JSON encoder that encodes set like a list, this
     # allows to store list of RTs as sets and simplify the code
     # in many places
@@ -102,7 +102,7 @@ class HTTPClientBase(object):
                   {'method': method, 'action': action, 'body': str(body)})
 
         if isinstance(body, dict):
-            body = json.dumps(body, cls=SetJSONEncoder)
+            body = jsonutils.dumps(body, cls=SetJSONEncoder)
         try:
             headers = {'User-Agent': self.client_name,
                        "Content-Type": "application/json",
@@ -116,7 +116,7 @@ class HTTPClientBase(object):
 
             if response.status == 200:
                 if content and len(content) > 1:
-                    return json.loads(content)
+                    return jsonutils.loads(content)
             else:
                 reason = (
                     "An HTTP operation has failed on bagpipe-bgp."

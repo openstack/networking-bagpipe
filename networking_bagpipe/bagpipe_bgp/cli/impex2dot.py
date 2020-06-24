@@ -54,6 +54,7 @@ def normalize(string):
             .replace("-", "_")
             .replace(".", "_"))
 
+
 RT_TXT_STYLE = 'color="orange",fontcolor="orange"'
 RT_STYLE = 'color="orange",fontcolor="orange",arrowhead=onormal'
 RT_STYLE_REDIR_FROM_RT = ('color="orange",fontcolor="orange",style=dashed,'

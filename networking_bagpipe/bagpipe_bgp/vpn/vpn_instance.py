@@ -884,7 +884,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
         if linuxif in self.localport_2_endpoints:
             # Parse address/mask
-            (ip_prefix, _) = self._parse_ipaddress_prefix(ip_address_prefix)
+            (ip_prefix, _unused) = self._parse_ipaddress_prefix(
+                ip_address_prefix)
 
             self.log.info("Withdrawing BGP route for VIF %s endpoint %s",
                           linuxif, endpoint)

@@ -58,6 +58,7 @@ for vpn_type in constants.VPN_TYPES:
 def register_driver_opts(vpn_type, driver_opts):
     cfg.CONF.register_opts(driver_opts, constants.config_group(vpn_type))
 
+
 # prefix for setuptools entry points for dataplane drivers
 DATAPLANE_DRIVER_ENTRY_POINT_PFX = "bagpipe.dataplane"
 

@@ -19,7 +19,6 @@ from neutron_lib.agent import topics
 from neutron_lib import rpc as n_rpc
 from oslo_log import log as logging
 
-from networking_bagpipe._i18n import _
 
 LOG = logging.getLogger(__name__)
 
@@ -44,8 +43,8 @@ class BGPVPNAgentNotifyApi(object):
     # BGP VPN CRUD notifications
     # --------------------------------------
     def _notification_fanout(self, context, method, bgpvpn):
-        LOG.debug(_('Fanout notify BGP VPN agents at %(topic)s '
-                    'the message %(method)s with %(bgpvpn)s'),
+        LOG.debug('Fanout notify BGP VPN agents at %(topic)s '
+                  'the message %(method)s with %(bgpvpn)s',
                   {'topic': self.topic_bgpvpn_update,
                    'method': method,
                    'bgpvpn': bgpvpn})
@@ -72,8 +71,8 @@ class BGPVPNAgentNotifyApi(object):
     # Port attach/detach on/from BGP VPN notifications
     # ---------------------------------------------------------
     def _notification_host(self, context, method, port_bgpvpn_info, host):
-        LOG.debug(_('Notify BGP VPN agent %(host)s at %(topic)s '
-                    'the message %(method)s with %(port_bgpvpn_info)s'),
+        LOG.debug('Notify BGP VPN agent %(host)s at %(topic)s '
+                  'the message %(method)s with %(port_bgpvpn_info)s',
                   {'host': host,
                    'topic': self.topic_bgpvpn_update,
                    'method': method,

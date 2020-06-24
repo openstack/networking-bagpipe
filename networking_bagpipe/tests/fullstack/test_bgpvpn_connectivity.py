@@ -153,7 +153,7 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
         # still works *inside* a given network, both locally on a compute
         # node, and across different compute nodes
 
-        if self.evpn_driver is 'dummy':
+        if self.evpn_driver == 'dummy':
             self.skipTest("L2VPN unsupported for this scenario")
 
         tenant_uuid = uuidutils.generate_uuid()

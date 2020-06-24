@@ -34,6 +34,7 @@ ALL_DIRECTIONS = (BOTH, TO_PORT, FROM_PORT)
 def config_group(vpn_type):
     return "DATAPLANE_DRIVER_%s" % vpn_type.upper()
 
+
 # maximum length for a linux network device name
 #  grep 'define.*IFNAMSIZ' /usr/src/linux/include/uapi/linux/if.h
 # define    IFNAMSIZ    16

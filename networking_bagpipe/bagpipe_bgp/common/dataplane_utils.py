@@ -134,7 +134,11 @@ def _build_group_expr_str(group_dict, cmd):
 
 class OVSExtendedBridge(ovs_lib.OVSBridge):
 
-    def add_flow_extended(self, flow_matches=[], actions=[]):
+    def add_flow_extended(self, flow_matches=None, actions=None):
+        if flow_matches is None:
+            flow_matches = []
+        if actions is None:
+            actions = []
         flow_args = {}
         for match in flow_matches:
             flow_args.update(match)
@@ -144,7 +148,9 @@ class OVSExtendedBridge(ovs_lib.OVSBridge):
 
         self.add_flow(**flow_args)
 
-    def delete_flows_extended(self, flow_matches=[]):
+    def delete_flows_extended(self, flow_matches=None):
+        if flow_matches is None:
+            flow_matches = []
         flow_args = {}
         for match in flow_matches:
             flow_args.update(match)
