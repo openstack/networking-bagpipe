@@ -38,3 +38,29 @@ def modprobe(module_name):
     """
     cmd = ['modprobe', module_name]
     processutils.execute(*cmd, check_exit_code=True)
+
+# TODO(lajoskatona): use pyroute2.IPDB()
+@privileged.default_cmd.entrypoint
+def brctl(params, check_exit=True):
+    """run brctl command
+
+    :param params: parameters for brctl
+    :param check_exit: boolean or list of allowed exit codes, see
+                       https://opendev.org/openstack/oslo.concurrency/src/
+                       branch/master/oslo_concurrency/processutils.py#L207
+    :return: tupple of stdout, stderr
+    """
+    cmd = ['brctl'] + params.split()
+    return processutils.execute(*cmd, check_exit_code=check_exit,
+                                run_as_root=True)
+
+
+# TODO(lajoskatona): use pyroute2.IPRoute() fdb
+@privileged.default_cmd.entrypoint
+def bridge(params):
+    """Run bridge command
+
+    :param params: parameters for bridge
+    """
+    cmd = ['bridge'] + params.split()
+    return processutils.execute(*cmd, run_as_root=True)

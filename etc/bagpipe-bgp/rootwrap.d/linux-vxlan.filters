@@ -8,10 +8,6 @@
 
 [Filters]
 
-#
-brctl: CommandFilter, brctl, root
-bridge: CommandFilter, bridge, root
-
 # ip_lib
 ip: IpFilter, ip, root
 ip_exec: IpNetnsExecFilter, ip, root

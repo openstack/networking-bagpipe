@@ -61,3 +61,34 @@ class TestPrivilegedSysctl(base.BaseTestCase):
         self.assertRaises(
             processutils.ProcessExecutionError,
             privileged_utils.modprobe, 'foo_module')
+
+    @mock.patch('oslo_concurrency.processutils.execute')
+    def test_bridge_simple(self, mock_execute):
+        mock_execute.return_value = ['', '']
+        privileged_utils.bridge('fdb replace foo')
+        mock_execute.assert_called_once_with(
+            'bridge', 'fdb', 'replace', 'foo', run_as_root=True)
+
+    @mock.patch('oslo_concurrency.processutils.execute')
+    def test_bridge_failed(self, mock_execute):
+        mock_execute.side_effect = processutils.ProcessExecutionError(
+            'Unexpected error')
+        self.assertRaises(
+            processutils.ProcessExecutionError,
+            privileged_utils.bridge, 'fdb replace foo')
+
+    @mock.patch('oslo_concurrency.processutils.execute')
+    def test_brctl_simple(self, mock_execute):
+        mock_execute.return_value = ['', '']
+        privileged_utils.brctl('addif foo_bridge foo')
+        mock_execute.assert_called_once_with(
+            'brctl', 'addif', 'foo_bridge', 'foo',
+            check_exit_code=True, run_as_root=True)
+
+    @mock.patch('oslo_concurrency.processutils.execute')
+    def test_brctl_failed(self, mock_execute):
+        mock_execute.side_effect = processutils.ProcessExecutionError(
+            'Unexpected error')
+        self.assertRaises(
+            processutils.ProcessExecutionError,
+            privileged_utils.brctl, 'addif foo_bridge foo')

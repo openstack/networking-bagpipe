@@ -28,6 +28,7 @@ from networking_bagpipe.privileged import privileged_utils
 
 BRIDGE_NAME_PREFIX = "evpn---"
 VXLAN_INTERFACE_PREFIX = "vxlan--"
+LOG = logging.getLogger(__name__)
 
 
 class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
@@ -46,12 +47,9 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
             self.log.debug("Starting bridge %s", self.bridge_name)
 
             # Create bridge
-            self._run_command("brctl addbr %s" % self.bridge_name,
-                              run_as_root=True)
-            self._run_command("brctl setfd %s 0" % self.bridge_name,
-                              run_as_root=True)
-            self._run_command("brctl stp %s off" % self.bridge_name,
-                              run_as_root=True)
+            privileged_utils.brctl('addbr %s' % self.bridge_name)
+            privileged_utils.brctl('setfd %s 0' % self.bridge_name)
+            privileged_utils.brctl('stp %s off' % self.bridge_name)
             self._run_command("ip link set %s up" % self.bridge_name,
                               run_as_root=True)
 
@@ -82,9 +80,8 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
             self._run_command("ip link set %s down" % self.bridge_name,
                               run_as_root=True,
                               raise_on_error=False)
-            self._run_command("brctl delbr %s" % self.bridge_name,
-                              run_as_root=True,
-                              raise_on_error=False)
+            privileged_utils.brctl('delbr %s' % self.bridge_name,
+                                   check_exit=False)
 
     def needs_cleanup_assist(self):
         # If we reused a vxlan interface we won't cleanup fdb entries
@@ -132,9 +129,8 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                           run_as_root=True)
 
         # Plug VXLAN interface into bridge
-        self._run_command("brctl addif %s %s" % (self.bridge_name,
-                                                 self.vxlan_if_name),
-                          run_as_root=True)
+        privileged_utils.brctl('addif %s %s' % (self.bridge_name,
+                                                self.vxlan_if_name))
 
     def _cleanup_vxlan_if(self):
         if VXLAN_INTERFACE_PREFIX not in self.vxlan_if_name:
@@ -182,24 +178,20 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
     def _unplug_from_bridge(self, interface):
         if self._interface_exists(self.bridge_name):
-            self._run_command("brctl delif %s %s" %
-                              (self.bridge_name, interface),
-                              run_as_root=True,
-                              acceptable_return_codes=[0, 1])
+            privileged_utils.brctl('delif %s %s' % (self.bridge_name,
+                                                    interface),
+                                   check_exit=[0, 1])
 
     def set_gateway_port(self, linuxif, gw_ip):
-        self._run_command("brctl addif %s %s" %
-                          (self.bridge_name, linuxif),
-                          run_as_root=True,
-                          raise_on_error=False)
+        privileged_utils.brctl('addif %s %s' % (self.bridge_name, linuxif),
+                               check_exit=False)
 
         self._fdb_dump()
 
     def gateway_port_down(self, linuxif):
-        self._run_command("brctl delif %s %s" %
-                          (self.bridge_name, linuxif),
-                          run_as_root=True,
-                          raise_on_error=False)
+        privileged_utils.brctl('delif %s %s' % (self.bridge_name,
+                                                linuxif),
+                               check_exit=False)
         # TODO(tmorin): need to cleanup bridge fdb and ip neigh ?
 
     def set_bridge_name(self, linuxbr):
@@ -211,14 +203,12 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         if BRIDGE_NAME_PREFIX in self.bridge_name:
             self.log.debug("Plugging localport %s into EVPN bridge %s",
                            localport['linuxif'], self.bridge_name)
-            self._run_command("brctl addif %s %s" %
-                              (self.bridge_name, localport['linuxif']),
-                              run_as_root=True,
-                              raise_on_error=False)
+            privileged_utils.brctl(
+                'addif %s %s' % (self.bridge_name, localport['linuxif']),
+                check_exit=False)
 
-        self._run_command("bridge fdb replace %s dev %s" %
-                          (mac_address, localport['linuxif']),
-                          run_as_root=True)
+        privileged_utils.bridge(
+            'fdb replace %s dev %s' % (mac_address, localport['linuxif']))
 
         self._fdb_dump()
 
@@ -228,9 +218,9 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
         # remove local fdb entry, but only if tap interface is still here
         if self._is_if_on_bridge(localport['linuxif']):
-            self._run_command("bridge fdb delete %s dev %s" %
-                              (mac_address, localport['linuxif']),
-                              run_as_root=True)
+            privileged_utils.bridge(
+                'fdb delete %s dev %s' % (mac_address,
+                                          localport['linuxif']))
 
         # unplug localport only if bridge was created by us
         if BRIDGE_NAME_PREFIX in self.bridge_name:
@@ -253,9 +243,9 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         vni = dpid
 
         # populate bridge forwarding db
-        self._run_command("bridge fdb replace %s dev %s dst %s vni %s" %
-                          (mac, self.vxlan_if_name, remote_pe, vni),
-                          run_as_root=True)
+        privileged_utils.bridge(
+            'fdb replace %s dev %s dst %s vni %s' %
+            (mac, self.vxlan_if_name, remote_pe, vni))
 
         # populate ARP cache
         if ip is not None:
@@ -287,9 +277,9 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                               "permanent" % (ip, mac, self.vxlan_if_name),
                               run_as_root=True)
 
-        self._run_command("bridge fdb del %s dev %s dst %s vni %s" %
-                          (mac, self.vxlan_if_name, remote_pe, vni),
-                          run_as_root=True)
+        privileged_utils.bridge(
+            'fdb del %s dev %s dst %s vni %s' %
+            (mac, self.vxlan_if_name, remote_pe, vni))
 
         self._fdb_dump()
 
@@ -304,9 +294,9 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
         # 00:00:00:00:00 usable as default since kernel commit
         # 58e4c767046a35f11a55af6ce946054ddf4a8580 (2013-06-25)
-        self._run_command("bridge fdb append 00:00:00:00:00:00 dev %s dst %s "
-                          "vni %s" % (self.vxlan_if_name, remote_pe, vni),
-                          run_as_root=True)
+        privileged_utils.bridge(
+            'fdb append 00:00:00:00:00:00 dev %s dst %s vni %s' %
+            (self.vxlan_if_name, remote_pe, vni))
 
         self._fdb_dump()
 
@@ -321,16 +311,16 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
         self._fdb_dump()
 
-        self._run_command("bridge fdb delete 00:00:00:00:00:00 dev %s dst %s "
-                          "vni %s" % (self.vxlan_if_name, remote_pe, vni),
-                          run_as_root=True)
+        privileged_utils.bridge(
+            'fdb delete 00:00:00:00:00:00 dev %s dst %s vni %s' %
+            (self.vxlan_if_name, remote_pe, vni))
 
         self._fdb_dump()
 
     def _fdb_dump(self):
         if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug("bridge fdb dump: %s", self._run_command(
-                "bridge fdb show br %s" % self.bridge_name,
+                "fdb show br %s" % self.bridge_name,
                 acceptable_return_codes=[0, 255],
                 run_as_root=True)[0])
 
@@ -366,16 +356,17 @@ class LinuxVXLANDataplaneDriver(dp_drivers.DataplaneDriver):
     @log_decorator.log_info
     def reset_state(self):
         # delete all EVPN bridges
-        cmd = "brctl show | tail -n +2 | awk '{print $1}'| grep '%s'"
-        for bridge in self._run_command(cmd % BRIDGE_NAME_PREFIX,
-                                        run_as_root=True,
-                                        raise_on_error=False,
-                                        acceptable_return_codes=[0, 1],
-                                        shell=True)[0]:
+        res = privileged_utils.brctl('show', check_exit=[0, 1])
+        if res and len(res) > 0:
+            res = res[0]
+        bridge_lines = [line for line in res.split('\n')[1:-1]
+                        if BRIDGE_NAME_PREFIX in line]
+
+        for b_l in bridge_lines:
+            bridge = b_l.split('\t')[0]
             self._run_command("ip link set %s down" % bridge,
                               run_as_root=True)
-            self._run_command("brctl delbr %s" % bridge,
-                              run_as_root=True)
+            privileged_utils.brctl('delbr %s' % bridge)
 
         # delete all VXLAN interfaces
         cmd = "ip link show | awk '{print $2}' | tr -d ':' | grep '%s'"
