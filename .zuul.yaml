@@ -66,6 +66,7 @@
 - job:
     name: networking-bagpipe-tempest
     parent: tempest-full-py3
+    nodeset: openstack-single-node-focal
     timeout: 10800
     required-projects:
       - openstack/tempest
@@ -73,6 +74,16 @@
       - openstack/networking-bagpipe
     vars:
       tempest_concurrency: 4
+      # TODO(lajoskatona): On Ubuntu Focal some volume attach tests are
+      # failing. When https://bugs.launchpad.net/nova/+bug/1882521 is solved
+      # this list can be removed.
+      tempest_black_regex: "\
+          (^tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTest)|\
+          (^tempest.api.compute.servers.test_server_rescue.ServerRescueNegativeTestJSON)|\
+          (^tempest.api.compute.volumes.test_attach_volume.AttachVolumeMultiAttachTest)|\
+          (^tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTest.test_stable_device_rescue_disk_virtio_with_volume_attached)|\
+          (^tempest.api.compute.servers.test_server_rescue_negative.ServerRescueNegativeTestJSON.test_rescued_vm_detach_volume)|\
+          (^tempest.api.compute.volumes.test_attach_volume.AttachVolumeMultiAttachTest.test_resize_server_with_multiattached_volume)"
     irrelevant-files:
       - ^(test-|)requirements.txt$
       - ^setup.cfg$
