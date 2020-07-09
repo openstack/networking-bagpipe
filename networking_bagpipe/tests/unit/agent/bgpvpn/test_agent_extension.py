@@ -1180,8 +1180,8 @@ class TestBgpvpnAgentExtensionMixin(object):
             'export_rt': ['12345:1', '12345:2', '12345:3', '12345:8',
                           '12345:6']
         }
-        self.assertItemsEqual(result['import_rt'], expected['import_rt'])
-        self.assertItemsEqual(result['export_rt'], expected['export_rt'])
+        self.assertCountEqual(result['import_rt'], expected['import_rt'])
+        self.assertCountEqual(result['export_rt'], expected['export_rt'])
 
     def test_port_association_before_port_up(self):
         port_assoc = self._fake_port_assoc(

@@ -153,13 +153,13 @@ class BGPVPNNetAssociationTest(test_base.BaseDbObjectTestCase,
 
     def test_all_subnets(self):
         for db_obj in self.objs:
-            self.assertItemsEqual(db_obj.all_subnets(self.network_id),
+            self.assertCountEqual(db_obj.all_subnets(self.network_id),
                                   [_subnet_dict()])
 
     def test_subnets(self):
         for obj in self.objs:
             obj.create()
-            self.assertItemsEqual(obj.subnets, [_subnet_dict()])
+            self.assertCountEqual(obj.subnets, [_subnet_dict()])
 
         # plug a router
         _router = obj_reg.new_instance('Router', self.context)
@@ -174,7 +174,7 @@ class BGPVPNNetAssociationTest(test_base.BaseDbObjectTestCase,
             refreshed_obj = bgpvpn_obj.BGPVPNNetAssociation.get_object(
                 self.context,
                 id=obj.id)
-            self.assertItemsEqual(refreshed_obj.subnets,
+            self.assertCountEqual(refreshed_obj.subnets,
                                   [_subnet_dict(GW_MAC)])
 
 
@@ -205,7 +205,7 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
 
         # initially the network is not connected to the router
         for obj in self.objs:
-            self.assertItemsEqual(obj.all_subnets(network_id), [])
+            self.assertCountEqual(obj.all_subnets(network_id), [])
 
         self._connect_router_network(self.router_id,
                                      network_id,
@@ -223,9 +223,9 @@ class BGPVPNRouterAssociationTest(test_base.BaseDbObjectTestCase,
             refreshed_obj = bgpvpn_obj.BGPVPNRouterAssociation.get_object(
                 self.context,
                 id=obj.id)
-            self.assertItemsEqual(refreshed_obj.all_subnets(network_id),
+            self.assertCountEqual(refreshed_obj.all_subnets(network_id),
                                   [_subnet_dict(GW_MAC)])
-            self.assertItemsEqual(refreshed_obj.all_subnets("dummy-uuid"),
+            self.assertCountEqual(refreshed_obj.all_subnets("dummy-uuid"),
                                   [])
 
     def test_get_objects_from_network_id(self):
