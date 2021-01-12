@@ -15,9 +15,9 @@ DSCONF=/tmp/devstack-tools/bin/dsconf
 # Install devstack-tools used to produce local.conf; we can't rely on
 # test-requirements.txt because the gate hook is triggered before neutron is
 # installed
-sudo -H pip install virtualenv
+sudo -H pip3 install virtualenv
 virtualenv /tmp/devstack-tools
-/tmp/devstack-tools/bin/pip install -U devstack-tools==0.4.0
+/tmp/devstack-tools/bin/pip3 install -U devstack-tools==0.4.0
 
 # Inject config from neutron hook into localrc
 function load_neutron_rc_hook {
