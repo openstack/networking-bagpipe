@@ -8,11 +8,6 @@
       - periodic-stable-jobs-neutron
     check:
       jobs:
-        - openstack-tox-lower-constraints:
-            # Currently, we cannot specify that we want neutron
-            # checked out from master using tox-siblings for this
-            # job, so this always fails.
-            voting: false
         - openstack-tox-pep8:
             required-projects:
               - openstack/networking-bgpvpn
