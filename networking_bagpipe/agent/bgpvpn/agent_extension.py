@@ -504,6 +504,9 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                       {"mpls_br": mpls_br})
             exit(1)
 
+        # set secure mode
+        self.mpls_br.set_secure_mode()
+
         # patch ports for traffic from tun bridge to mpls bridge
         self.patch_tun_to_mpls_ofport = self.tun_br.add_patch_port(
             cfg.CONF.BAGPIPE.tun_to_mpls_peer_patch_port,
