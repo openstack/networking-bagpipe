@@ -77,7 +77,7 @@
       # TODO(lajoskatona): On Ubuntu Focal some volume attach tests are
       # failing. When https://bugs.launchpad.net/nova/+bug/1882521 is solved
       # this list can be removed.
-      tempest_black_regex: "\
+      tempest_exclude_regex: "\
           (^tempest.api.compute.servers.test_server_rescue.ServerStableDeviceRescueTest)|\
           (^tempest.api.compute.servers.test_server_rescue.ServerRescueNegativeTestJSON)|\
           (^tempest.api.compute.volumes.test_attach_volume.AttachVolumeMultiAttachTest)|\
