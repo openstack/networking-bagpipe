@@ -75,8 +75,10 @@ class StringContains(object):
 class TestBgpvpnAgentExtensionMixin(object):
 
     def setUp(self):
-        self.mocked_rpc_pull = mock.patch.object(
-            self.agent_ext.rpc_pull_api, 'bulk_pull').start()
+        bulk_pull_patcher = mock.patch.object(
+            self.agent_ext.rpc_pull_api, 'bulk_pull')
+        self.mocked_rpc_pull = bulk_pull_patcher.start()
+        self.addCleanup(bulk_pull_patcher.stop)
         self.context = context.get_admin_context()
 
     @mock.patch.object(registry, 'register')
@@ -1926,6 +1928,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
 
         self.tun_br.add_patch_port.assert_called_once()
         self.int_br.add_patch_port.assert_called_once()
+        self.agent_ext.mpls_br.set_secure_mode.assert_called_once()
         self.assertEqual(self.agent_ext.mpls_br.add_patch_port.call_count,
                          2)
 

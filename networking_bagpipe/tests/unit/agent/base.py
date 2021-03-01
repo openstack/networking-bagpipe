@@ -341,6 +341,10 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOSKenTestBase,
                                        side_effect=add_patch_port_mpls)
         add_patch_patcher.start()
         self.addCleanup(add_patch_patcher.stop)
+        secure_mode_patcher = mock.patch(
+            'neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
+        secure_mode_patcher.start()
+        self.addCleanup(secure_mode_patcher.stop)
 
         self.agent_ext.initialize(self.connection,
                                   ovs_agt_constants.EXTENSION_DRIVER_TYPE)
