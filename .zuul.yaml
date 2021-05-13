@@ -73,6 +73,30 @@
       - openstack/neutron
       - openstack/networking-bagpipe
     vars:
+      devstack_services:
+        # Disable OVN services
+        ovn-controller: false
+        ovn-northd: false
+        ovs-vswitchd: false
+        ovsdb-server: false
+        q-ovn-metadata-agent: false
+        # Enable Neutron services that are not used by OVN
+        br-ex-tcpdump: true
+        br-int-flows: true
+        q-agt: true
+        q-dhcp: true
+        q-l3: true
+        q-meta: true
+        q-metering: true
+      devstack_localrc:
+        Q_AGENT: openvswitch
+        Q_ML2_PLUGIN_MECHANISM_DRIVERS: openvswitch
+        Q_ML2_TENANT_NETWORK_TYPE: vxlan
+      devstack_local_conf:
+        post-config:
+          /$NEUTRON_CORE_PLUGIN_CONF:
+            ml2:
+              tenant_network_types: vxlan,vlan
       tempest_concurrency: 4
       # TODO(lajoskatona): On Ubuntu Focal some volume attach tests are
       # failing. When https://bugs.launchpad.net/nova/+bug/1882521 is solved
