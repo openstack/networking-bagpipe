@@ -33,12 +33,6 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
-        - legacy-networking-bagpipe-dsvm-fullstack:
-            required-projects:
-              - openstack/neutron
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-            voting: false
         - networking-bagpipe-tempest
     gate:
       jobs:
@@ -63,6 +57,14 @@
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
         - networking-bagpipe-tempest
+    experimental:
+      jobs:
+        - legacy-networking-bagpipe-dsvm-fullstack:
+            required-projects:
+              - openstack/neutron
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+            voting: false
 
 - job:
     name: networking-bagpipe-tempest
