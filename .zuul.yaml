@@ -47,12 +47,6 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
-        - legacy-networking-bagpipe-dsvm-fullstack:
-            required-projects:
-              - openstack/neutron
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-            voting: false
     gate:
       jobs:
         - openstack-tox-pep8:
@@ -91,3 +85,11 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
+    experimental:
+      jobs:
+        - legacy-networking-bagpipe-dsvm-fullstack:
+            required-projects:
+              - openstack/neutron
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+            voting: false
