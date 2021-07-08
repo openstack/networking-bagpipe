@@ -22,7 +22,8 @@ import netaddr
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 import pyroute2
-from pyroute2 import netlink
+from pyroute2 import common as pr_common  # pylint: disable=no-name-in-module
+from pyroute2 import netlink  # pylint: disable=no-name-in-module
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -182,7 +183,7 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
         # Configure mapping for incoming MPLS traffic
         # with this port label
-        req = {'family': pyroute2.common.AF_MPLS,
+        req = {'family': pr_common.AF_MPLS,
                'oif': self.ip.interfaces[interface].index,
                'dst': label,  # FIXME how to check for BoS?
                'via': {'family': socket.AF_INET,
@@ -379,7 +380,7 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
         ipr.flush_routes(proto=RT_PROT_BAGPIPE)
         # Flush all MPLS routes redirecting traffic to network namespaces
         # (just in case, should be covered by the above)
-        ipr.flush_routes(family=pyroute2.common.AF_MPLS)
+        ipr.flush_routes(family=pr_common.AF_MPLS)
 
     @log_decorator.log_info
     def initialize(self):
