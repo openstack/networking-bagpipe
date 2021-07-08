@@ -17,7 +17,7 @@
 
 from oslo_config import cfg
 from oslo_log import log as logging
-import pyroute2
+from pyroute2 import ndb as ndb_mod  # pylint: disable=no-name-in-module
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp import constants as consts
@@ -95,14 +95,15 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
     def _create_and_plug_vxlan_if(self):
         # if a VXLAN interface, with the VNI we want to use, is already plugged
         # in the bridge, we want to reuse it
-        with pyroute2.IPDB(plugins=('interfaces',)) as ipdb:
-            for port_id in ipdb.interfaces[self.bridge_name].ports:
-                port = ipdb.interfaces[port_id]
-                if (port.kind == "vxlan" and
-                        port.vxlan_id == self.instance_label):
+        with ndb_mod.main.NDB() as ndb:
+            # pylint: disable=no-member
+            for port_id in ndb.interfaces[self.bridge_name].ports:
+                port = ndb.interfaces[port_id]  # pylint: disable=no-member
+                if (port['kind'] == "vxlan" and
+                        port['vxlan_id'] == self.instance_label):
                     self.log.info("reuse vxlan interface %s for VXLAN VNI %s",
-                                  port.ifname, self.instance_label)
-                    self.vxlan_if_name = port.ifname
+                                  port['ifname'], self.instance_label)
+                    self.vxlan_if_name = port['ifname']
                     return
 
         self.vxlan_if_name = (VXLAN_INTERFACE_PREFIX +
@@ -158,10 +159,11 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                           run_as_root=True)
 
     def _is_if_on_bridge(self, ifname):
-        with pyroute2.IPDB(plugins=('interfaces',)) as ipdb:
+        with ndb_mod.main.NDB() as ndb:
             try:
-                for port_id in ipdb.interfaces[self.bridge_name].ports:
-                    port = ipdb.interfaces[port_id]
+                # pylint: disable=no-member
+                for port_id in ndb.interfaces[self.bridge_name].ports:
+                    port = ndb.interfaces[port_id]  # pylint: disable=no-member
                     if port.ifname == ifname:
                         return True
             except KeyError:
