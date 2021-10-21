@@ -2,7 +2,7 @@ alabaster==0.7.10
 alembic==0.8.10
 amqp==2.1.1
 appdirs==1.4.3
-Babel==2.3.4
+Babel==2.9.1
 beautifulsoup4==4.6.0
 blockdiag==1.5.3
 cachetools==2.0.0
