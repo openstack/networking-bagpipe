@@ -60,8 +60,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Networking-bagpipe Release Notes'
-copyright = u'2016, Networking-bagpipe Developers'
+project = 'Networking-bagpipe Release Notes'
+copyright = '2016, Networking-bagpipe Developers'
 
 # Release notes are version independent
 # The full version, including alpha/beta/rc tags.
@@ -207,8 +207,8 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     ('index', 'NetworkingBagpipeReleaseNotes.tex',
-     u'Networking-bagpipe Release Notes Documentation',
-     u'Networking-bagpipe Developers', 'manual'),
+     'Networking-bagpipe Release Notes Documentation',
+     'Networking-bagpipe Developers', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -238,8 +238,8 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'networkingbagpipereleasenotes',
-     u'Networking-bagpipe Release Notes Documentation',
-     [u'Networking-bagpipe Developers'], 1)
+     'Networking-bagpipe Release Notes Documentation',
+     ['Networking-bagpipe Developers'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -253,8 +253,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'NetworkingBagpipeReleaseNotes',
-     u'Networking-bagpipe Release Notes Documentation',
-     u'Networking-bagpipe Developers', 'NetworkingBagpipeReleaseNotes',
+     'Networking-bagpipe Release Notes Documentation',
+     'Networking-bagpipe Developers', 'NetworkingBagpipeReleaseNotes',
      'One line description of project.',
      'Miscellaneous'),
 ]
