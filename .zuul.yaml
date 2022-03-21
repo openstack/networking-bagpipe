@@ -62,6 +62,11 @@
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
         - networking-bagpipe-tempest
+    periodic-weekly:
+      jobs:
+        - openstack-tox-py39
+        - neutron-tempest-plugin-bgpvpn-bagpipe
+        - networking-bagpipe-tempest
 
 - job:
     name: networking-bagpipe-tempest
