@@ -17,12 +17,12 @@
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - openstack-tox-py36:
+        - openstack-tox-py38:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - openstack-tox-py38:
+        - openstack-tox-py39:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
@@ -47,12 +47,12 @@
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - openstack-tox-py36:
+        - openstack-tox-py38:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - openstack-tox-py38:
+        - openstack-tox-py39:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
