@@ -13,35 +13,17 @@
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py38:
-            required-projects:
+            required-projects: &bagpipe_required_projects
               - openstack/neutron
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py39:
-            required-projects:
-              - openstack/neutron
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-        - openstack-tox-py39:
-            required-projects:
-              - openstack/neutron
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
+            required-projects: *bagpipe_required_projects
         - openstack-tox-py310:
-            required-projects:
-              - openstack/neutron
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
+            required-projects: *bagpipe_required_projects
         - openstack-tox-cover:
-            required-projects:
-              - openstack/horizon
-              - openstack/neutron
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
+            required-projects: *bagpipe_required_projects
         - neutron-tempest-plugin-bgpvpn-bagpipe:
             irrelevant-files:
               - ^(test-|)requirements.txt$
@@ -57,29 +39,11 @@
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py38:
-            required-projects:
-              - openstack/neutron
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
+            required-projects: *bagpipe_required_projects
         - openstack-tox-py39:
-            required-projects:
-              - openstack/neutron
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-        - openstack-tox-py39:
-            required-projects:
-              - openstack/neutron
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
+            required-projects: *bagpipe_required_projects
         - openstack-tox-py310:
-            required-projects:
-              - openstack/neutron
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
+            required-projects: *bagpipe_required_projects
         - neutron-tempest-plugin-bgpvpn-bagpipe:
             irrelevant-files:
               - ^(test-|)requirements.txt$
