@@ -17,9 +17,9 @@
 
 import abc
 
-from distutils import version  # pylint: disable=no-name-in-module
 from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_utils import versionutils
 import stevedore
 
 from networking_bagpipe.bagpipe_bgp.common import config
@@ -149,8 +149,11 @@ class DataplaneDriver(lg.LookingGlassLocalLogger, utils.ClassReprMixin,
         o = self._run_command("uname -r")
         self.kernel_release = o[0][0].split("-")[0]
         if self.required_kernel:
-            if (version.StrictVersion(self.kernel_release) <
-                    version.StrictVersion(self.required_kernel)):
+            kernel_release_version = versionutils.convert_version_to_tuple(
+                self.kernel_release)
+            required_kernel_version = versionutils.convert_version_to_tuple(
+                self.required_kernel)
+            if kernel_release_version < required_kernel_version:
                 self.log.warning("%s requires at least Linux kernel %s"
                                  " (you are running %s)",
                                  self.__class__.__name__,

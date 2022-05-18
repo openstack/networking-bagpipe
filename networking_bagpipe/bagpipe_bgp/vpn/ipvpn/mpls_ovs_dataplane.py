@@ -18,11 +18,11 @@
 import re
 
 import collections
-from distutils import version  # pylint: disable=no-name-in-module
 import netaddr
 from oslo_config import cfg
 from oslo_config import types
 from oslo_log import log as logging
+from oslo_utils import versionutils
 
 from neutron.common import utils as n_utils
 
@@ -984,9 +984,12 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         self.vxlan_encap = self.config.vxlan_encap
 
         # check OVS version
+        ovs_release_version = versionutils.convert_version_to_tuple(
+            self.ovs_release)
+        required_ovs_version_tuple = versionutils.convert_version_to_tuple(
+            self.required_ovs_version)
         if (not self.vxlan_encap and
-                version.StrictVersion(self.ovs_release) <
-                version.StrictVersion(self.required_ovs_version)):
+                ovs_release_version < required_ovs_version_tuple):
             self.log.warning("%s requires at least OVS %s"
                              " (you are running %s)",
                              self.__class__.__name__,

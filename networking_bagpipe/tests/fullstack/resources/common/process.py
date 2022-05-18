@@ -14,9 +14,9 @@
 #    under the License.
 
 import datetime
-from distutils import spawn
 import os
 import random
+import shutil
 import signal
 
 import fixtures
@@ -54,7 +54,7 @@ class BagpipeBGPFixture(fixtures.Fixture):
 class BagpipeFakeRRProcessFixture(neutron_proc.ProcessFixture):
 
     def start(self):
-        cmd = [spawn.find_executable(self.exec_name)]
+        cmd = [shutil.which(self.exec_name)]
         self.process = async_process.AsyncProcess(
             cmd, run_as_root=True, namespace=self.namespace
         )
@@ -100,7 +100,7 @@ class GoBGPProcessFixture(neutron_proc.ProcessFixture):
         log_file = "%s/%s--%s.log" % (log_dir, self.process_name,
                                       timestamp)
 
-        gobgpd_exec = spawn.find_executable(self.exec_name)
+        gobgpd_exec = shutil.which(self.exec_name)
         if not gobgpd_exec:
             raise Exception("can't find gobgpd executable in PATH (%s, %s)" %
                             (self.exec_name,
