@@ -19,11 +19,25 @@
               - openstack/networking-sfc
         - openstack-tox-py38:
             required-projects:
+              - openstack/neutron
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py39:
             required-projects:
+              - openstack/neutron
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py39:
+            required-projects:
+              - openstack/neutron
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py310:
+            required-projects:
+              - openstack/neutron
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
@@ -49,11 +63,25 @@
               - openstack/networking-sfc
         - openstack-tox-py38:
             required-projects:
+              - openstack/neutron
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py39:
             required-projects:
+              - openstack/neutron
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py39:
+            required-projects:
+              - openstack/neutron
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py310:
+            required-projects:
+              - openstack/neutron
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
