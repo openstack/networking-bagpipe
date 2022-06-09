@@ -15,7 +15,8 @@
 # limitations under the License.
 
 import os
-import urllib
+import urllib.error
+import urllib.request
 
 import optparse
 from oslo_config import cfg

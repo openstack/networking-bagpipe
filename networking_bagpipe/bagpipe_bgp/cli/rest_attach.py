@@ -20,7 +20,9 @@ import logging
 import os
 import re
 import sys
-import urllib
+import urllib.error
+import urllib.request
+
 
 import netaddr
 import optparse

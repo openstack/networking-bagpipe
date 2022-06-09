@@ -19,7 +19,7 @@ import logging as python_logging
 import re
 
 from oslo_log import log as logging
-import urllib
+from urllib.parse import quote
 
 
 LOG = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def _split_lg_path(path_prefix, path):
     else:
         return (path[0], path[1:],
                 # pylint: disable=no-member
-                "%s/%s" % (path_prefix, urllib.quote(path[0])))
+                "%s/%s" % (path_prefix, quote(path[0])))
 
 
 def _get_lg_local_info_recurse(obj, cls, path_prefix):
@@ -91,7 +91,7 @@ def _lookup_path(my_dict, path):
 def get_lg_prefixed_path(path_prefix, path_items):
     fmt = "%s" + ('/%s' * len(path_items))
     # pylint: disable=no-member
-    quoted_path_items = [urllib.quote(path_item) for path_item in path_items]
+    quoted_path_items = [quote(path_item) for path_item in path_items]
     quoted_path_items.insert(0, path_prefix)
     return fmt % tuple(quoted_path_items)
 

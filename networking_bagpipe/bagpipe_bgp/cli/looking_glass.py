@@ -16,7 +16,10 @@
 
 import os
 from sys import stdout
-import urllib
+import urllib.error
+import urllib.parse
+import urllib.request
+
 
 import optparse
 from oslo_config import cfg
