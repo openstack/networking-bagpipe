@@ -15,6 +15,7 @@
 
 from unittest import mock
 
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
 
@@ -23,6 +24,7 @@ from neutron_lib import context
 from neutron.api import extensions as api_ext
 from neutron.api.rpc.callbacks import events as rpc_events
 from neutron.common import config
+from neutron.conf import experimental as c_experimental
 
 from networking_bagpipe.driver import sfc as driver
 from networking_bagpipe.objects import sfc as sfc_obj
@@ -55,6 +57,9 @@ class BaGPipeSfcDriverTestCase(
     ])
 
     def setUp(self):
+        c_experimental.register_experimental_opts()
+        cfg.CONF.set_override(c_experimental.EXPERIMENTAL_LINUXBRIDGE, True,
+                              group=c_experimental.EXPERIMENTAL_CFG_GROUP)
         sfc_plugin = test_sfc_db.DB_SFC_PLUGIN_CLASS
         flowclassifier_plugin = (
             test_flowclassifier_db.DB_FLOWCLASSIFIER_PLUGIN_CLASS)
