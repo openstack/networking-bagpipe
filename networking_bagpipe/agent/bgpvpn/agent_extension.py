@@ -48,8 +48,6 @@ from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
     import constants as lnxbridge_agt_constants
 from neutron.plugins.ml2.drivers.linuxbridge.agent import \
     linuxbridge_neutron_agent as lnx_agt
-from neutron.plugins.ml2.drivers.openvswitch.agent.common \
-    import constants as ovs_agt_consts
 from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 from neutron_lib.agent import l2_extension
@@ -59,6 +57,7 @@ from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
 from neutron_lib.callbacks import resources
 from neutron_lib import constants as n_const
+from neutron_lib.plugins.ml2 import ovs_constants as ovs_agt_consts
 
 LOG = logging.getLogger(__name__)
 

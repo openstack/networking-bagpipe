@@ -39,8 +39,8 @@ from networking_bagpipe.bagpipe_bgp.vpn import identifier_allocators
 from networking_bagpipe.bagpipe_bgp.vpn import vpn_instance
 
 from neutron.agent.common import ovs_lib
-from neutron.plugins.ml2.drivers.openvswitch.agent.common import \
-    constants as ovs_const
+
+from neutron_lib.plugins.ml2 import ovs_constants as ovs_const
 
 # man ovs-ofctl /32768
 DEFAULT_OVS_FLOW_PRIORITY = 0x8000

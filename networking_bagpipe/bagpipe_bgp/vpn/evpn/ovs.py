@@ -26,13 +26,12 @@ from networking_bagpipe.bagpipe_bgp.engine import exa
 from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 from networking_bagpipe.bagpipe_bgp.vpn import evpn
 
-from neutron.plugins.ml2.drivers.openvswitch.agent.common import \
-    constants as ovs_const
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.native import \
     br_tun
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent
 
 from neutron_lib import constants as n_consts
+from neutron_lib.plugins.ml2 import ovs_constants as ovs_const
 
 LOG = logging.getLogger(__name__)
 

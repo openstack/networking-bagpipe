@@ -29,11 +29,10 @@ from networking_bagpipe.tests.unit.agent import base
 from neutron.api.rpc.callbacks.consumer import registry
 from neutron.api.rpc.callbacks import events as rpc_events
 from neutron.api.rpc.handlers import resources_rpc
-from neutron.plugins.ml2.drivers.openvswitch.agent.common \
-    import constants as ovs_agt_constants
 
 from neutron_lib.api.definitions import bgpvpn
 from neutron_lib import context
+from neutron_lib.plugins.ml2 import ovs_constants as ovs_agt_constants
 
 
 class HashableDict(dict):

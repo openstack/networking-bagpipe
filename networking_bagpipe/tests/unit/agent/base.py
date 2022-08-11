@@ -26,8 +26,6 @@ from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
     import constants as lnx_agt_constants
 from neutron.plugins.ml2.drivers.linuxbridge.agent \
     import linuxbridge_neutron_agent as lnx_agt
-from neutron.plugins.ml2.drivers.openvswitch.agent.common \
-    import constants as ovs_agt_constants
 from neutron.plugins.ml2.drivers.openvswitch.agent \
     import ovs_agent_extension_api as ovs_ext_agt
 from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
@@ -35,6 +33,8 @@ from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 from neutron.tests import base
 from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent \
     import ovs_test_base
+
+from neutron_lib.plugins.ml2 import ovs_constants as ovs_agt_constants
 
 
 PORT10_ID = uuidutils.generate_uuid()

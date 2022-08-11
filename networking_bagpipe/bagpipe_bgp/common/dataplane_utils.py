@@ -24,10 +24,9 @@ from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 
 from neutron.agent.common import ovs_lib
-from neutron.plugins.ml2.drivers.openvswitch.agent.common import \
-    constants as ovs_const
 
 from neutron_lib import exceptions
+from neutron_lib.plugins.ml2 import ovs_constants as ovs_const
 
 LOG = logging.getLogger(__name__)
 
