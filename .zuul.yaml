@@ -51,7 +51,8 @@
         - networking-bagpipe-tempest
     periodic-weekly:
       jobs:
-        - openstack-tox-py39
+        - openstack-tox-py39:
+            required-projects: *bagpipe_required_projects
         - neutron-tempest-plugin-bgpvpn-bagpipe
         - networking-bagpipe-tempest
 
