@@ -369,11 +369,11 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
         try:
             r = exa_message.Update([event.route_entry.nlri],
                                    event.route_entry.attributes)
-            return ''.join(r.messages(self.protocol.negotiated))
+            return b''.join(r.messages(self.protocol.negotiated))
         except Exception:
             self.log.exception("Exception while generating message for "
                                "route %s", r)
-            return ''
+            return b''
 
     # Looking Glass ###############
 
