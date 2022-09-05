@@ -44,9 +44,9 @@ class TestBaGPipeAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.EVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.EVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -79,9 +79,9 @@ class TestBaGPipeAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             for port in [base.PORT10, base.PORT11]:
-                local_port = self._get_expected_local_port(bbgp_const.EVPN,
-                                                           base.NETWORK1['id'],
-                                                           port['id'])
+                local_port = self._get_expected_local_port(
+                    bbgp_const.EVPN, base.NETWORK1['id'],
+                    base.NETWORK1['segmentation_id'], port['id'])
                 self.assertDictEqual(
                     dict(
                         network_id=base.NETWORK1['id'],
@@ -124,9 +124,9 @@ class TestBaGPipeAgentExtensionMixin(object):
 
         self._check_network_info(base.NETWORK1['id'], 0)
 
-        local_port = self._get_expected_local_port(bbgp_const.EVPN,
-                                                   base.NETWORK1['id'],
-                                                   base.PORT10['id'])
+        local_port = self._get_expected_local_port(
+            bbgp_const.EVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'])
         detach_info = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {

@@ -72,8 +72,8 @@ port_2_net = {
 }
 
 LOCAL_VLAN_MAP = {
-    NETWORK1['id']: 31,
-    NETWORK2['id']: 52
+    NETWORK1['id']: [31, NETWORK1['segmentation_id']],
+    NETWORK2['id']: [52, NETWORK2['segmentation_id']]
 }
 
 BGPVPN_L2_RT10 = {'route_targets': ['BGPVPN_L2:10'],
@@ -193,8 +193,8 @@ class BaseTestAgentExtension(object):
             })
         return data
 
-    def _get_expected_local_port(self, bbgp_vpn_type, network_id, port_id,
-                                 detach=False):
+    def _get_expected_local_port(self, bbgp_vpn_type, network_id,
+                                 segmentation_id, port_id, detach=False):
         raise NotImplementedError
 
     def _check_network_info(self, network_id, expected_size,
@@ -229,8 +229,8 @@ class BaseTestLinuxBridgeAgentExtension(base.BaseTestCase,
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def _get_expected_local_port(self, bbgp_vpn_type, network_id, port_id,
-                                 detach=False):
+    def _get_expected_local_port(self, bbgp_vpn_type, network_id,
+                                 segmentation_id, port_id, detach=False):
         linuxbr = lnx_agt.LinuxBridgeManager.get_bridge_name(network_id)
 
         if bbgp_vpn_type == bbgp_const.EVPN:
@@ -352,13 +352,14 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOSKenTestBase,
         self.vlan_manager = vlanmanager.LocalVlanManager()
         for net_id, vlan in LOCAL_VLAN_MAP.items():
             try:
-                self.vlan_manager.add(net_id, vlan, None, None, None)
+                self.vlan_manager.add(net_id, vlan[0], None, None,
+                                      segmentation_id=vlan[1])
             except vlanmanager.MappingAlreadyExists:
                 pass
 
-    def _get_expected_local_port(self, bbgp_vpn_type, network_id, port_id,
-                                 detach=False):
-        vlan = self.vlan_manager.get(network_id).vlan
+    def _get_expected_local_port(self, bbgp_vpn_type, network_id,
+                                 segmentation_id, port_id, detach=False):
+        vlan = self.vlan_manager.get(network_id, segmentation_id).vlan
         if bbgp_vpn_type == bbgp_const.IPVPN:
             r = dict(
                 local_port=dict(

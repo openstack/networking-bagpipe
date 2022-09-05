@@ -322,10 +322,9 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
         self.agent_ext.delete_port(None, self._port_data(base.PORT10,
                                                          delete=True))
 
-        local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                   base.NETWORK1['id'],
-                                                   base.PORT10['id'],
-                                                   detach=True)
+        local_port = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
         detach_info = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {

@@ -673,7 +673,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         # to each specific router MAC to br-mpls
 
         try:
-            vlan = self.vlan_manager.get(net_info.id).vlan
+            vlan = self.vlan_manager.get(net_info.id,
+                                         net_info.segmentation_id).vlan
 
             if net_info.gateway_info.mac:
                 # there is a Neutron router on this network, so we won't
@@ -745,7 +746,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             return
 
         try:
-            vlan = self.vlan_manager.get(net_info.id).vlan
+            vlan = self.vlan_manager.get(net_info.id,
+                                         net_info.segmentation_id).vlan
             if net_info.gateway_info.ip:
                 self._disable_gw_arp_responder(vlan, net_info.gateway_info.ip)
             else:
@@ -771,7 +773,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
         }
 
         if self._is_ovs_extension():
-            vlan = self.vlan_manager.get(port_info.network.id).vlan
+            vlan = self.vlan_manager.get(
+                port_info.network.id, port_info.network.segmentation_id).vlan
             i['local_port']['linuxif'] = (
                 '%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan))
         else:
@@ -828,7 +831,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
         if self._is_ovs_extension():
             # Add OVS VLAN information
-            vlan = self.vlan_manager.get(net_info.id).vlan
+            vlan = self.vlan_manager.get(net_info.id,
+                                         net_info.segmentation_id).vlan
 
             if bbgp_vpn_type == bbgp_const.EVPN:
                 attach_info['local_port']['vlan'] = vlan

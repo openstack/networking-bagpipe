@@ -20,6 +20,7 @@ from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 
 from neutron_lib import context as n_context
+from neutron_lib.db import api as db_api
 from neutron_lib.db import model_base
 
 
@@ -114,12 +115,13 @@ class RTAllocator(object):
 
     @log_helpers.log_method_call
     def release_rt(self, rtnn):
-        with self.session.begin(subtransactions=True):
-            ppg_rtnn = self.session.query(
+        ctx = n_context.get_admin_context()
+        with db_api.CONTEXT_WRITER.using(ctx):
+            ppg_rtnn = ctx.session.query(
                 BaGPipePpgRTAssoc).filter_by(rtnn=rtnn).first()
 
             if ppg_rtnn:
-                self.session.delete(ppg_rtnn)
+                ctx.session.delete(ppg_rtnn)
             else:
                 LOG.warning("Can't release route target %s, not used", rtnn)
 

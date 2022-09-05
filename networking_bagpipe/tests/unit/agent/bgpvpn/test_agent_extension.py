@@ -260,9 +260,9 @@ class TestBgpvpnAgentExtensionMixin(object):
         # Verify build callback attachments
         def check_build_cb(*args):
             for port in [base.PORT10, base.PORT11]:
-                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                           base.NETWORK1['id'],
-                                                           port['id'])
+                local_port = self._get_expected_local_port(
+                    bbgp_const.IPVPN, base.NETWORK1['id'],
+                    base.NETWORK1['segmentation_id'], port['id'])
                 self.assertDictEqual(
                     dict(
                         network_id=base.NETWORK1['id'],
@@ -309,9 +309,9 @@ class TestBgpvpnAgentExtensionMixin(object):
         # Verify build callback attachments
         def check_build_cb(*args):
             for port in [base.PORT10, base.PORT11]:
-                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                           base.NETWORK1['id'],
-                                                           port['id'])
+                local_port = self._get_expected_local_port(
+                    bbgp_const.IPVPN, base.NETWORK1['id'],
+                    base.NETWORK1['segmentation_id'], port['id'])
                 self.assertDictEqual(
                     dict(
                         network_id=base.NETWORK1['id'],
@@ -414,10 +414,9 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.agent_ext.delete_port(None, self._port_data(base.PORT10,
                                                          delete=True))
 
-        local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                   base.NETWORK1['id'],
-                                                   base.PORT10['id'],
-                                                   detach=True)
+        local_port = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
         detach_info = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
@@ -459,9 +458,9 @@ class TestBgpvpnAgentExtensionMixin(object):
                        for k, rts in base.BGPVPN_L3_RT100.items()}
 
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -508,10 +507,9 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.mocked_bagpipe_agent.reset_mock()
 
         # prepare expected information for DELETE
-        local_port10 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                     base.NETWORK1['id'],
-                                                     base.PORT10['id'],
-                                                     detach=True)
+        local_port10 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
         detach_info10 = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: dict(
@@ -521,10 +519,9 @@ class TestBgpvpnAgentExtensionMixin(object):
             )
         }
 
-        local_port11 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                     base.NETWORK1['id'],
-                                                     base.PORT11['id'],
-                                                     detach=True)
+        local_port11 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT11['id'], detach=True)
         detach_info11 = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: dict(
@@ -587,9 +584,9 @@ class TestBgpvpnAgentExtensionMixin(object):
         def check_build_cb(*args):
             # Verify build callback attachments
             for port in [base.PORT10, base.PORT10]:
-                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                           base.NETWORK1['id'],
-                                                           port['id'])
+                local_port = self._get_expected_local_port(
+                    bbgp_const.IPVPN, base.NETWORK1['id'],
+                    base.NETWORK1['segmentation_id'], port['id'])
                 self.assertDictEqual(
                     dict(
                         network_id=base.NETWORK1['id'],
@@ -636,10 +633,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         self._net_assoc_notif(net_assoc_2, rpc_events.DELETED)
 
-        local_port_1 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                     base.NETWORK1['id'],
-                                                     base.PORT10['id'],
-                                                     detach=True)
+        local_port_1 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
 
         detach_info_1 = {
             'network_id': base.NETWORK1['id'],
@@ -650,10 +646,9 @@ class TestBgpvpnAgentExtensionMixin(object):
             }
         }
 
-        local_port_2 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                     base.NETWORK1['id'],
-                                                     base.PORT11['id'],
-                                                     detach=True)
+        local_port_2 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT11['id'], detach=True)
 
         detach_info_2 = {
             'network_id': base.NETWORK1['id'],
@@ -708,9 +703,9 @@ class TestBgpvpnAgentExtensionMixin(object):
         def check_b_cb(*args):
             # Verify build callback attachments
             for port in [base.PORT10, base.PORT10]:
-                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                           base.NETWORK1['id'],
-                                                           port['id'])
+                local_port = self._get_expected_local_port(
+                    bbgp_const.IPVPN, base.NETWORK1['id'],
+                    base.NETWORK1['segmentation_id'], port['id'])
                 self.assertDictEqual(
                     dict(
                         network_id=base.NETWORK1['id'],
@@ -738,10 +733,9 @@ class TestBgpvpnAgentExtensionMixin(object):
         self._check_network_info(base.NETWORK1['id'], 2)
 
         # check that the bgpvpn type of first assoc was removed
-        local_port_1 = self._get_expected_local_port(bbgp_const.EVPN,
-                                                     base.NETWORK1['id'],
-                                                     base.PORT10['id'],
-                                                     detach=True)
+        local_port_1 = self._get_expected_local_port(
+            bbgp_const.EVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
 
         detach_info_1 = {
             'network_id': base.NETWORK1['id'],
@@ -752,10 +746,9 @@ class TestBgpvpnAgentExtensionMixin(object):
             }
         }
 
-        local_port_2 = self._get_expected_local_port(bbgp_const.EVPN,
-                                                     base.NETWORK1['id'],
-                                                     base.PORT11['id'],
-                                                     detach=True)
+        local_port_2 = self._get_expected_local_port(
+            bbgp_const.EVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT11['id'], detach=True)
 
         detach_info_2 = {
             'network_id': base.NETWORK1['id'],
@@ -794,10 +787,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         self._net_assoc_notif(net_assoc_2, rpc_events.DELETED)
 
-        local_port_2 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                     base.NETWORK1['id'],
-                                                     base.PORT11['id'],
-                                                     detach=True)
+        local_port_2 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT11['id'], detach=True)
 
         detach_info_2 = {
             'network_id': base.NETWORK1['id'],
@@ -868,9 +860,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -906,9 +898,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.EVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.EVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -951,9 +943,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             rts_1_2 = {k: rts + base.BGPVPN_L3_RT200[k]
                        for k, rts in base.BGPVPN_L3_RT100.items()}
 
@@ -999,9 +991,9 @@ class TestBgpvpnAgentExtensionMixin(object):
                                         base.BGPVPN_L3_RT100),
                                        (base.PORT20, base.NETWORK2,
                                         base.BGPVPN_L3_RT200)]:
-                local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                           network['id'],
-                                                           port['id'])
+                local_port = self._get_expected_local_port(
+                    bbgp_const.IPVPN, network['id'],
+                    network['segmentation_id'], port['id'])
 
                 self.assertDictEqual(
                     dict(
@@ -1051,15 +1043,13 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.agent_ext.delete_port(None, self._port_data(base.PORT10,
                                                          delete=True))
 
-        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                      base.NETWORK1['id'],
-                                                      base.PORT10['id'],
-                                                      detach=True)
+        local_port_l3 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
 
-        local_port_l2 = self._get_expected_local_port(bbgp_const.EVPN,
-                                                      base.NETWORK1['id'],
-                                                      base.PORT10['id'],
-                                                      detach=True)
+        local_port_l2 = self._get_expected_local_port(
+            bbgp_const.EVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
         detach_info = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.EVPN: {
@@ -1090,9 +1080,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -1129,9 +1119,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -1201,9 +1191,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -1275,9 +1265,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -1334,10 +1324,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         # check that a detach is produced for the removed prefix route
 
-        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                      base.NETWORK1['id'],
-                                                      base.PORT10['id'],
-                                                      detach=True)
+        local_port_l3 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
 
         self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
             [mock.call(base.PORT10['id'],
@@ -1387,9 +1376,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -1418,10 +1407,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         # check that a detach is produced for the removed prefix route
 
-        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                      base.NETWORK1['id'],
-                                                      base.PORT10['id'],
-                                                      detach=True)
+        local_port_l3 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
 
         detach_info = {
             'network_id': base.NETWORK1['id'],
@@ -1454,10 +1442,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         # check that detach are produced for the deleted port
 
-        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                      base.NETWORK1['id'],
-                                                      base.PORT10['id'],
-                                                      detach=True)
+        local_port_l3 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
         calls = [
             mock.call(base.PORT10['id'],
                       UnorderedList([
@@ -1511,9 +1498,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -1549,10 +1536,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         # check that a detach is produced for the prefix route only
 
-        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                      base.NETWORK1['id'],
-                                                      base.PORT10['id'],
-                                                      detach=True)
+        local_port_l3 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
         detach_info = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
@@ -1588,9 +1574,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -1681,9 +1667,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -1733,10 +1719,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         # check that a detach is produced for the removed prefix route
 
-        local_port_l3 = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                      base.NETWORK1['id'],
-                                                      base.PORT10['id'],
-                                                      detach=True)
+        local_port_l3 = self._get_expected_local_port(
+            bbgp_const.IPVPN, base.NETWORK1['id'],
+            base.NETWORK1['segmentation_id'], base.PORT10['id'], detach=True)
         detach_info = {
             'network_id': base.NETWORK1['id'],
             bbgp_const.IPVPN: {
@@ -1808,9 +1793,9 @@ class TestBgpvpnAgentExtensionMixin(object):
 
         def check_build_cb(*args):
             # Verify build callback attachments
-            local_port = self._get_expected_local_port(bbgp_const.EVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.EVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
             self.assertDictEqual(
                 dict(
                     network_id=base.NETWORK1['id'],
@@ -1973,9 +1958,9 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                                              gateway_mac=GW_MAC,
                                              **base.BGPVPN_L3_RT100)
 
-            local_port = self._get_expected_local_port(bbgp_const.IPVPN,
-                                                       base.NETWORK1['id'],
-                                                       base.PORT10['id'])
+            local_port = self._get_expected_local_port(
+                bbgp_const.IPVPN, base.NETWORK1['id'],
+                base.NETWORK1['segmentation_id'], base.PORT10['id'])
 
             def check_build_cb(*args):
                 self.assertDictEqual(
@@ -2004,7 +1989,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
 
     def test_gateway_redirection(self):
         GW_MAC = 'aa:bb:cc:dd:ee:ff'
-        vlan = base.LOCAL_VLAN_MAP[base.NETWORK1['id']]
+        vlan = base.LOCAL_VLAN_MAP[base.NETWORK1['id']][0]
 
         with mock.patch.object(self.agent_ext.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
@@ -2054,7 +2039,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                                              gateway_mac=GW_MAC,
                                              **base.BGPVPN_L3_RT100)
 
-            vlan = base.LOCAL_VLAN_MAP[base.NETWORK1['id']]
+            vlan = base.LOCAL_VLAN_MAP[base.NETWORK1['id']][0]
 
             self.mocked_bagpipe_agent.do_port_plug.side_effect = None
 
