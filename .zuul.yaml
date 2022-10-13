@@ -17,12 +17,22 @@
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
+        - openstack-tox-docs:
+            required-projects:
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
         - openstack-tox-py36:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
         - openstack-tox-py38:
+            required-projects:
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py39:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
@@ -47,6 +57,11 @@
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
+        - openstack-tox-docs:
+            required-projects:
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
         - openstack-tox-py36:
             required-projects:
               - openstack/horizon
@@ -62,6 +77,23 @@
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
         - networking-bagpipe-tempest
+    periodic-stable:
+      jobs:
+        - openstack-tox-docs:
+            required-projects:
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py36:
+            required-projects:
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
+        - openstack-tox-py38:
+            required-projects:
+              - openstack/horizon
+              - openstack/networking-bgpvpn
+              - openstack/networking-sfc
 
 - job:
     name: networking-bagpipe-tempest
