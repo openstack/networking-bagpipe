@@ -53,6 +53,8 @@
       jobs:
         - openstack-tox-py39:
             required-projects: *bagpipe_required_projects
+        - openstack-tox-py39-with-oslo-master:
+            required-projects: *bagpipe_required_projects
         - neutron-tempest-plugin-bgpvpn-bagpipe
         - networking-bagpipe-tempest
 
