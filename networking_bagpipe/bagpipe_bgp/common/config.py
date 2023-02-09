@@ -21,7 +21,7 @@ import socket
 from oslo_config import cfg
 from oslo_config import types
 from oslo_privsep import priv_context
-from pyroute2 import IPDB  # pylint: disable=no-name-in-module
+from pyroute2 import ndb as ndb_module
 
 
 class InterfaceAddress(types.ConfigType):
@@ -46,9 +46,10 @@ class InterfaceAddress(types.ConfigType):
         except ValueError:
             # pyroute2 call to take the first address of this interface having
             # the right IP version (family)
-            with IPDB(plugins=("interfaces",)) as ipdb:
+            with ndb_module.main.NDB() as ndb:
+                # pylint: disable=no-member
                 try:
-                    interface = ipdb.interfaces[value]
+                    interface = ndb.interfaces[value]
                 except KeyError:
                     raise ValueError("interface %s does not exist" % value)
 
