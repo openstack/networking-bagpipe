@@ -66,6 +66,8 @@ def singleton(class_):
 class RTAllocator(object):
     def __init__(self):
         self.config = cfg.CONF.sfc_bagpipe
+        self.ctx = n_context.get_admin_context()
+        self.session = self.ctx.session
 
     def _get_rt_from_rtnn(self, rtnn):
         return ':'.join([str(self.config.as_number), str(rtnn)])

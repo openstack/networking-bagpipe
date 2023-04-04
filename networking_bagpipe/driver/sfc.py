@@ -221,6 +221,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
         return ports
 
+    @db_api.CONTEXT_WRITER
     def _has_valid_port_pair_groups(self, context, ppg_ids):
         for ppg_id in ppg_ids:
             ppg = context._plugin._get_port_pair_group(context._plugin_context,
@@ -231,6 +232,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
         return True
 
+    @db_api.CONTEXT_WRITER
     def _is_valid_port_chain(self, context, port_chain):
         """Verify Port Chain consistency for BaGPipe
 
@@ -256,6 +258,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
         return True
 
     @log_helpers.log_method_call
+    @db_api.CONTEXT_WRITER
     def _create_portchain_hop_details(self, context, port_chain,
                                       reverse=False):
         project_id = port_chain['tenant_id']
@@ -532,6 +535,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
         return hop_details
 
+    @db_api.CONTEXT_WRITER
     def _create_portchain_hops(self, context, port_chain):
         symmetric = port_chain['chain_parameters'].get('symmetric')
 
@@ -557,26 +561,26 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
         self._create_portchain_hops(context, port_chain)
 
-    @db_api.CONTEXT_WRITER
     def _delete_portchain_hops(self, context, port_chain):
-        # Release PPG route targets
-        for ppg_id in port_chain['port_pair_groups']:
-            ppg_rtnns = self.rt_allocator.get_rts_by_ppg(ppg_id)
+        with db_api.CONTEXT_WRITER.using(context):
+            # Release PPG route targets
+            for ppg_id in port_chain['port_pair_groups']:
+                ppg_rtnns = self.rt_allocator.get_rts_by_ppg(ppg_id)
 
-            if ppg_rtnns:
-                for rtnn in ppg_rtnns:
-                    self.rt_allocator.release_rt(rtnn)
+                if ppg_rtnns:
+                    for rtnn in ppg_rtnns:
+                        self.rt_allocator.release_rt(rtnn)
 
-        hop_objs = sfc_obj.BaGPipeChainHop.get_objects(
-            context._plugin_context,
-            portchain_id=port_chain['id'])
+            hop_objs = sfc_obj.BaGPipeChainHop.get_objects(
+                context._plugin_context,
+                portchain_id=port_chain['id'])
 
-        if hop_objs:
-            for hop_obj in hop_objs:
-                hop_obj.delete()
+            if hop_objs:
+                for hop_obj in hop_objs:
+                    hop_obj.delete()
 
-            self._push_rpc.push(context._plugin_context, hop_objs,
-                                rpc_events.DELETED)
+                self._push_rpc.push(context._plugin_context, hop_objs,
+                                    rpc_events.DELETED)
 
     @log_helpers.log_method_call
     def delete_port_chain(self, context):
@@ -585,6 +589,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
         self._delete_portchain_hops(context, port_chain)
 
     @log_helpers.log_method_call
+    @db_api.CONTEXT_WRITER
     def update_port_chain(self, context):
         current = context.current
         original = context.original
@@ -617,6 +622,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
             self._create_portchain_hops(context, current)
 
+    @db_api.CONTEXT_WRITER
     def _has_valid_port_pairs(self, context):
         port_pair_group = context._plugin._get_port_pair_group(
             context._plugin_context,
@@ -656,6 +662,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
         pass
 
     @log_helpers.log_method_call
+    @db_api.CONTEXT_WRITER
     def update_port_pair_group(self, context):
         current = context.current
         original = context.original

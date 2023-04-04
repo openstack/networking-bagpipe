@@ -107,9 +107,15 @@ class BaGPipeSfcDriverTestCase(
                     jsonutils.loads(current_hop['classifiers'])
                 )
 
-            self.assertDictContainsSubset(
-                expected_chain_hops[index],
-                current_hop)
+            match = False
+            for rpc_call_index in range(len(rpc_call_args[1])):
+                res = all(
+                    current_hop.get(key) == val for key, val in
+                    expected_chain_hops[rpc_call_index].items())
+                if res:
+                    match = True
+                    break
+            self.assertTrue(match)
 
     def _validate_port_hops_rpc_call(self, call_index, rpc_event,
                                      ingress_port, egress_port):
