@@ -43,7 +43,6 @@ from neutron.api.rpc.callbacks import events as rpc_events
 from neutron.api.rpc.handlers import resources_rpc
 from neutron.conf.agent import common as config
 from neutron.conf.plugins.ml2.drivers import ovs_conf
-from neutron.debug import debug_agent
 from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
     import constants as lnxbridge_agt_constants
 from neutron.plugins.ml2.drivers.linuxbridge.agent import \
@@ -477,9 +476,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             return True
 
         if (data['device_owner'].startswith(
-            n_const.DEVICE_OWNER_NETWORK_PREFIX) and not (data['device_owner']
-            in (debug_agent.DEVICE_OWNER_COMPUTE_PROBE,
-                debug_agent.DEVICE_OWNER_NETWORK_PROBE))):
+                n_const.DEVICE_OWNER_NETWORK_PREFIX)):
             LOG.info("Port %s owner is network:*, we'll do nothing",
                      data['port_id'])
             return True

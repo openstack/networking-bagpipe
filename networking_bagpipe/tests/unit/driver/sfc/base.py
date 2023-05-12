@@ -49,18 +49,18 @@ class NeutronDbPluginV2TestCase(test_db_plugin.NeutronDbPluginV2TestCase):
         self._tenant_id = uuidutils.generate_uuid()
         self._network = self._make_network(
             self.fmt, 'test_net',
-            True)
+            True, as_admin=True)
         self._subnet = self._make_subnet(
             self.fmt, self._network, gateway='10.0.0.1',
-            cidr='10.0.0.0/24', ip_version=4
+            cidr='10.0.0.0/24', ip_version=4, as_admin=True
         )
 
         self._src_net = self._make_network(
             self.fmt, 'src_net',
-            True)
+            True, as_admin=True)
         self._src_subnet = self._make_subnet(
             self.fmt, self._src_net, gateway=SRC_GATEWAY,
-            cidr=SRC_CIDR, ip_version=4
+            cidr=SRC_CIDR, ip_version=4, as_admin=True
         )
         self._src_rt = (
             ':'.join(['64512',
@@ -70,10 +70,10 @@ class NeutronDbPluginV2TestCase(test_db_plugin.NeutronDbPluginV2TestCase):
 
         self._dest_net = self._make_network(
             self.fmt, 'dest_net',
-            True)
+            True, as_admin=True)
         self._dest_subnet = self._make_subnet(
             self.fmt, self._dest_net, gateway=DEST_GATEWAY,
-            cidr=DEST_CIDR, ip_version=4
+            cidr=DEST_CIDR, ip_version=4, as_admin=True
         )
         self._dest_rt = (
             ':'.join(['64512',
