@@ -241,7 +241,7 @@ class OVSDataplaneDriver(dp_drivers.DataplaneDriver):
         config.set_default_root_helper()
 
         self.bridge = dataplane_utils.OVSBridgeWithGroups(
-            br_tun.OVSTunnelBridge(self.config.ovs_bridge)
+            br_tun.OVSTunnelBridge(self.config.ovs_bridge, os_ken_app=self)
         )
         self.tunnel_mgr = TunnelManager(self.bridge,
                                         self.get_local_address())
