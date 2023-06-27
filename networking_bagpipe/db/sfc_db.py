@@ -66,29 +66,31 @@ def singleton(class_):
 class RTAllocator(object):
     def __init__(self):
         self.config = cfg.CONF.sfc_bagpipe
-        self.session = n_context.get_admin_context().session
 
     def _get_rt_from_rtnn(self, rtnn):
         return ':'.join([str(self.config.as_number), str(rtnn)])
 
     @log_helpers.log_method_call
     def allocate_rt(self, ppg_id, is_redirect=False, reverse=False):
-        query = self.session.query(
-            BaGPipePpgRTAssoc).order_by(
-            BaGPipePpgRTAssoc.rtnn)
+        ctx = n_context.get_admin_context()
+        with db_api.CONTEXT_READER.using(ctx):
+            query = ctx.session.query(
+                BaGPipePpgRTAssoc).order_by(
+                BaGPipePpgRTAssoc.rtnn)
 
-        allocated_rtnns = {obj.rtnn for obj in query.all()}
+            allocated_rtnns = {obj.rtnn for obj in query.all()}
 
         # Find first one available in range
         start, end = int(self.config.rtnn[0]), int(self.config.rtnn[1]) + 1
         for rtnn in range(start, end):
             if rtnn not in allocated_rtnns:
-                with self.session.begin(subtransactions=True):
+                with db_api.CONTEXT_WRITER.using(ctx):
                     ppg_rtnn = BaGPipePpgRTAssoc(ppg_id=ppg_id,
                                                  rtnn=rtnn,
                                                  is_redirect=is_redirect,
                                                  reverse=reverse)
-                    self.session.add(ppg_rtnn)
+                    ctx.session.add(ppg_rtnn)
+
                 return self._get_rt_from_rtnn(rtnn)
 
         LOG.error("Can't allocate route target, all range in use")
@@ -96,22 +98,25 @@ class RTAllocator(object):
 
     @log_helpers.log_method_call
     def get_rts_by_ppg(self, ppg_id):
-
-        ppg_rts = self.session.query(
-            BaGPipePpgRTAssoc).filter_by(ppg_id=ppg_id).all()
-        if not ppg_rts:
-            return None
+        ctx = n_context.get_admin_context()
+        with db_api.CONTEXT_READER.using(ctx):
+            ppg_rts = ctx.session.query(
+                BaGPipePpgRTAssoc).filter_by(ppg_id=ppg_id).all()
+            if not ppg_rts:
+                return None
 
         return [ppg_rt.rtnn for ppg_rt in ppg_rts]
 
     @log_helpers.log_method_call
     def get_redirect_rt_by_ppg(self, ppg_id, reverse=False):
-        ppg_redirect_rt = self.session.query(
-            BaGPipePpgRTAssoc).filter_by(ppg_id=ppg_id,
-                                         is_redirect=True,
-                                         reverse=reverse).one()
+        ctx = n_context.get_admin_context()
+        with db_api.CONTEXT_READER.using(ctx):
+            ppg_redirect_rt = ctx.session.query(
+                BaGPipePpgRTAssoc).filter_by(ppg_id=ppg_id,
+                                             is_redirect=True,
+                                             reverse=reverse).one()
 
-        return self._get_rt_from_rtnn(ppg_redirect_rt.rtnn)
+            return self._get_rt_from_rtnn(ppg_redirect_rt.rtnn)
 
     @log_helpers.log_method_call
     def release_rt(self, rtnn):
