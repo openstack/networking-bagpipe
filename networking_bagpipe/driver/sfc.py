@@ -18,6 +18,7 @@ from netaddr.ip import IPNetwork
 
 from neutron_lib.api.definitions import bgpvpn as bgpvpn_def
 from neutron_lib.api.definitions import provider_net as pnet
+from neutron_lib.db import api as db_api
 from neutron_lib.db import model_query
 from neutron_lib.plugins import directory
 
@@ -547,6 +548,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                                 rpc_events.CREATED)
 
     @log_helpers.log_method_call
+    @db_api.CONTEXT_WRITER
     def create_port_chain(self, context):
         port_chain = context.current
 
@@ -555,6 +557,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
         self._create_portchain_hops(context, port_chain)
 
+    @db_api.CONTEXT_WRITER
     def _delete_portchain_hops(self, context, port_chain):
         # Release PPG route targets
         for ppg_id in port_chain['port_pair_groups']:
