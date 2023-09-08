@@ -64,6 +64,10 @@ class _BaGPipeObjectsTestCommon(object):
 
         return portchain_db
 
+    def _assert_dict_contain_subset(self, subset, dict):
+        res = all(dict.get(key) == val for key, val in subset.items())
+        self.assertTrue(res)
+
 
 class BaGPipeChainHopDbObjectTestCase(test_base.BaseDbObjectTestCase,
                                       testlib_api.SqlTestCase,
@@ -147,13 +151,13 @@ class BaGPipeChainHopDbObjectTestCase(test_base.BaseDbObjectTestCase,
             port_id=ingress_port.id)
 
         self.assertEqual(2, len(port_hops))
-        self.assertDictContainsSubset(chain_hop1.to_dict(),
-                                      port_hops[0].to_dict())
+        self._assert_dict_contain_subset(chain_hop1.to_dict(),
+                                         port_hops[0].to_dict())
         self.assertIn(ingress_port.id,
                       port_hops[0].ingress_ports)
 
-        self.assertDictContainsSubset(chain_hop2.to_dict(),
-                                      port_hops[1].to_dict())
+        self._assert_dict_contain_subset(chain_hop2.to_dict(),
+                                         port_hops[1].to_dict())
         self.assertIn(ingress_port.id,
                       port_hops[1].egress_ports)
 
@@ -230,8 +234,8 @@ class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase,
 
         self.assertEqual(0, len(port_hops.ingress_hops))
         self.assertEqual(1, len(port_hops.egress_hops))
-        self.assertDictContainsSubset(self.chain_hop2.to_dict(),
-                                      port_hops.egress_hops[0].to_dict())
+        self._assert_dict_contain_subset(self.chain_hop2.to_dict(),
+                                         port_hops.egress_hops[0].to_dict())
         self.assertEqual(self.ingress_port.id,
                          port_hops.port_id)
 
@@ -243,7 +247,7 @@ class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase,
 
         self.assertEqual(1, len(port_hops.ingress_hops))
         self.assertEqual(0, len(port_hops.egress_hops))
-        self.assertDictContainsSubset(self.chain_hop1.to_dict(),
-                                      port_hops.ingress_hops[0].to_dict())
+        self._assert_dict_contain_subset(self.chain_hop1.to_dict(),
+                                         port_hops.ingress_hops[0].to_dict())
         self.assertEqual(self.egress_port.id,
                          port_hops.port_id)
