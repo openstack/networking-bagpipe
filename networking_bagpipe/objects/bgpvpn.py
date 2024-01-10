@@ -74,7 +74,6 @@ class BGPVPN(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
-    new_facade = True
     db_model = bgpvpn_db.BGPVPN
     fields = {
         'id': common_types.UUIDField(),
@@ -134,7 +133,6 @@ class BGPVPNNetAssociation(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
-    new_facade = True
     db_model = bgpvpn_db.BGPVPNNetAssociation
 
     fields = {
@@ -188,7 +186,6 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
-    new_facade = True
     db_model = bgpvpn_db.BGPVPNRouterAssociation
 
     fields = {
@@ -301,7 +298,6 @@ class BGPVPNPortAssociation(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
-    new_facade = True
     db_model = bgpvpn_db.BGPVPNPortAssociation
 
     fields = {
@@ -363,7 +359,6 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
     # Version 1.0: Initial version
     VERSION = '1.0'
 
-    new_facade = True
     db_model = bgpvpn_db.BGPVPNPortAssociationRoute
 
     fields = {
