@@ -1,7 +1,7 @@
 [run]
 branch = True
 source = networking_bagpipe
-omit = networking_bagpipe/tests/*,networking_bagpipe/openstack/*
+omit = networking_bagpipe/tests/*
 
 [report]
 ignore_errors = True
