@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2018 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,7 +71,7 @@ class TestIDAllocatorReUse(testtools.TestCase):
         test_allocator.release(x)
         y = test_allocator.get_new_id()
 
-        self.assertTrue(x != y)
+        self.assertNotEqual(x, y)
 
     def test_reuse_as_late_as_possible(self):
         # create an allocator for 4 values
@@ -89,7 +86,7 @@ class TestIDAllocatorReUse(testtools.TestCase):
         intermediate_ids = [test_allocator.get_new_id(desc)
                             for desc in ('one', 'two', 'three')]
         for y in intermediate_ids:
-            self.assertTrue(x != y)
+            self.assertNotEqual(x, y)
 
         # allocate one more, this can't be anything else than x
         z1 = test_allocator.get_new_id()
@@ -117,10 +114,10 @@ class TestIDAllocatorRequestValue(testtools.TestCase):
 
         x = test_allocator.get_new_id()
         # Request to allocate id greater than current_id value
-        y = test_allocator.get_new_id(hint_value=x+3)
+        y = test_allocator.get_new_id(hint_value=x + 3)
 
-        self.assertEqual(y, x+3)
-        self.assertEqual(test_allocator.current_id, x+1)
+        self.assertEqual(y, x + 3)
+        self.assertEqual(test_allocator.current_id, x + 1)
 
     def test_request_allocated(self):
         test_allocator = identifier_allocators.IDAllocator()
@@ -128,18 +125,18 @@ class TestIDAllocatorRequestValue(testtools.TestCase):
         x = test_allocator.get_new_id()
         y = test_allocator.get_new_id(hint_value=x)
 
-        self.assertTrue(y != x)
-        self.assertEqual(y, x+1)
-        self.assertEqual(test_allocator.current_id, x+2)
+        self.assertNotEqual(y, x)
+        self.assertEqual(y, x + 1)
+        self.assertEqual(test_allocator.current_id, x + 2)
 
     def test_request_next_already_allocated(self):
         test_allocator = identifier_allocators.IDAllocator()
 
         x = test_allocator.get_new_id()
         # Request to allocate id equal to current_id value
-        y = test_allocator.get_new_id(hint_value=x+1)
+        y = test_allocator.get_new_id(hint_value=x + 1)
         z = test_allocator.get_new_id()
 
-        self.assertTrue(z != y)
-        self.assertEqual(z, x+2)
-        self.assertEqual(test_allocator.current_id, x+3)
+        self.assertNotEqual(z, y)
+        self.assertEqual(z, x + 2)
+        self.assertEqual(test_allocator.current_id, x + 3)

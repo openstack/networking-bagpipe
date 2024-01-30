@@ -247,7 +247,7 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
                         router_id=RouterPort.get_object(
                             context, port_id=port.id).router_id,
                         **kwargs)
-                    )
+                )
             return router_assocs
 
         return super(BGPVPNRouterAssociation, cls).get_objects(

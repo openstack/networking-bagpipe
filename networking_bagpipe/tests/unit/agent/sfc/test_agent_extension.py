@@ -1021,7 +1021,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             self.assertDictEqual(
                 {},
                 self.agent_ext.build_sfc_attach_info(port_id)
-                )
+            )
 
         # we need to check that build_sfc_attach_info contains the expected
         # content precisely at the time when do_port_plug_refresh is called
@@ -1234,7 +1234,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             self.assertDictEqual(
                 {},
                 self.agent_ext.build_sfc_attach_info(port_id)
-                )
+            )
 
         # we need to check that build_sfc_attach_info contains the expected
         # content precisely at the time when do_port_plug_refresh is called
@@ -1299,7 +1299,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
             self.assertDictEqual(
                 {},
                 self.agent_ext.build_sfc_attach_info(base.PORT10['id'])
-                )
+            )
 
         # we need to check that build_sfc_attach_info contains the expected
         # content precisely at the time when do_port_plug_refresh is called

@@ -34,7 +34,7 @@ def upgrade():
     op.create_table(
         'sfc_bagpipe_ppg_rtnn_associations',
         sa.Column('id', sa.String(length=36), nullable=False),
-        sa.Column('ppg_id', sa.String(length=36),  nullable=False),
+        sa.Column('ppg_id', sa.String(length=36), nullable=False),
         sa.Column('rtnn', sa.Integer(), nullable=False),
         sa.Column('is_redirect', sa.Boolean(), nullable=False),
         sa.Column('reverse', sa.Boolean(), nullable=False),

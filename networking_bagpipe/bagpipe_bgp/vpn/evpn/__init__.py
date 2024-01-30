@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -108,8 +105,8 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         self.gw_port = None
 
         encaps = self.dp_driver.supported_encaps()
-        if (exa.Encapsulation(exa.Encapsulation.Type.VXLAN) in encaps
-                and any([
+        if (exa.Encapsulation(exa.Encapsulation.Type.VXLAN) in encaps and
+                any([
                 exa.Encapsulation(exa.Encapsulation.Type.MPLS) in encaps,
                 exa.Encapsulation(exa.Encapsulation.Type.GRE) in encaps,
                 exa.Encapsulation(exa.Encapsulation.Type.MPLS_UDP) in encaps
@@ -149,7 +146,7 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         # Generate BGP route and advertise it...
 
         if ip_prefix:
-            assert(plen == 32)
+            assert plen == 32
 
         if self._vxlan_dp_driver():
             mpls_label_field = exa.Labels([], raw_labels=[self.instance_label])
@@ -158,7 +155,7 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         # label parameter ignored, we need to use instance label
         nlri = exa.EVPNMAC(
-            rd, exa.ESI(), exa.EthernetTag(), exa.MAC(mac_address), 6*8,
+            rd, exa.ESI(), exa.EthernetTag(), exa.MAC(mac_address), 6 * 8,
             mpls_label_field,
             exa.IP.create(ip_prefix) if ip_prefix else None, None,
             exa.IP.create(self.dp_driver.get_local_address()))

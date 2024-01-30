@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2017 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -310,11 +307,11 @@ class LookingGlassController(VPNManagerController,
 
     def get_lg_map(self):
         return {
-            "summary":  (lg.SUBITEM, self.get_lg_summary),
-            "config":   (lg.SUBTREE, self.get_lg_config),
-            "bgp":      (lg.DELEGATE, self.manager.bgp_manager),
-            "vpns":     (lg.DELEGATE, self.manager),
-            "logs":     (lg.SUBTREE, self.get_logs)
+            "summary": (lg.SUBITEM, self.get_lg_summary),
+            "config": (lg.SUBTREE, self.get_lg_config),
+            "bgp": (lg.DELEGATE, self.manager.bgp_manager),
+            "vpns": (lg.DELEGATE, self.manager),
+            "logs": (lg.SUBTREE, self.get_logs)
         }
 
     def get_lg_config(self, path_prefix):
@@ -333,8 +330,8 @@ class LookingGlassController(VPNManagerController,
             "warnings_and_errors": len(self.catchall_lg_log_handler),
             "start_time": time.strftime("%Y-%m-%d %H:%M:%S",
                                         time.localtime(self.start_time)),
-            "version":  (pbr.version.VersionInfo('networking-bagpipe')
-                         .release_string())
+            "version": (pbr.version.VersionInfo('networking-bagpipe')
+                        .release_string())
         }
 
     def get_logs(self, path_prefix):

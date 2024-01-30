@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2018 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,8 +32,8 @@ class TestObjectLifecycleManager(testtools.TestCase):
         self.assertTrue(first1)
 
         self.test_object_mgr.create_object.assert_called_once()
-        self.assertTrue(len(self.test_object_mgr.objects) == 1)
-        self.assertTrue(len(self.test_object_mgr.object_used_for["OBJ1"]) == 1)
+        self.assertEqual(len(self.test_object_mgr.objects), 1)
+        self.assertEqual(len(self.test_object_mgr.object_used_for["OBJ1"]), 1)
 
     def test_get_object_multiple_users(self):
         self.test_object_mgr.get_object("OBJ1", "USER_A")
@@ -45,8 +42,8 @@ class TestObjectLifecycleManager(testtools.TestCase):
         self.assertFalse(first2)
 
         self.test_object_mgr.create_object.assert_called_once()
-        self.assertTrue(len(self.test_object_mgr.objects) == 1)
-        self.assertTrue(len(self.test_object_mgr.object_used_for["OBJ1"]) == 2)
+        self.assertEqual(len(self.test_object_mgr.objects), 1)
+        self.assertEqual(len(self.test_object_mgr.object_used_for["OBJ1"]), 2)
 
     def test_find_object_already_exist(self):
         self.test_object_mgr.get_object("OBJ1", "USER_A")
@@ -76,12 +73,12 @@ class TestObjectLifecycleManager(testtools.TestCase):
         self.assertFalse(last1)
 
         self.test_object_mgr.delete_object.assert_not_called()
-        self.assertTrue(len(self.test_object_mgr.objects) == 1)
-        self.assertTrue(len(self.test_object_mgr.object_used_for["OBJ1"]) == 1)
+        self.assertEqual(len(self.test_object_mgr.objects), 1)
+        self.assertEqual(len(self.test_object_mgr.object_used_for["OBJ1"]), 1)
 
         last2 = self.test_object_mgr.free_object("OBJ1", "USER_B")
         self.assertTrue(last2)
 
         self.test_object_mgr.delete_object.assert_called_once()
-        self.assertTrue(not self.test_object_mgr.objects)
-        self.assertTrue(not self.test_object_mgr.object_used_for)
+        self.assertFalse(self.test_object_mgr.objects)
+        self.assertFalse(self.test_object_mgr.object_used_for)

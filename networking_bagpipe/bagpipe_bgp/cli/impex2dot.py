@@ -107,7 +107,7 @@ def vpn_uid(server, vpn):
 
 def vpn_short(vpn):
     if len(vpn) > 11:
-        return vpn[:4]+".."+vpn[-5:]
+        return vpn[:4] + ".." + vpn[-5:]
     else:
         return vpn
 

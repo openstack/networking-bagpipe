@@ -535,7 +535,7 @@ class TestBgpvpnAgentExtensionMixin(object):
             self.assertDictEqual(
                 {},
                 self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
-                )
+            )
 
         # we need to check that build_bgpvpn_attach_info contains the expected
         # content precisely at the time when do_port_plug_refresh is called
@@ -1335,8 +1335,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                             bbgp_const.IPVPN: {
                                 'ip_address': base.PORT10['ip_address'],
                                 'mac_address': base.PORT10['mac_address'],
-                                'local_port': local_port_l3['local_port']
-                                }
+                                'local_port': local_port_l3['local_port']}
                             },
                            {'network_id': base.NETWORK1['id'],
                             bbgp_const.IPVPN: {
@@ -1344,8 +1343,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                                 'vpn_instance_id': (instance_id_base +
                                                     '40_0_0_0_24'),
                                 'mac_address': base.PORT10['mac_address'],
-                                'local_port': local_port_l3['local_port']
-                                }
+                                'local_port': local_port_l3['local_port']}
                             }
                        ]))
              ]
@@ -1452,8 +1450,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                            bbgp_const.IPVPN: {
                                'ip_address': base.PORT10['ip_address'],
                                'mac_address': base.PORT10['mac_address'],
-                               'local_port': local_port_l3['local_port']
-                               }
+                               'local_port': local_port_l3['local_port']}
                            },
                           {'network_id': base.NETWORK1['id'],
                            bbgp_const.IPVPN: {
@@ -1461,8 +1458,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                                'vpn_instance_id': (instance_id_base +
                                                    '40_0_0_0_24'),
                                'mac_address': base.PORT10['mac_address'],
-                               'local_port': local_port_l3['local_port']
-                               }
+                               'local_port': local_port_l3['local_port']}
                            },
                           {'network_id': base.NETWORK1['id'],
                            bbgp_const.IPVPN: {
@@ -1470,8 +1466,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                                'vpn_instance_id': (instance_id_base +
                                                    '60_0_0_0_16'),
                                'mac_address': base.PORT10['mac_address'],
-                               'local_port': local_port_l3['local_port']
-                               }
+                               'local_port': local_port_l3['local_port']}
                            }
                       ]))
         ]
@@ -1606,7 +1601,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                             readvertise={
                                 'from_rt': set(['64512:96']),
                                 'to_rt': set(['64512:98'])
-                                },
+                            },
                             import_rt=set(['64512:99']),
                             export_rt=set(['64512:98']),
                             local_pref=44,
@@ -1626,7 +1621,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                             readvertise={
                                 'from_rt': set(['64512:97']),
                                 'to_rt': set(['64512:98'])
-                                },
+                            },
                             import_rt=set(['64512:99']),
                             export_rt=set(['64512:98']),
                             local_pref=55,
@@ -1699,7 +1694,7 @@ class TestBgpvpnAgentExtensionMixin(object):
                             readvertise={
                                 'from_rt': set(['64512:97']),
                                 'to_rt': set(['64512:98'])
-                                },
+                            },
                             import_rt=set(['64512:99']),
                             export_rt=set(['64512:98']),
                             local_pref=55,
@@ -1769,16 +1764,14 @@ class TestBgpvpnAgentExtensionMixin(object):
                          'ip_address': base.PORT10['ip_address'],
                          'mac_address': base.PORT10['mac_address'],
                          'local_port': local_port_l3['local_port']
-                         }
-                     },
+                    }},
                     {'network_id': base.NETWORK1['id'],
                      bbgp_const.IPVPN: {
                          'vpn_instance_id': expected_vpn_instance_id,
                          'ip_address': base.PORT10['ip_address'],
                          'mac_address': base.PORT10['mac_address'],
                          'local_port': local_port_l3['local_port']
-                         }
-                     },
+                    }},
                 ]))
              ]
         )
@@ -1916,19 +1909,20 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
         self.assertEqual(self.agent_ext.mpls_br.add_patch_port.call_count,
                          2)
 
-        self.tun_br.add_flow.assert_has_calls([
-            mock.call(table=ovs_agt_constants.PATCH_LV_TO_TUN,
-                      priority=2,
-                      dl_src=bgpvpn_const.FALLBACK_SRC_MAC,
-                      dl_dst=mock.ANY,
-                      actions=mock.ANY),
-            mock.call(table=ovs_agt_constants.PATCH_LV_TO_TUN,
-                      priority=2,
-                      dl_src=bgpvpn_const.FALLBACK_SRC_MAC,
-                      dl_dst=mock.ANY,
-                      actions=mock.ANY),
-            mock.call(in_port=base.PATCH_TUN_TO_MPLS,
-                      actions="output:%d" % base.PATCH_TUN_TO_INT)
+        self.tun_br.add_flow.assert_has_calls(
+            [
+                mock.call(table=ovs_agt_constants.PATCH_LV_TO_TUN,
+                          priority=2,
+                          dl_src=bgpvpn_const.FALLBACK_SRC_MAC,
+                          dl_dst=mock.ANY,
+                          actions=mock.ANY),
+                mock.call(table=ovs_agt_constants.PATCH_LV_TO_TUN,
+                          priority=2,
+                          dl_src=bgpvpn_const.FALLBACK_SRC_MAC,
+                          dl_dst=mock.ANY,
+                          actions=mock.ANY),
+                mock.call(in_port=base.PATCH_TUN_TO_MPLS,
+                          actions="output:%d" % base.PATCH_TUN_TO_INT)
             ],
             any_order=True,
         )
@@ -1978,7 +1972,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                                       'src_mac': '00:00:5e:2a:10:00'},
                             local_port=local_port['local_port'],
                             **self._expand_rts(base.BGPVPN_L3_RT100)
-                            )]
+                        )]
                     ),
                     self.agent_ext.build_bgpvpn_attach_info(base.PORT10['id'])
                 )
@@ -1999,7 +1993,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                 mock.patch.object(self.agent_ext.tun_br,
                                   'add_flow') as tun_add_flow, \
                 mock.patch.object(self.agent_ext.tun_br,
-                                  'delete_flows') as tun_delete_flows,\
+                                  'delete_flows') as tun_delete_flows, \
                 mock.patch.object(self.agent_ext.int_br,
                                   'delete_flows') as int_delete_flows:
             net_assoc_0 = super(TestOVSAgentExtension,
@@ -2057,19 +2051,20 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                 arp_tpa=base.NETWORK1['gateway_ip'])
 
             # check that traffic to gw is sent to br-mpls
-            tun_add_flow.assert_has_calls([
-                mock.call(in_port=base.PATCH_TUN_TO_INT,
-                          dl_dst=GW_MAC,
-                          actions="output:%s" % base.PATCH_TUN_TO_MPLS,
-                          dl_vlan=vlan,
-                          priority=mock.ANY,
-                          table=mock.ANY),
-                mock.call(in_port=base.PATCH_TUN_TO_INT,
-                          dl_dst="00:00:5e:00:43:64",
-                          actions="output:%s" % base.PATCH_TUN_TO_MPLS,
-                          dl_vlan=vlan,
-                          priority=mock.ANY,
-                          table=mock.ANY)
+            tun_add_flow.assert_has_calls(
+                [
+                    mock.call(in_port=base.PATCH_TUN_TO_INT,
+                              dl_dst=GW_MAC,
+                              actions="output:%s" % base.PATCH_TUN_TO_MPLS,
+                              dl_vlan=vlan,
+                              priority=mock.ANY,
+                              table=mock.ANY),
+                    mock.call(in_port=base.PATCH_TUN_TO_INT,
+                              dl_dst="00:00:5e:00:43:64",
+                              actions="output:%s" % base.PATCH_TUN_TO_MPLS,
+                              dl_vlan=vlan,
+                              priority=mock.ANY,
+                              table=mock.ANY)
                 ],
                 any_order=True
             )
@@ -2092,23 +2087,23 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
             self._net_assoc_notif(net_assoc, rpc_events.DELETED)
 
             # ARP responder deletion
-            tun_delete_flows.assert_has_calls([
-                mock.call(
-                    strict=True,
-                    table=ovs_agt_constants.PATCH_LV_TO_TUN,
-                    priority=1,
-                    in_port=base.PATCH_TUN_TO_INT,
-                    dl_vlan=vlan
-                ),
-                mock.call(
-                    strict=True,
-                    table=ovs_agt_constants.ARP_RESPONDER,
-                    priority=2,
-                    dl_vlan=vlan,
-                    proto='arp',
-                    arp_op=0x01,
-                    arp_tpa=base.NETWORK1['gateway_ip'],
-                    )
+            tun_delete_flows.assert_has_calls(
+                [
+                    mock.call(
+                        strict=True,
+                        table=ovs_agt_constants.PATCH_LV_TO_TUN,
+                        priority=1,
+                        in_port=base.PATCH_TUN_TO_INT,
+                        dl_vlan=vlan
+                    ),
+                    mock.call(
+                        strict=True,
+                        table=ovs_agt_constants.ARP_RESPONDER,
+                        priority=2,
+                        dl_vlan=vlan,
+                        proto='arp',
+                        arp_op=0x01,
+                        arp_tpa=base.NETWORK1['gateway_ip'],)
                 ],
                 any_order=True
             )

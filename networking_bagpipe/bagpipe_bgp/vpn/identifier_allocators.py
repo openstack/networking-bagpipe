@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2018 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,7 +33,7 @@ class MaxIDReached(exceptions.NeutronException):
 class IDAllocator(lg.LookingGlassMixin):
 
     MIN = 0
-    MAX = 2**32-1  # no id > MAX will be allocated
+    MAX = 2 ** 32 - 1  # no id > MAX will be allocated
 
     def __init__(self):
         self.allocated_ids = dict()
@@ -50,7 +47,7 @@ class IDAllocator(lg.LookingGlassMixin):
 
         # Update current_id to the next free id
         if update_current and id == self.current_id:
-            for next_id in itertools.count(self.current_id+1):
+            for next_id in itertools.count(self.current_id + 1):
                 if next_id not in self.allocated_ids:
                     self.current_id = next_id
                     break
@@ -91,7 +88,7 @@ class IDAllocator(lg.LookingGlassMixin):
 
 class RDAllocator(IDAllocator):
 
-    MAX = 2**16-1
+    MAX = 2 ** 16 - 1
 
     def __init__(self, prefix):
         super(RDAllocator, self).__init__()
@@ -109,7 +106,7 @@ class RDAllocator(IDAllocator):
 class LabelAllocator(IDAllocator):
 
     MIN = 16
-    MAX = 2**20-1
+    MAX = 2 ** 20 - 1
 
     def get_new_label(self, description):
         return self.get_new_id(description)

@@ -266,16 +266,16 @@ def main():
                       help="BGP LOCAL PREF attribute (optional)")
     (options, _unused) = parser.parse_args()
 
-    if not(options.operation):
+    if not options.operation:
         parser.error("Need to specify --attach or --detach")
 
-    if not(options.port):
+    if not options.port:
         parser.error("Need to specify --port <localport>")
 
-    if not(options.network_type):
+    if not options.network_type:
         parser.error("Need to specify --network-type")
 
-    if not(options.ip):
+    if not options.ip:
         parser.error("Need to specify --ip")
 
     if (len(options.route_targets) == 0 and
@@ -297,7 +297,7 @@ def main():
     if not re.match('.*/[0-9]+$', options.ip):
         options.ip = options.ip + "/24"
 
-    if not(options.gw_ip):
+    if not options.gw_ip:
         net = netaddr.IPNetwork(options.ip)
         print("using %s as gateway address" % str(net[-2]))
         options.gw_ip = str(net[-2])
@@ -386,14 +386,14 @@ def main():
                              "one static destination prefix option")
 
     data = {
-        "import_rt":  import_rts,
-        "export_rt":  export_rts,
-        "local_port":  local_port,
-        "vpn_instance_id":  options.vpn_instance_id,
-        "vpn_type":    options.network_type,
-        "gateway_ip":  options.gw_ip,
+        "import_rt": import_rts,
+        "export_rt": export_rts,
+        "local_port": local_port,
+        "vpn_instance_id": options.vpn_instance_id,
+        "vpn_type": options.network_type,
+        "gateway_ip": options.gw_ip,
         "mac_address": options.mac,
-        "ip_address":  options.ip,
+        "ip_address": options.ip,
         "advertise_subnet": options.advertise_subnet,
         "readvertise": readvertise,
         "attract_traffic": attract_traffic,

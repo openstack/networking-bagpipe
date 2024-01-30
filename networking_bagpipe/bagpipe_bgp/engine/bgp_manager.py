@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -121,9 +118,9 @@ class Manager(engine.EventSource, lg.LookingGlassMixin, utils.ClassReprMixin):
     # Looking Glass Functions ###################
 
     def get_lg_map(self):
-        return {"peers":   (lg.COLLECTION, (self.get_lg_peer_list,
-                                            self.get_lg_peer_path_item)),
-                "routes":  (lg.FORWARD, self.rtm),
+        return {"peers": (lg.COLLECTION, (self.get_lg_peer_list,
+                                          self.get_lg_peer_path_item)),
+                "routes": (lg.FORWARD, self.rtm),
                 "workers": (lg.FORWARD, self.rtm),
                 "route_counts": (lg.SUBITEM, self.get_lg_route_counts)}
 

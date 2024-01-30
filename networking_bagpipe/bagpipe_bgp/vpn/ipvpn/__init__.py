@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -147,7 +144,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
         return len(set(route.route_targets).intersection(
             set(self.readvertise_from_rts)
-            )) > 0
+        )) > 0
 
     def _gen_rtrecords_extended_community(self, ecoms):
         # new RTRecord = original RTRecord (if any) + orig RTs converted into

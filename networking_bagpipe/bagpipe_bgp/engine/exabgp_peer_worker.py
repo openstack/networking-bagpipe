@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,7 +62,7 @@ def setup_exabgp_env():
 
     exa_logger.Logger.restart = decorated_restart(
         exa_logger.Logger.restart
-        )
+    )
 
     exa_logger.Logger._syslog = logging.getLogger(__name__ + ".exabgp").logger
 
@@ -89,7 +86,7 @@ def setup_exabgp_env():
     if LOG.logger.getEffectiveLevel():
         env.log.level = environment.syslog_value(
             python_logging.getLevelName(LOG.logger.getEffectiveLevel())
-            )
+        )
     else:
         env.log.level = environment.syslog_value('INFO')
     env.log.all = True
@@ -379,10 +376,10 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
 
     def get_lg_local_info(self, path_prefix):
         return {
-            "peeringAddresses": {"peer_address":  self.peer_address,
+            "peeringAddresses": {"peer_address": self.peer_address,
                                  "local_address": self.local_address},
             "as_info": {"local": cfg.CONF.BGP.my_as,
-                        "peer":  cfg.CONF.BGP.my_as},
+                        "peer": cfg.CONF.BGP.my_as},
             "rtc": {"active": self.rtc_active,
                     "enabled": cfg.CONF.BGP.enable_rtc},
             "active_families": [repr(f) for f in self._active_families],

@@ -56,7 +56,7 @@ class TestBaGPipeML2ConnectivitySameNetwork(base.BaGPipeBaseFullStackTestCase):
                     tenant_uuid,
                     self.safe_client))
             for i in
-            range(self.compute_node_count)*self.port_per_compute_per_net])
+            range(self.compute_node_count) * self.port_per_compute_per_net])
 
         vms.block_until_all_boot()
         vms.ping_all()

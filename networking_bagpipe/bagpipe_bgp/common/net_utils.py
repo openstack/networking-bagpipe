@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2016 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

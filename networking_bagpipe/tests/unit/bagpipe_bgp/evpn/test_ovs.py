@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2018 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,7 +53,7 @@ class TestTunnelManager(t.TestCase):
         self.bridge.add_tunnel_port.assert_not_called()
         self.bridge.setup_tunnel_port.assert_not_called()
 
-        self.assertTrue(t1 == t2)
+        self.assertEqual(t1, t2)
 
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.setup_tunnel_port.reset_mock()
@@ -65,7 +62,7 @@ class TestTunnelManager(t.TestCase):
         self.bridge.add_tunnel_port.assert_called_once()
         self.bridge.setup_tunnel_port.assert_called_once()
 
-        self.assertFalse(t3 != t1)
+        self.assertEqual(t3, t1)
 
         self.assertTrue(len(self.manager.infos()))
 
@@ -81,7 +78,7 @@ class TestTunnelManager(t.TestCase):
         self.manager.free_object("2.2.2.2", "A")
         self.bridge.delete_port.assert_not_called()
         t1bis = self.manager.find_object("2.2.2.2")
-        self.assertTrue(t1bis == t1)
+        self.assertEqual(t1bis, t1)
 
         self.bridge.add_tunnel_port.reset_mock()
         self.bridge.delete_port.reset_mock()

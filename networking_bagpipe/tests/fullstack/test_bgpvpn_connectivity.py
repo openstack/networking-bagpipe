@@ -91,7 +91,8 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
                         tenant_uuid,
                         self.safe_client))
                 for i in
-                range(self.compute_node_count)*self.port_per_compute_per_net])
+                range(
+                    self.compute_node_count) * self.port_per_compute_per_net])
 
         vms = machine.FakeFullstackMachinesList(fake_machines)
 
@@ -137,7 +138,8 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
                         tenant_uuid,
                         self.safe_client))
                 for i in
-                range(self.compute_node_count)*self.port_per_compute_per_net])
+                range(
+                    self.compute_node_count) * self.port_per_compute_per_net])
 
         vms = machine.FakeFullstackMachinesList(fake_machines)
 
@@ -181,8 +183,9 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
                 # NOTE(tmorin): choice of fixed IP done this way for sake
                 # of simplicity, of course, this breaks e.g. for
                 # compute_node_count > 10
-                fixed_ip = (base.SUBNET_CIDR1[:base.SUBNET_CIDR1.find('0/24')]
-                            + str(100 * network + 10 * (compute+1) + port_i))
+                fixed_ip = (
+                        base.SUBNET_CIDR1[:base.SUBNET_CIDR1.find('0/24')] +
+                        str(100 * network + 10 * (compute + 1) + port_i))
 
                 neutron_port = self.safe_client.create_port(
                     network_id=network_id,

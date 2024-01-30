@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -128,12 +125,11 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
         for expected in expected_list:
             route = copy.copy(expected[1])
             route.source = None
+            self.assertIn(len(expected), (2, 3))
             if len(expected) == 2:
                 expected_list_copy.append((expected[0], route))
             elif len(expected) == 3:
                 expected_list_copy.append((expected[0], route, expected[2]))
-            else:
-                assert(False)
 
         if not ordered:
             expected_list_copy = sorted(expected_list_copy,
@@ -872,10 +868,10 @@ class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
             engine.RouteEvent.ADVERTISE, t.NLRI1, [t.RT1, t.RT2],
             worker_a, t.NH1, 45).route_entry
 
-        self.assertTrue(
+        self.assertGreater(
             tracker_worker.compare_ecmp(mock.Mock(),
-                                        route_lp55, route_lp45) > 0)
+                                        route_lp55, route_lp45), 0)
 
-        self.assertTrue(
+        self.assertGreater(
             tracker_worker.compare_no_ecmp(mock.Mock(),
-                                           route_lp55, route_lp45) > 0)
+                                           route_lp55, route_lp45), 0)

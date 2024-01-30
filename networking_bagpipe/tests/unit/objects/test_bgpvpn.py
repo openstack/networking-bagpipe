@@ -289,7 +289,8 @@ class BGPVPNPortAssociationTest(test_base.BaseDbObjectTestCase,
              'bgpvpn_id': self._create_test_bgpvpn_id,
              'routes': {
                  'bgpvpn_id': self._create_test_bgpvpn_id,
-                 }})
+             }}
+        )
 
     def test_get_objects_queries_constant(self):
         self.skipTest("test not passing yet, remains to be investigated why")
@@ -329,8 +330,8 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
         r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(
             type='prefix',
             prefix=netaddr.IPNetwork('1.2.3.4'))
-        self.assertTrue(r1 == r2)
-        self.assertTrue(hash(r1) == hash(r2))
+        self.assertEqual(r1, r2)
+        self.assertEqual(hash(r1), hash(r2))
 
     def test_eq_hash_bgpvpn(self):
         bgpvpn = self._create_test_bgpvpn()
@@ -338,8 +339,8 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
                                                    bgpvpn=bgpvpn)
         r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(type='bgpvpn',
                                                    bgpvpn=bgpvpn)
-        self.assertTrue(r1 == r2)
-        self.assertTrue(hash(r1) == hash(r2))
+        self.assertEqual(r1, r2)
+        self.assertEqual(hash(r1), hash(r2))
 
     def test_neq_type(self):
         r1 = bgpvpn_obj.BGPVPNPortAssociationRoute(
@@ -348,7 +349,7 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
         r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(
             type='prefix',
             prefix=netaddr.IPNetwork('1.2.3.4'))
-        self.assertTrue(r1 != r2)
+        self.assertNotEqual(r1, r2)
 
     def test_neq_prefix(self):
         r1 = bgpvpn_obj.BGPVPNPortAssociationRoute(
@@ -357,7 +358,7 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
         r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(
             type='prefix',
             prefix=netaddr.IPNetwork('1.2.3.4'))
-        self.assertTrue(r1 != r2)
+        self.assertNotEqual(r1, r2)
 
     def test_neq_bgpvpn(self):
         bgpvpn1 = self._create_test_bgpvpn()
@@ -366,7 +367,7 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
                                                    bgpvpn=bgpvpn1)
         r2 = bgpvpn_obj.BGPVPNPortAssociationRoute(type='bgpvpn',
                                                    bgpvpn=bgpvpn2)
-        self.assertTrue(r1 != r2)
+        self.assertNotEqual(r1, r2)
 
     def test_bgpvpn_route_get_object_access_bgpvpn(self):
         route_id = uuidutils.generate_uuid()
@@ -381,6 +382,6 @@ class BGPVPNPortAssociationRouteTest(test_base.BaseDbObjectTestCase,
         route_again = bgpvpn_obj.BGPVPNPortAssociationRoute.get_object(
             self.context,
             id=route_id
-            )
+        )
 
         self.assertEqual([TEST_RT], route_again.bgpvpn.route_targets)

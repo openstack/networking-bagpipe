@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -384,7 +381,7 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
 
     @log_decorator.log_info
     def initialize(self):
-        sysctl('net.mpls.platform_labels', 2**20-1)
+        sysctl('net.mpls.platform_labels', 2 ** 20 - 1)
 
         if "*gre*" in self.config["mpls_interface"]:
             self.mpls_interface = "gre_wildcard"
