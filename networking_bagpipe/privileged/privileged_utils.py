@@ -39,6 +39,7 @@ def modprobe(module_name):
     cmd = ['modprobe', module_name]
     processutils.execute(*cmd, check_exit_code=True)
 
+
 # TODO(lajoskatona): use pyroute2.IPDB()
 @privileged.default_cmd.entrypoint
 def brctl(params, check_exit=True):

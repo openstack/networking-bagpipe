@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -559,7 +556,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     def _get_port_range_from_classifier(self, classifier_port):
         if classifier_port:
-            if type(classifier_port) == tuple:
+            if isinstance(classifier_port, tuple):
                 port_min, port_max = classifier_port
             else:
                 port_min = port_max = classifier_port
@@ -571,7 +568,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         src_port_match = '{:s}_src'.format(classifier.protocol)
 
         if classifier.source_port:
-            if type(classifier.source_port) == tuple:
+            if isinstance(classifier.source_port, tuple):
                 src_port_min, src_port_max = classifier.source_port
             else:
                 src_port_min = src_port_max = classifier.source_port
@@ -579,7 +576,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         dst_port_match = '{:s}_dst'.format(classifier.protocol)
 
         if classifier.destination_port:
-            if type(classifier.destination_port) == tuple:
+            if isinstance(classifier.destination_port, tuple):
                 dst_port_min, dst_port_max = classifier.destination_port
             else:
                 dst_port_min = dst_port_max = classifier.destination_port
@@ -663,13 +660,13 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
 class OVSGroupAllocator(identifier_allocators.IDAllocator):
 
-    MAX = 2**32-1
+    MAX = 2 ** 32 - 1
 
 
 class OVSBucketAllocator(identifier_allocators.IDAllocator):
 
     # Values greater than 0xFFFFFF00 are reserved
-    MAX = 2**32-2**8-1
+    MAX = 2 ** 32 - 2 ** 8 - 1
 
 
 class NextHop(object):
@@ -973,7 +970,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                                 self.config.input_table))
 
         self.encap_in_table = self.config.ovs_table_id_start
-        self.vrf_table = self.config.ovs_table_id_start+1
+        self.vrf_table = self.config.ovs_table_id_start + 1
 
         self.all_tables = {'incoming': self.input_table,
                            'vrf': self.vrf_table,
@@ -1206,7 +1203,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                                                cookie_spec),
                         OVS_DUMP_FLOW_FILTER),
                     run_as_root=True, shell=True
-                    )[0]
+                )[0]
             })
         return output
 

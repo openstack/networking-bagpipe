@@ -411,8 +411,7 @@ class BaGPipeBGPAgent(HTTPClientBase):
                     attachment['local_port'] = {bbgp_const.EVPN: {
                         'id': attachment['vpn_instance_id'].replace('ipvpn',
                                                                     'evpn')
-                        }
-                    }
+                    }}
 
         LOG.debug("all attachments for port %s: %s", port_id, attach_list)
         return attach_list

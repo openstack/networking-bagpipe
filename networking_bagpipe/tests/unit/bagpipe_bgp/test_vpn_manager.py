@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -275,17 +272,17 @@ class TestVPNManager(t.TestCase):
 
             for i in (1, 2, 3, 4, 5):
                 self.manager.plug_vif_to_vpn(
-                    external_instance_id=BASE_VPN_EXT+str(i),
+                    external_instance_id=BASE_VPN_EXT + str(i),
                     **vpn_instance_plug_args)
 
             for i in (2, 4):
                 self.manager.unplug_vif_from_vpn(
-                    external_instance_id=BASE_VPN_EXT+str(i),
+                    external_instance_id=BASE_VPN_EXT + str(i),
                     **vpn_instance_unplug_args)
 
             for i in (6, 7, 8):
                 self.manager.plug_vif_to_vpn(
-                    external_instance_id=BASE_VPN_EXT+str(i),
+                    external_instance_id=BASE_VPN_EXT + str(i),
                     **vpn_instance_plug_args)
 
             instance_ids = [i.instance_id

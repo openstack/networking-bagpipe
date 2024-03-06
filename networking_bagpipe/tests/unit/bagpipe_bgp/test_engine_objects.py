@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,14 +50,14 @@ class TestEngineObjects(TestCase):
         nlri1 = exa.EVPNMAC(TEST_RD,
                             exa.ESI(),
                             exa.EthernetTag(111),
-                            exa.MAC("01:02:03:04:05:06"), 6*8,
+                            exa.MAC("01:02:03:04:05:06"), 6 * 8,
                             exa.Labels([42], True),
                             exa.IP.create("1.1.1.1"))
 
         nlri2 = exa.EVPNMAC(TEST_RD,
                             exa.ESI(),
                             exa.EthernetTag(111),
-                            exa.MAC("01:02:03:04:05:06"), 6*8,
+                            exa.MAC("01:02:03:04:05:06"), 6 * 8,
                             exa.Labels([42], True),
                             exa.IP.create("1.1.1.1"))
 
@@ -75,7 +72,7 @@ class TestEngineObjects(TestCase):
         nlri0 = exa.EVPNMAC(TEST_RD,
                             exa.ESI(),
                             exa.EthernetTag(111),
-                            exa.MAC("01:02:03:04:05:06"), 6*8,
+                            exa.MAC("01:02:03:04:05:06"), 6 * 8,
                             exa.Labels([42], True),
                             exa.IP.create("1.1.1.1"))
 
@@ -84,7 +81,7 @@ class TestEngineObjects(TestCase):
                             exa.ESI(b''.join(bytes((1,))
                                              for _ in range(0, 10))),
                             exa.EthernetTag(111),
-                            exa.MAC("01:02:03:04:05:06"), 6*8,
+                            exa.MAC("01:02:03:04:05:06"), 6 * 8,
                             exa.Labels([42], True),
                             exa.IP.create("1.1.1.1"))
 
@@ -92,7 +89,7 @@ class TestEngineObjects(TestCase):
         nlri2 = exa.EVPNMAC(TEST_RD,
                             exa.ESI(),
                             exa.EthernetTag(111),
-                            exa.MAC("01:02:03:04:05:06"), 6*8,
+                            exa.MAC("01:02:03:04:05:06"), 6 * 8,
                             exa.Labels([4444], True),
                             exa.IP.create("1.1.1.1"))
 
@@ -100,7 +97,7 @@ class TestEngineObjects(TestCase):
         nlri3 = exa.EVPNMAC(TEST_RD,
                             exa.ESI(),
                             exa.EthernetTag(111),
-                            exa.MAC("01:02:03:04:05:06"), 6*8,
+                            exa.MAC("01:02:03:04:05:06"), 6 * 8,
                             exa.Labels([42], True),
                             exa.IP.create("2.2.2.2"))
 
@@ -108,14 +105,14 @@ class TestEngineObjects(TestCase):
         nlri4 = exa.EVPNMAC(TEST_RD,
                             exa.ESI(),
                             exa.EthernetTag(111),
-                            exa.MAC("01:02:03:04:05:06"), 6*8,
+                            exa.MAC("01:02:03:04:05:06"), 6 * 8,
                             exa.Labels([42], True),
                             exa.IP.create("1.1.1.1"),
                             exa.IP.pton("10.10.10.10"))
         nlri5 = exa.EVPNMAC(TEST_RD,
                             exa.ESI(),
                             exa.EthernetTag(111),
-                            exa.MAC("01:02:03:04:05:06"), 6*8,
+                            exa.MAC("01:02:03:04:05:06"), 6 * 8,
                             exa.Labels([42], True),
                             exa.IP.create("1.1.1.1"),
                             exa.IP.pton("11.11.11.11"))

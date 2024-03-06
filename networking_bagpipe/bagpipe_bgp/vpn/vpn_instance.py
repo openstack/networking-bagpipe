@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -106,9 +103,9 @@ class TrafficClassifier(object):
             elif op == '<=':
                 port_range = (0, int(port))
             elif op == '>':
-                port_range = (int(port)+1, 65535)
+                port_range = (int(port) + 1, 65535)
             elif op == '<':
-                port_range = (0, int(port)-1)
+                port_range = (0, int(port) - 1)
             else:
                 port_range = int(port)
         else:
@@ -119,9 +116,9 @@ class TrafficClassifier(object):
                 if op == '>=' or op == '<=':
                     port_range += int(port)
                 elif op == '>':
-                    port_range += int(port)+1
+                    port_range += int(port) + 1
                 elif op == '<':
-                    port_range += int(port)-1
+                    port_range += int(port) - 1
 
         return port_range
 
@@ -132,7 +129,7 @@ class TrafficClassifier(object):
         port_rules = list()
 
         # Check if port range or port number
-        if type(port_range) == tuple:
+        if isinstance(port_range, tuple):
             port_min, port_max = port_range
 
             if int(port_min) == 0:
@@ -551,8 +548,8 @@ class VPNInstance(tracker_worker.TrackerWorker,
             exa.ConsistentHashSortOrder(lb_consistent_hash_order))
         route_entry.attributes.add(ecommunities)
 
-        route_entry.attributes.add(exa.LocalPreference(local_pref
-                                                       or DEFAULT_LOCAL_PREF))
+        route_entry.attributes.add(exa.LocalPreference(local_pref or
+                                                       DEFAULT_LOCAL_PREF))
 
         self.log.debug("Synthesized Vif route entry: %s", route_entry)
         return route_entry
@@ -663,7 +660,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         cls.validate_convert_params(
             params,
             also_mandatory=('import_rt', 'export_rt')
-            )
+        )
 
         params['advertise_subnet'] = params.get('advertise_subnet', False)
         params['lb_consistent_hash_order'] = params.get(
@@ -1079,18 +1076,18 @@ class VPNInstance(tracker_worker.TrackerWorker,
 
     def get_lg_map(self):
         return {
-            "instance_type":         (lg.VALUE, self.instance_type),
-            "external_instance_id":  (lg.VALUE, self.external_instance_id),
-            "description":           (lg.VALUE, self.description),
-            "dataplane":             (lg.DELEGATE, self.dataplane),
-            "route_targets":         (lg.SUBITEM, self.get_rts),
-            "gateway_ip":            (lg.VALUE, self.gateway_ip),
-            "subnet_prefix_length":  (lg.VALUE, self.network_plen),
+            "instance_type": (lg.VALUE, self.instance_type),
+            "external_instance_id": (lg.VALUE, self.external_instance_id),
+            "description": (lg.VALUE, self.description),
+            "dataplane": (lg.DELEGATE, self.dataplane),
+            "route_targets": (lg.SUBITEM, self.get_rts),
+            "gateway_ip": (lg.VALUE, self.gateway_ip),
+            "subnet_prefix_length": (lg.VALUE, self.network_plen),
             "instance_dataplane_id": (lg.VALUE, self.instance_label),
-            "ports":                 (lg.SUBTREE, self.get_lg_local_port_data),
-            "readvertise":           (lg.SUBITEM, self.get_lg_readvertise),
-            "attract_traffic":       (lg.SUBITEM, self.get_lg_attract_traffic),
-            "fallback":              (lg.VALUE, self.fallback)
+            "ports": (lg.SUBTREE, self.get_lg_local_port_data),
+            "readvertise": (lg.SUBITEM, self.get_lg_readvertise),
+            "attract_traffic": (lg.SUBITEM, self.get_lg_attract_traffic),
+            "fallback": (lg.VALUE, self.fallback)
         }
 
     def get_lg_local_port_data(self, path_prefix):

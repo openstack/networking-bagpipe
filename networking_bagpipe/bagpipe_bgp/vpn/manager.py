@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,7 +33,7 @@ from neutron_lib import exceptions
 
 LOG = logging.getLogger(__name__)
 
-INSTANCE_ID_MAX = 2**32-1
+INSTANCE_ID_MAX = 2 ** 32 - 1
 
 
 def redirect_instance_extid(instance_type, rt):
@@ -148,8 +145,8 @@ class VPNManager(lg.LookingGlassMixin, utils.ClassReprMixin):
         if 'ovs_port_name' in localport['evpn']:
             try:
                 assert localport['ovs']['plugged']
-                assert(localport['ovs']['port_name'] or
-                       localport['ovs']['port_number'])
+                assert (localport['ovs']['port_name'] or
+                        localport['ovs']['port_number'])
             except Exception:
                 raise Exception("Using ovs_port_name in EVPN/IPVPN attachment"
                                 " requires specifying the corresponding OVS"

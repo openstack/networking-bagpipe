@@ -175,7 +175,7 @@ class BaGPipeChainHop(base.NeutronDbObject):
                     getattr(bagpipe_db.BaGPipeChainHop,
                             reverse_side + '_network'),
                     bagpipe_db.BaGPipeChainHop.reverse_hop == true()))
-            )
+        )
         query = query.join(
             models_v2.Port,
             models_v2.Port.network_id == models_v2.Network.id)

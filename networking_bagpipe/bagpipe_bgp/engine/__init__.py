@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -77,7 +74,7 @@ class RouteEntry(lg.LookingGlassMixin):
                 exa.Attribute.CODE.EXTENDED_COMMUNITY].communities
             # use type(..) because isinstance(rtrecord, RouteTarget) is True
             self._route_targets = [ecom for ecom in ecoms
-                                   if type(ecom) == exa.RouteTarget]
+                                   if isinstance(ecom, exa.RouteTarget)]
             if rts:
                 ecoms += rts
                 self._route_targets += rts
@@ -107,7 +104,7 @@ class RouteEntry(lg.LookingGlassMixin):
                 filter(filter_real,
                        self.attributes[exa.Attribute.CODE.EXTENDED_COMMUNITY]
                            .communities)
-                )
+            )
         else:
             return []
 
@@ -210,8 +207,8 @@ class RouteEvent(object):
                  WITHDRAW: "Withdraw"}
 
     def __init__(self, event_type, route_entry, source=None):
-        assert(event_type == RouteEvent.ADVERTISE or
-               event_type == RouteEvent.WITHDRAW)
+        assert (event_type == RouteEvent.ADVERTISE or
+                event_type == RouteEvent.WITHDRAW)
         assert isinstance(route_entry, RouteEntry)
         self.type = event_type
         self.route_entry = route_entry
@@ -240,8 +237,8 @@ class RouteEvent(object):
         Called only by RouteTableManager.
         replaced_route should be a RouteEntry
         '''
-        assert(isinstance(replaced_route, RouteEntry)
-               or (replaced_route is None))
+        assert (isinstance(replaced_route, RouteEntry) or
+                (replaced_route is None))
         assert replaced_route != self.route_entry
         self.replaced_route = replaced_route
 

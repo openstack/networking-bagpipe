@@ -309,7 +309,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
             dest_bgpvpns = (
                 self._get_bgpvpns_by_network(context,
                                              dest_subnet['network_id'])
-                )
+            )
             if dest_bgpvpns:
                 dest_rts.extend(self._get_bgpvpn_rts(dest_bgpvpns)[0])
             else:
@@ -342,7 +342,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
             # - Between last SF egress and Destination ports
             # - Between first SF ingress and Source ports if symmetric reverse
             #   traffic
-            if position == len(reversed_ppg)-1:
+            if position == len(reversed_ppg) - 1:
                 last_ppg = context._plugin._get_port_pair_group(
                     context._plugin_context, ppg_id)
 
@@ -370,9 +370,9 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
 
             # Intermediate Hop: Between one SF ingress and previous (reversed
             # order) SF egress ports
-            if (position < len(reversed_ppg)-1 and
+            if (position < len(reversed_ppg) - 1 and
                     len(reversed_ppg) > 1):
-                prev_ppg_id = reversed_ppg[position+1]
+                prev_ppg_id = reversed_ppg[position + 1]
 
                 current_ppg = context._plugin._get_port_pair_group(
                     context._plugin_context, ppg_id)
@@ -400,7 +400,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                     is_redirect=True,
                     reverse=reverse)
 
-                if position+1 == len(reversed_ppg)-1:
+                if position + 1 == len(reversed_ppg) - 1:
                     # Advertise FlowSpec routes from last intermediate hop
                     prev_readv_from_rts = ((src_rts if reverse else dest_rts)
                                            if egress_bgpvpns else None)
@@ -430,7 +430,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                     # Readvertise FlowSpec routes between intermediate hops
                     from_redirect_rt = (
                         self.rt_allocator.get_redirect_rt_by_ppg(
-                            reversed_ppg[position+2]))
+                            reversed_ppg[position + 2]))
 
                     hop_detail_obj = sfc_obj.BaGPipeChainHop(
                         context._plugin_context,
@@ -508,7 +508,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
                 else:
                     from_redirect_rt = (
                         self.rt_allocator.get_redirect_rt_by_ppg(
-                            reversed_ppg[position+1]))
+                            reversed_ppg[position + 1]))
 
                     hop_detail_obj = sfc_obj.BaGPipeChainHop(
                         context._plugin_context,

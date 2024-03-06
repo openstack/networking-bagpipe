@@ -868,8 +868,8 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             all_vnis = [
                 assoc.bgpvpn.vni
                 for assoc in port_info.network.associations
-                if (bagpipe_vpn_type(assoc.bgpvpn.type) == bbgp_vpn_type
-                    and assoc.bgpvpn.vni is not None)
+                if (bagpipe_vpn_type(assoc.bgpvpn.type) == bbgp_vpn_type and
+                    assoc.bgpvpn.vni is not None)
             ]
             if all_vnis:
                 if len(all_vnis) > 1:

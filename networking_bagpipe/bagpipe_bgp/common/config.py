@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -81,7 +78,7 @@ bgp_opts = [
     cfg.ListOpt('peers', default=[],
                 item_type=types.HostAddress(version=4),
                 help="IP addresses of BGP peers"),
-    cfg.IntOpt('my_as', min=1, max=2**16-1, required=True,
+    cfg.IntOpt('my_as', min=1, max=2 ** 16 - 1, required=True,
                help="Our BGP Autonomous System"),
     cfg.BoolOpt('enable_rtc', default=True,
                 help="Enable RT Constraint (RFC4684)"),

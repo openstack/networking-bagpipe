@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2017 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,7 +59,7 @@ class TestMPLSOVSDataplaneDriver(t.TestCase):
             ["::0/0", "2001:db8:8:4::2/64", "::1/128"])
 
     def test_fallback_priority(self):
-        self.assertTrue(mpls_ovs_dataplane.FALLBACK_PRIORITY <
+        self.assertLess(mpls_ovs_dataplane.FALLBACK_PRIORITY,
                         mpls_ovs_dataplane._priority_from_prefix("0.0.0.0/0"))
 
 
@@ -92,14 +89,14 @@ class TestNextHopGroupManager(t.TestCase):
         nh_g2 = self.manager.get_object("2.2.2.2", NH2)
         self.bridge.add_group.assert_not_called()
 
-        self.assertTrue(nh_g1 == nh_g2)
+        self.assertEqual(nh_g1, nh_g2)
 
         self.bridge.add_group.reset_mock()
 
         nh_g3 = self.manager.get_object("3.3.3.3", NH1)
         self.bridge.add_group.assert_called_once()
 
-        self.assertFalse(nh_g3 == nh_g1)
+        self.assertNotEqual(nh_g3, nh_g1)
 
         self.assertTrue(len(self.manager.infos()))
 
@@ -113,7 +110,7 @@ class TestNextHopGroupManager(t.TestCase):
         self.manager.free_object("2.2.2.2", NH1)
         self.bridge.delete_group.assert_not_called()
         nh_g1bis = self.manager.get_object("2.2.2.2")
-        self.assertTrue(nh_g1bis == nh_g1)
+        self.assertEqual(nh_g1bis, nh_g1)
 
         self.manager.free_object("2.2.2.2", NH2)
         self.bridge.delete_group.assert_called_once_with(nh_g1)

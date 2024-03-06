@@ -1,6 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
-
 # Copyright 2014 Orange
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -100,7 +97,7 @@ class ToIdle(object):
 
     def __init__(self, delay):
         # add 50% random delay to avoid reconnect bursts
-        self.delay = delay*random.uniform(1, 1.5)
+        self.delay = delay * random.uniform(1, 1.5)
 
     def __repr__(self):
         return "ToIdle(%s)" % self.delay
