@@ -17,17 +17,17 @@
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - openstack-tox-py38:
+        - openstack-tox-py39:
             required-projects: &bagpipe_required_projects
               - openstack/neutron
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - openstack-tox-py39:
-            required-projects: *bagpipe_required_projects
         - openstack-tox-py310:
             required-projects: *bagpipe_required_projects
         - openstack-tox-py311:
+            required-projects: *bagpipe_required_projects
+        - openstack-tox-py312: # from openstack-python3-jobs template
             required-projects: *bagpipe_required_projects
         - openstack-tox-cover:
             required-projects: *bagpipe_required_projects
@@ -50,8 +50,6 @@
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - openstack-tox-py38:
-            required-projects: *bagpipe_required_projects
         - openstack-tox-py39:
             required-projects: *bagpipe_required_projects
         - openstack-tox-py310:
@@ -73,6 +71,8 @@
             required-projects: *bagpipe_required_projects
     periodic-weekly:
       jobs:
+        - openstack-tox-py312: # from openstack-python3-jobs template
+            required-projects: *bagpipe_required_projects
         - openstack-tox-py311:
             required-projects: *bagpipe_required_projects
         - openstack-tox-py310-with-oslo-master:
