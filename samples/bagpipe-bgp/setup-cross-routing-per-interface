@@ -2,7 +2,7 @@
 #
 # to be used in network setup scripts, e.g:
 # /etc/network/interfaces
-# 
+#
 # iface eth0 inet dhcp
 #     post-up /usr/local/sbin/setup-cross-routing-per-interface 12 eth1
 #

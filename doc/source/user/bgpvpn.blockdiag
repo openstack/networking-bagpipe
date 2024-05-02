@@ -53,5 +53,3 @@ blockdiag components-bagpipe {
 
       mplsvswitch <-> mplsrouters[label="MPLS\nor ..",folded];
 }
-
- 

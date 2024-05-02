@@ -34,8 +34,8 @@ dataplane_driver = dummy
 
 # MPLS outgoing interface (for linux and ovs drivers)
 #
-# (not specifying an mpls_interface or using the '*gre*' special value 
-# means that the driver will instantiate a tunnel interface and use an 
+# (not specifying an mpls_interface or using the '*gre*' special value
+# means that the driver will instantiate a tunnel interface and use an
 # MPLS/GRE encapsulation)
 # mpls_interface=*gre*
 mpls_interface=*gre*
@@ -48,7 +48,7 @@ mpls_interface=*gre*
 #
 # gre_tunnel_options="packet_type=legacy_l3"
 
-# Support VXLAN encapsulation of IP VPN traffic with the 
+# Support VXLAN encapsulation of IP VPN traffic with the
 # ovs driver.
 #
 # Note well: this is non-standard and aimed at making it easier

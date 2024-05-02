@@ -6,124 +6,124 @@ set -o xtrace
 
 # Pre-install gobgp requirements
 function pre_install_gobgp {
-	# Install go language and configure environment variables
-	install_package golang-go
+    # Install go language and configure environment variables
+    install_package golang-go
 
-	export GOPATH=${GOPATH:-$DEST/go}
-	if [[ ! -d $GOPATH ]]; then
-		mkdir -p $GOPATH
-	fi
+    export GOPATH=${GOPATH:-$DEST/go}
+    if [[ ! -d $GOPATH ]]; then
+        mkdir -p $GOPATH
+    fi
 }
 
 # Install gobgp
 function install_gobgp {
-	# we install from binary, because compiling from source requires golang-1.7 which is not in ubuntu xenial
-	mkdir -p $GOPATH/bin
-	cd $GOPATH/bin
-	wget $GOBGP_RELEASE -qO - | tar xz
+    # we install from binary, because compiling from source requires golang-1.7 which is not in ubuntu xenial
+    mkdir -p $GOPATH/bin
+    cd $GOPATH/bin
+    wget $GOBGP_RELEASE -qO - | tar xz
 }
 
 # Set config files, create data dirs, etc
 function configure_bagpipe {
-	# Put config files in ``/etc/bagpipe-bgp`` for everyone to find
-	if [[ ! -d $BAGPIPE_CONF_DIR ]]; then
-		sudo mkdir -p $BAGPIPE_CONF_DIR
-	fi
-	sudo chown $STACK_USER $BAGPIPE_CONF_DIR
+    # Put config files in ``/etc/bagpipe-bgp`` for everyone to find
+    if [[ ! -d $BAGPIPE_CONF_DIR ]]; then
+        sudo mkdir -p $BAGPIPE_CONF_DIR
+    fi
+    sudo chown $STACK_USER $BAGPIPE_CONF_DIR
 
-	# place rootwrap config files
-	# this is done here so that these files are in place, even when
-	# bagpipe-bgp is not configured, specifically for the functional and
-	# fullstack gate jobs
-	BAGPIPE_BGP_RW_CONF=/etc/bagpipe-bgp/rootwrap.conf
-	BAGPIPE_BGP_RW_D=/etc/bagpipe-bgp/rootwrap.d
-	sudo install -o root -g root -m 644 $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/rootwrap.conf $BAGPIPE_BGP_RW_CONF
-	sudo install -d -o root -m 755 $BAGPIPE_BGP_RW_D/
-	sudo install -o root -m 644 $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/rootwrap.d/* $BAGPIPE_BGP_RW_D/
-	sudo sed -e "s:^filters_path=.*$:filters_path=$BAGPIPE_BGP_RW_D:" -i $BAGPIPE_BGP_RW_CONF
-	sudo sed -e 's:^exec_dirs=\(.*\)$:exec_dirs=\1,/usr/local/bin:' -i $BAGPIPE_BGP_RW_CONF
+    # place rootwrap config files
+    # this is done here so that these files are in place, even when
+    # bagpipe-bgp is not configured, specifically for the functional and
+    # fullstack gate jobs
+    BAGPIPE_BGP_RW_CONF=/etc/bagpipe-bgp/rootwrap.conf
+    BAGPIPE_BGP_RW_D=/etc/bagpipe-bgp/rootwrap.d
+    sudo install -o root -g root -m 644 $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/rootwrap.conf $BAGPIPE_BGP_RW_CONF
+    sudo install -d -o root -m 755 $BAGPIPE_BGP_RW_D/
+    sudo install -o root -m 644 $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/rootwrap.d/* $BAGPIPE_BGP_RW_D/
+    sudo sed -e "s:^filters_path=.*$:filters_path=$BAGPIPE_BGP_RW_D:" -i $BAGPIPE_BGP_RW_CONF
+    sudo sed -e 's:^exec_dirs=\(.*\)$:exec_dirs=\1,/usr/local/bin:' -i $BAGPIPE_BGP_RW_CONF
 
-	# Specify ``rootwrap.conf`` as first parameter to neutron-rootwrap
-	ROOTWRAP_SUDOER_CMD="$NEUTRON_ROOTWRAP $BAGPIPE_BGP_RW_CONF *"
-	ROOTWRAP_DAEMON_SUDOER_CMD="$NEUTRON_ROOTWRAP-daemon $BAGPIPE_BGP_RW_CONF"
+    # Specify ``rootwrap.conf`` as first parameter to neutron-rootwrap
+    ROOTWRAP_SUDOER_CMD="$NEUTRON_ROOTWRAP $BAGPIPE_BGP_RW_CONF *"
+    ROOTWRAP_DAEMON_SUDOER_CMD="$NEUTRON_ROOTWRAP-daemon $BAGPIPE_BGP_RW_CONF"
 
-	# configure sudo to allow bagpipe-bgp rootwrap config
-	TEMPFILE=`mktemp`
-	echo "$STACK_USER ALL=(root) NOPASSWD: $ROOTWRAP_SUDOER_CMD" >$TEMPFILE
-	echo "$STACK_USER ALL=(root) NOPASSWD: $ROOTWRAP_DAEMON_SUDOER_CMD" >>$TEMPFILE
-	chmod 0440 $TEMPFILE
-	sudo chown root:root $TEMPFILE
-	sudo mv $TEMPFILE /etc/sudoers.d/bagpipe-rootwrap
+    # configure sudo to allow bagpipe-bgp rootwrap config
+    TEMPFILE=`mktemp`
+    echo "$STACK_USER ALL=(root) NOPASSWD: $ROOTWRAP_SUDOER_CMD" >$TEMPFILE
+    echo "$STACK_USER ALL=(root) NOPASSWD: $ROOTWRAP_DAEMON_SUDOER_CMD" >>$TEMPFILE
+    chmod 0440 $TEMPFILE
+    sudo chown root:root $TEMPFILE
+    sudo mv $TEMPFILE /etc/sudoers.d/bagpipe-rootwrap
 
-	if is_service_enabled neutron-bagpipe-bgp; then
-		# build the config file from scratch
-		create_bagpipe_conf
-	fi
+    if is_service_enabled neutron-bagpipe-bgp; then
+        # build the config file from scratch
+        create_bagpipe_conf
+    fi
 }
 
 # Create a new bgp.conf file
 function create_bagpipe_conf {
-	# (Re)create ``bgp.conf``
-	cp -p $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/bgp.conf.template $BAGPIPE_CONF
+    # (Re)create ``bgp.conf``
+    cp -p $NETWORKING_BAGPIPE_DIR/etc/bagpipe-bgp/bgp.conf.template $BAGPIPE_CONF
 
-	# build config
-	iniset $BAGPIPE_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
+    # build config
+    iniset $BAGPIPE_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
 
-	iniset $BAGPIPE_CONF BGP local_address ${BAGPIPE_HOST_IP:-$HOST_IP}
-	if [[ $BAGPIPE_BGP_PEERS == "-" ]]; then
-		iniset $BAGPIPE_CONF BGP peers ""
-	else
-		iniset $BAGPIPE_CONF BGP peers "$BAGPIPE_BGP_PEERS"
-	fi
-	iniset $BAGPIPE_CONF API host $BAGPIPE_SERVICE_HOST
-	iniset $BAGPIPE_CONF API port $BAGPIPE_SERVICE_PORT
-	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_IPVPN:-dummy}
-	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN mpls_interface $BAGPIPE_MPLS_IFACE
-	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN ovs_bridge $BAGPIPE_MPLS_BR
-	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_EVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_EVPN:-dummy}
-	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN arp_responder ${BAGPIPE_ARP_RESPONDER:-False}
-	iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN proxy_arp ${BAGPIPE_PROXY_ARP:-False}
+    iniset $BAGPIPE_CONF BGP local_address ${BAGPIPE_HOST_IP:-$HOST_IP}
+    if [[ $BAGPIPE_BGP_PEERS == "-" ]]; then
+        iniset $BAGPIPE_CONF BGP peers ""
+    else
+        iniset $BAGPIPE_CONF BGP peers "$BAGPIPE_BGP_PEERS"
+    fi
+    iniset $BAGPIPE_CONF API host $BAGPIPE_SERVICE_HOST
+    iniset $BAGPIPE_CONF API port $BAGPIPE_SERVICE_PORT
+    iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_IPVPN:-dummy}
+    iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN mpls_interface $BAGPIPE_MPLS_IFACE
+    iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN ovs_bridge $BAGPIPE_MPLS_BR
+    iniset $BAGPIPE_CONF DATAPLANE_DRIVER_EVPN dataplane_driver ${BAGPIPE_DATAPLANE_DRIVER_EVPN:-dummy}
+    iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN arp_responder ${BAGPIPE_ARP_RESPONDER:-False}
+    iniset $BAGPIPE_CONF DATAPLANE_DRIVER_IPVPN proxy_arp ${BAGPIPE_PROXY_ARP:-False}
 
-	BAGPIPE_BGP_RW_COMMAND="sudo $NEUTRON_ROOTWRAP $BAGPIPE_BGP_RW_CONF"
-	BAGPIPE_BGP_RW_DAEMON_COMMAND="sudo $NEUTRON_ROOTWRAP-daemon $BAGPIPE_BGP_RW_CONF"
-	iniset $BAGPIPE_CONF common root_helper "$BAGPIPE_BGP_RW_COMMAND"
-	iniset $BAGPIPE_CONF common root_helper_daemon "$BAGPIPE_BGP_RW_DAEMON_COMMAND"
+    BAGPIPE_BGP_RW_COMMAND="sudo $NEUTRON_ROOTWRAP $BAGPIPE_BGP_RW_CONF"
+    BAGPIPE_BGP_RW_DAEMON_COMMAND="sudo $NEUTRON_ROOTWRAP-daemon $BAGPIPE_BGP_RW_CONF"
+    iniset $BAGPIPE_CONF common root_helper "$BAGPIPE_BGP_RW_COMMAND"
+    iniset $BAGPIPE_CONF common root_helper_daemon "$BAGPIPE_BGP_RW_DAEMON_COMMAND"
 
-	setup_logging $BAGPIPE_CONF
+    setup_logging $BAGPIPE_CONF
 }
 
 # Initialize databases, etc.
 
 function init_bagpipe {
-	if [[ $BAGPIPE_DATAPLANE_DRIVER_IPVPN == *"MPLSOVSDataplaneDriver"* || $BAGPIPE_DATAPLANE_DRIVER_IPVPN == "ovs" ]]; then
-		init_bagpipe_ovsmpls
-	else
-		echo "IP VPN driver not OVS, let's not init OVS MPLS bridge (driver is '$BAGPIPE_DATAPLANE_DRIVER_IPVPN')"
-	fi
+    if [[ $BAGPIPE_DATAPLANE_DRIVER_IPVPN == *"MPLSOVSDataplaneDriver"* || $BAGPIPE_DATAPLANE_DRIVER_IPVPN == "ovs" ]]; then
+        init_bagpipe_ovsmpls
+    else
+        echo "IP VPN driver not OVS, let's not init OVS MPLS bridge (driver is '$BAGPIPE_DATAPLANE_DRIVER_IPVPN')"
+    fi
 }
 
 
 function init_bagpipe_ovsmpls {
 
-	BAGPIPE_BR_RESET_SCRIPT=$(mktemp /var/tmp/bagpipe-bgp-br-reset.XXXXX)
+    BAGPIPE_BR_RESET_SCRIPT=$(mktemp /var/tmp/bagpipe-bgp-br-reset.XXXXX)
 
-	:> $BAGPIPE_BR_RESET_SCRIPT
+    :> $BAGPIPE_BR_RESET_SCRIPT
 
-	if [ -n "$BAGPIPE_MPLS_IFACE" ]; then
+    if [ -n "$BAGPIPE_MPLS_IFACE" ]; then
 
-		cat >> $BAGPIPE_BR_RESET_SCRIPT <<EOF
+        cat >> $BAGPIPE_BR_RESET_SCRIPT <<EOF
 
 echo "Setting up $BAGPIPE_MPLS_BR OVS bridge based on current $BAGPIPE_MPLS_IFACE settings"
 MPLS_IFACE_IP=\`ip addr show $BAGPIPE_MPLS_IFACE | grep 'inet ' | awk '{ print \$2 }'\`
 
 if [ -z "\$MPLS_IFACE_IP" ]; then
-	echo "Failure retrieving IP config of BaGPipe MPLS interface ($BAGPIPE_MPLS_IFACE): perhaps $BAGPIPE_MPLS_BR was configured already ?"
-	echo "Try to setup $BAGPIPE_MPLS_IFACE before trying again.."
-	return -1
+    echo "Failure retrieving IP config of BaGPipe MPLS interface ($BAGPIPE_MPLS_IFACE): perhaps $BAGPIPE_MPLS_BR was configured already ?"
+    echo "Try to setup $BAGPIPE_MPLS_IFACE before trying again.."
+    return -1
 fi
 
 if [ "\`ip route  | grep default | awk '{ print \$5 }'\`" == "$BAGPIPE_MPLS_IFACE" ]; then
-	GW_IP=\`ip route  | grep default | awk '{ print \$3 }'\`
+    GW_IP=\`ip route  | grep default | awk '{ print \$3 }'\`
 fi
 
 #echo "adding bridge $BAGPIPE_MPLS_BR with interface $BAGPIPE_MPLS_IFACE"
@@ -140,8 +140,8 @@ sudo ip link set dev $BAGPIPE_MPLS_BR address \$MAC
 sudo ip addr add \$MPLS_IFACE_IP dev $BAGPIPE_MPLS_BR
 sudo ip link set $BAGPIPE_MPLS_BR up
 if [ -n "\$GW_IP" ]; then
-	#echo "adding route to $\GW_IP"
-	sudo ip route add default via \$GW_IP
+    #echo "adding route to $\GW_IP"
+    sudo ip route add default via \$GW_IP
 fi
 
 # map traffic to/from the bagpipe port from/to the physical interface,
@@ -154,103 +154,103 @@ sudo ovs-ofctl add-flow $BAGPIPE_MPLS_BR in_port=\$BAGPIPE_INTERNAL_PORT_NUMBER,
 
 EOF
 
-	else
+    else
 
-		cat >> $BAGPIPE_BR_RESET_SCRIPT <<EOF
+        cat >> $BAGPIPE_BR_RESET_SCRIPT <<EOF
 
 sudo ovs-vsctl del-br $BAGPIPE_MPLS_BR || true
 sudo ovs-vsctl --may-exist add-br $BAGPIPE_MPLS_BR -- set-fail-mode $BAGPIPE_MPLS_BR secure
 
 EOF
 
-	fi
+    fi
 
-	source $BAGPIPE_BR_RESET_SCRIPT
+    source $BAGPIPE_BR_RESET_SCRIPT
 }
 
 # Start the BGP component
 function start_bagpipe_bgp {
-	if is_service_enabled neutron-bagpipe-bgp ; then
-		run_process neutron-bagpipe-bgp "${NEUTRON_BIN_DIR}/bagpipe-bgp"
+    if is_service_enabled neutron-bagpipe-bgp ; then
+        run_process neutron-bagpipe-bgp "${NEUTRON_BIN_DIR}/bagpipe-bgp"
 
-		run_process neutron-bagpipe-bgp-lg "/bin/sh -c 'while true; do date ; sleep 10; bagpipe-looking-glass -r vpns instances ; echo --------------------------------------------------; done'"
+        run_process neutron-bagpipe-bgp-lg "/bin/sh -c 'while true; do date ; sleep 10; bagpipe-looking-glass -r vpns instances ; echo --------------------------------------------------; done'"
 
-		echo "Waiting for bagpipe-bgp to start..."
-		if ! wait_for_service $SERVICE_TIMEOUT http://$BAGPIPE_SERVICE_HOST:$BAGPIPE_SERVICE_PORT; then
-			die $LINENO "bagpipe-bgp did not start"
-		fi
-	fi
+        echo "Waiting for bagpipe-bgp to start..."
+        if ! wait_for_service $SERVICE_TIMEOUT http://$BAGPIPE_SERVICE_HOST:$BAGPIPE_SERVICE_PORT; then
+            die $LINENO "bagpipe-bgp did not start"
+        fi
+    fi
 }
 
 # Start the FakeRR component
 function start_bagpipe_fakerr {
-	if is_service_enabled neutron-bagpipe-fakerr ; then
-		run_process neutron-bagpipe-fakerr "echo 'from networking_bagpipe.bagpipe_bgp.fakerr import application' | sudo twistd -n -y /dev/stdin"
-	fi
+    if is_service_enabled neutron-bagpipe-fakerr ; then
+        run_process neutron-bagpipe-fakerr "echo 'from networking_bagpipe.bagpipe_bgp.fakerr import application' | sudo twistd -n -y /dev/stdin"
+    fi
 }
 
 function start_bagpipe {
-	start_bagpipe_bgp
-	start_bagpipe_fakerr
+    start_bagpipe_bgp
+    start_bagpipe_fakerr
 }
 
 function stop_bagpipe_bgp {
-	stop_process neutron-bagpipe-bgp
+    stop_process neutron-bagpipe-bgp
 }
 
 function stop_bagpipe_fakerr {
-	stop_process neutron-bagpipe-fakerr
+    stop_process neutron-bagpipe-fakerr
 }
 
 # Stop running processes
 function stop_bagpipe {
-	stop_bagpipe_bgp
-	stop_bagpipe_fakerr
+    stop_bagpipe_bgp
+    stop_bagpipe_fakerr
 }
 
 # Remove residual data files, anything left over from previous runs that a
 # clean run would need to clean up
 function cleanup_bagpipe {
-	if is_service_enabled neutron-bagpipe-bgp ; then
-		sudo bagpipe-bgp-cleanup
+    if is_service_enabled neutron-bagpipe-bgp ; then
+        sudo bagpipe-bgp-cleanup
 
-		MPLS_IFACE_IP=`ip addr show $BAGPIPE_INTERNAL_PORT | grep 'inet ' | awk '{ print $2 }'`
-		GW_IP=`ip route  | grep default | awk '{ print $3 }'`
-		sudo ovs-vsctl del-br $BAGPIPE_MPLS_BR
-		sudo ip addr add $MPLS_IFACE_IP dev $BAGPIPE_MPLS_IFACE
-		sudo ip route add default via $GW_IP
-	fi
+        MPLS_IFACE_IP=`ip addr show $BAGPIPE_INTERNAL_PORT | grep 'inet ' | awk '{ print $2 }'`
+        GW_IP=`ip route  | grep default | awk '{ print $3 }'`
+        sudo ovs-vsctl del-br $BAGPIPE_MPLS_BR
+        sudo ip addr add $MPLS_IFACE_IP dev $BAGPIPE_MPLS_IFACE
+        sudo ip route add default via $GW_IP
+    fi
 }
 
 if [[ "$1" == "source" ]]; then
-		# no-op
-		:
+    # no-op
+    :
 elif [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
-		if is_service_enabled gobgp ; then
-			echo_summary "Installing golang package"
-			pre_install_gobgp
-		fi
+    if is_service_enabled gobgp ; then
+        echo_summary "Installing golang package"
+        pre_install_gobgp
+    fi
 elif [[ "$1" == "stack" && "$2" == "install" ]]; then
-		if is_service_enabled gobgp ; then
-			echo_summary "Installing GoBGP"
-			install_gobgp
-		fi
+    if is_service_enabled gobgp ; then
+        echo_summary "Installing GoBGP"
+        install_gobgp
+    fi
 elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
-		echo_summary "Configuring Bagpipe"
-		configure_bagpipe
-		# Initializing before neutron starts is needed, so that we can move the single interface in br-mpls
-		init_bagpipe
+    echo_summary "Configuring Bagpipe"
+    configure_bagpipe
+    # Initializing before neutron starts is needed, so that we can move the single interface in br-mpls
+    init_bagpipe
 elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
-		echo_summary "Starting Bagpipe"
-		start_bagpipe
+    echo_summary "Starting Bagpipe"
+    start_bagpipe
 fi
 if [[ "$1" == "unstack" ]]; then
-		echo_summary "Stopping Bagpipe"
-		stop_bagpipe
-		cleanup_bagpipe
+    echo_summary "Stopping Bagpipe"
+    stop_bagpipe
+    cleanup_bagpipe
 fi
 if [[ "$1" == "clean" ]]; then
-		cleanup_bagpipe
+    cleanup_bagpipe
 fi
 
 # restore xtrace state

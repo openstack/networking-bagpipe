@@ -19,14 +19,14 @@ exec="ip netns exec $netns"
 
 echo "Setting up cross-routing in $netns between $if_a/$gw_a and $if_b/$gw_b"
 
-$exec ip route add table $table_to_a default via $gw_a dev $if_a 
-$exec ip route add table $table_to_b default via $gw_b dev $if_b 
+$exec ip route add table $table_to_a default via $gw_a dev $if_a
+$exec ip route add table $table_to_b default via $gw_b dev $if_b
 
 $exec ip rule add iif $if_a table $table_to_b prio 1000
 $exec ip rule add iif $if_b table $table_to_a prio 1000
 
 for if_ in $if_a $if_b; do
-	$exec sysctl -w "net.ipv4.conf.${if_}.forwarding=1"
+    $exec sysctl -w "net.ipv4.conf.${if_}.forwarding=1"
 done
 
 
