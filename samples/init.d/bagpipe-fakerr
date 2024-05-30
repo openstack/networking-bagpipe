@@ -26,9 +26,9 @@ if [ ! -x `which twistd` ]; then
 fi
 
 if (pgrep -F $PIDFILE >/dev/null 2>&1); then
-	running=1
+    running=1
 else
-	running=0
+    running=0
 fi
 
 case "$1" in
@@ -49,7 +49,7 @@ case "$1" in
         pkill -F $PIDFILE
     else
         echo "WARNING: no pidfile but killing anyway"
-	pkill -f "twistd.*$COMMAND"
+        pkill -f "twistd.*$COMMAND"
     fi
     ;;
   restart)

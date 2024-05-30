@@ -12,7 +12,7 @@ Openstack/KVM platforms.
 
 The goal of BaGPipe-BGP is *not* to fully implement BGP specifications,
 but only the subset of specifications required to implement IP VPN VRFs
-and E-VPN EVIs (`RFC4364 <http://tools.ietf.org/html/rfc4364>`__ 
+and E-VPN EVIs (`RFC4364 <http://tools.ietf.org/html/rfc4364>`__
 a.k.a RFC2547bis, `RFC7432 <http://tools.ietf.org/html/rfc7432>`__/`draft-ietf-bess-evpn-overlay <http://tools.ietf.org/html/draft-ietf-bess-evpn-overlay>`__,
 and `RFC4684 <http://tools.ietf.org/html/RFC4684>`__).
 

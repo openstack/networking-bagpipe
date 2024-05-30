@@ -44,12 +44,12 @@ case "$1" in
     echo "Stopping BGP component with dataplane cleanup..."
     if [ "$(pgrep -fl $BGP_DAEMON)" != "" ]; then
         $BGP_DAEMON --ack-oslo-log stop $OPTIONS
-    
+
         # Clean dataplane when daemon has been stopped
         while pgrep -fl $BGP_DAEMON > /dev/null; do
             sleep 1;
         done
-        
+
         echo "Cleaning dataplane..."
         $BGP_DATAPLANE_CLEANUP --ack-oslo-log $OPTIONS
     else
