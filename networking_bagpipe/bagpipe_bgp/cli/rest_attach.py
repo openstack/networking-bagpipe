@@ -407,7 +407,7 @@ def main():
     if options.direction:
         data['direction'] = options.direction
 
-    json_data = jsonutils.dumps(data)
+    json_data = jsonutils.dumps(data).encode('utf-8')
 
     print("request: %s" % json_data)
 
