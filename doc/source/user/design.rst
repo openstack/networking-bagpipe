@@ -25,6 +25,6 @@ e. traffic is exchanged using an overlay encapsulation, with VXLAN as the
    typical choice for vswitch-to-vswitch, and MPLS-over-GRE or MPLS-over-UDP
    (future) as the target for vswitch-to-DC-gateway traffic
 
-.. blockdiag:: overview.blockdiag
+.. image:: figures/overview_blockdiag.png
 
 .. _RFC4684: http://tools.ietf.org/html/rfc4684

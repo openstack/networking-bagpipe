@@ -20,7 +20,7 @@ nodes will setup a corresponding E-VPN instance with
 this identifier on the local :ref:`bagpipe-bgp` instance on the compute node and
 attach VM ports to this instance as needed.
 
-.. blockdiag:: ml2.blockdiag
+.. image:: figures/ml2_blockdiag.png
 
 This solution is currently supported with the linux networking stack (i.e. with
 the ``linuxbridge`` agent enabled with bagpipe extension, and :ref:`bagpipe-bgp` driver
@@ -62,7 +62,7 @@ driver, it involves the use of:
 
 Example with OVS agent:
 
-.. blockdiag:: bgpvpn.blockdiag
+.. image:: figures/bgpvpn_blockdiag.png
 
 ----------------------
 Service Chaining (SFC)
