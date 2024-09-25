@@ -23,10 +23,6 @@
               - openstack/horizon
               - openstack/networking-bgpvpn
               - openstack/networking-sfc
-        - openstack-tox-py310:
-            required-projects: *bagpipe_required_projects
-        - openstack-tox-py311:
-            required-projects: *bagpipe_required_projects
         - openstack-tox-py312: # from openstack-python3-jobs template
             required-projects: *bagpipe_required_projects
         - openstack-tox-cover:
@@ -52,9 +48,7 @@
               - openstack/networking-sfc
         - openstack-tox-py39:
             required-projects: *bagpipe_required_projects
-        - openstack-tox-py310:
-            required-projects: *bagpipe_required_projects
-        - openstack-tox-py311:
+        - openstack-tox-py312:
             required-projects: *bagpipe_required_projects
         - neutron-tempest-plugin-bgpvpn-bagpipe:
             irrelevant-files:
@@ -67,21 +61,19 @@
             required-projects: *bagpipe_required_projects
         - openstack-tox-py39:
             required-projects: *bagpipe_required_projects
-        - openstack-tox-py310:
-            required-projects: *bagpipe_required_projects
     periodic-weekly:
       jobs:
         - openstack-tox-py312: # from openstack-python3-jobs template
             required-projects: *bagpipe_required_projects
         - openstack-tox-py311:
             required-projects: *bagpipe_required_projects
-        - openstack-tox-py310-with-oslo-master:
+        - openstack-tox-py312-with-oslo-master:
             required-projects: *bagpipe_required_projects
         - neutron-tempest-plugin-bgpvpn-bagpipe
         - networking-bagpipe-tempest
     experimental:
       jobs:
-        - openstack-tox-py310-with-oslo-master:
+        - openstack-tox-py312-with-oslo-master:
             required-projects: *bagpipe_required_projects
 
 - job:
