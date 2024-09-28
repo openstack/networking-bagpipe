@@ -15,8 +15,8 @@
 
 import sys
 
-import eventlet
-eventlet.monkey_patch()
+from neutron.common import eventlet_utils
+eventlet_utils.monkey_patch()
 
 from oslo_concurrency import lockutils  # noqa: E402
 from oslo_config import cfg  # noqa: E402
