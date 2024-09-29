@@ -16,6 +16,7 @@
 import sqlalchemy as sa
 
 from oslo_config import cfg
+from oslo_config import types
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 
@@ -32,6 +33,7 @@ sfc_bagpipe_opts = [
                       "Targets that will be used for Port Chain allocations")),
     cfg.ListOpt('rtnn',
                 default=[5000, 5999],
+                item_type=types.Integer(min=0),
                 help=_("List containing <rtnn_min>, <rtnn_max> "
                        "defining a range of BGP Route Targets that will "
                        "be used for Port Chain allocations. This range MUST "
@@ -83,7 +85,7 @@ class RTAllocator(object):
             allocated_rtnns = {obj.rtnn for obj in query.all()}
 
         # Find first one available in range
-        start, end = int(self.config.rtnn[0]), int(self.config.rtnn[1]) + 1
+        start, end = self.config.rtnn[0], self.config.rtnn[1] + 1
         for rtnn in range(start, end):
             if rtnn not in allocated_rtnns:
                 with db_api.CONTEXT_WRITER.using(ctx):
