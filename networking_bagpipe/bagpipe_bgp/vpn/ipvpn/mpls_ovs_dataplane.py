@@ -899,8 +899,9 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                    help=("Can be used to control the OVS group bucket "
                          "selection method (mapped to ovs "
                          "'selection_method')")),
-        cfg.StrOpt("hash_method_param",
+        cfg.IntOpt("hash_method_param",
                    default=0,
+                   min=0, max=2**64 - 1,
                    advanced=True,
                    help=("Can be used to control the OVS group bucket "
                          "selection method (mapped to ovs "
