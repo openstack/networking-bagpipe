@@ -13,29 +13,23 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import sys
+from oslo_concurrency import lockutils
+from oslo_config import cfg
+from oslo_config import types
+from oslo_log import helpers as log_helpers
+from oslo_log import log as logging
 
-from neutron.common import eventlet_utils
-eventlet_utils.monkey_patch()
-
-from oslo_concurrency import lockutils  # noqa: E402
-from oslo_config import cfg  # noqa: E402
-from oslo_config import types  # noqa: E402
-from oslo_log import helpers as log_helpers  # noqa: E402
-from oslo_log import log as logging  # noqa: E402
-
-from networking_bagpipe.agent import agent_base_info  # noqa: E402
-from networking_bagpipe.agent import bagpipe_bgp_agent  # noqa: E402
+from networking_bagpipe.agent import agent_base_info
+from networking_bagpipe.agent import bagpipe_bgp_agent
 from networking_bagpipe.bagpipe_bgp import \
-    constants as bbgp_const  # noqa: E402
+    constants as bbgp_const
 
-from neutron.agent.linux import ip_lib  # noqa: E402
-from neutron.common import config as common_config  # noqa: E402
+from neutron.agent.linux import ip_lib
 from neutron.plugins.ml2.drivers.linuxbridge.agent import \
-    linuxbridge_neutron_agent as lnx_agt  # noqa: E402
+    linuxbridge_neutron_agent as lnx_agt
 
-from neutron_lib.agent import l2_extension  # noqa: E402
-from neutron_lib import constants as n_const  # noqa: E402
+from neutron_lib.agent import l2_extension
+from neutron_lib import constants as n_const
 
 
 LOG = logging.getLogger(__name__)
@@ -188,11 +182,3 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
 
             self.bagpipe_bgp_agent.do_port_plug_refresh(port_id,
                                                         detach_info)
-
-
-def main():
-    common_config.init(sys.argv[1:])
-    common_config.setup_logging()
-    LOG.warning('This modified agent is not needed anymore. The normal '
-                'neutron linuxbridge agent should be used instead, along with'
-                'networks of type VXLAN, rather than RT.')

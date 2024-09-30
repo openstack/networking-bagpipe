@@ -1,7 +1,5 @@
 NETWORKING_BAGPIPE_DIR=$DEST/networking-bagpipe
 
-[[ "$DEVSTACK_PLUGINS" =~ "bagpipe-bgp" ]] && die "Using 'enable_plugin bagpipe-bgp ...' in local.conf is not supported anymore, networking-bagpipe now embeds bagpipe-bgp"
-
 if [[ "$Q_AGENT" =~ "bagpipe-linuxbridge" ]] ; then
   echo "Using 'Q_AGENT='bagpipe-linuxbridge' in local.conf is deprecated, please replace by NEUTRON_AGENT=linuxbridge"
   NEUTRON_AGENT=linuxbridge
