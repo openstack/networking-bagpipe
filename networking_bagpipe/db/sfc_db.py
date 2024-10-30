@@ -65,7 +65,7 @@ def singleton(class_):
 
 
 @singleton
-class RTAllocator(object):
+class RTAllocator:
     def __init__(self):
         self.config = cfg.CONF.sfc_bagpipe
         self.ctx = n_context.get_admin_context()
@@ -162,7 +162,7 @@ class BaGPipeChainHop(model_base.BASEV2, model_base.HasId,
                              primary_key=True)
 
 
-class BaGPipeSfcDriverDB(object):
+class BaGPipeSfcDriverDB:
 
     def initialize(self):
         self.admin_context = n_context.get_admin_context()

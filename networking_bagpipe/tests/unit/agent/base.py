@@ -97,7 +97,7 @@ BGPVPN_L3_RT200 = {'route_targets': ['BGPVPN_L3:200'],
                    }
 
 
-class DummyPort(object):
+class DummyPort:
     def __init__(self, network, port, bgpvpn_port=False,
                  evpn=None, ipvpn=None):
         self.id = port['id']
@@ -120,13 +120,13 @@ class DummyPort(object):
                 self.ipvpn = copy.deepcopy(ipvpn)
 
 
-class DummyVif(object):
+class DummyVif:
     def __init__(self, ofport, port_name):
         self.ofport = ofport
         self.port_name = port_name
 
 
-class DummyBGPVPN(object):
+class DummyBGPVPN:
     def __init__(self, network, l2vpn=None, l3vpn=None, gateway_mac=None):
         self.id = uuidutils.generate_uuid()
         self.network_id = network['id']
@@ -147,7 +147,7 @@ class RTList(list):
         return set(self) == set(other)
 
 
-class BaseTestAgentExtension(object):
+class BaseTestAgentExtension:
 
     agent_extension_class = None
 
@@ -363,7 +363,7 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOSKenTestBase,
         if bbgp_vpn_type == bbgp_const.IPVPN:
             r = dict(
                 local_port=dict(
-                    linuxif='%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan),
+                    linuxif='{}:{}'.format(bgpvpn_const.LINUXIF_PREFIX, vlan),
                     ovs=dict(plugged=True,
                              port_number=PATCH_MPLS_TO_TUN,
                              vlan=vlan)
@@ -375,7 +375,7 @@ class BaseTestOVSAgentExtension(ovs_test_base.OVSOSKenTestBase,
         else:
             r = dict(
                 local_port=dict(
-                    linuxif='%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan),
+                    linuxif='{}:{}'.format(bgpvpn_const.LINUXIF_PREFIX, vlan),
                     vlan=vlan
                 )
             )

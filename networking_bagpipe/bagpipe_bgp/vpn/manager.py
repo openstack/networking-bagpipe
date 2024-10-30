@@ -38,7 +38,7 @@ INSTANCE_ID_MAX = 2 ** 32 - 1
 
 def redirect_instance_extid(instance_type, rt):
     '''generate the ext intance id of a redirection VPN instance'''
-    return "redirect-to-%s-%s" % (instance_type, rt.replace(":", "_"))
+    return "redirect-to-{}-{}".format(instance_type, rt.replace(":", "_"))
 
 
 class MaxInstanceIDReached(exceptions.NeutronException):

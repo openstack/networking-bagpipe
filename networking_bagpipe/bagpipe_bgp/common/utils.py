@@ -84,7 +84,7 @@ def convert_route_targets(orig_list):
     return list_
 
 
-class ClassReprMixin(object):
+class ClassReprMixin:
 
     def __repr__(self):
         return self.__class__.__name__

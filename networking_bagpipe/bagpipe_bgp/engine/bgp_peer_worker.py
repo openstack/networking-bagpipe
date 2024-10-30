@@ -36,7 +36,7 @@ KA_EXPIRY_RETRY_TIMER = 5
 CONNECT_RETRY_TIMER = 5
 
 
-class FSM(object):
+class FSM:
 
     '''Represents the state of the BGP Finite State Machine'''
 
@@ -93,7 +93,7 @@ class OpenWaitTimeout(Exception):
     pass
 
 
-class ToIdle(object):
+class ToIdle:
 
     def __init__(self, delay):
         # add 50% random delay to avoid reconnect bursts
@@ -140,7 +140,7 @@ class BGPPeerWorker(worker.Worker,
         self.enqueue(CONNECT_NOW)
 
     def stop(self):
-        super(BGPPeerWorker, self).stop()
+        super().stop()
         self.should_stop = True
         self._stop_and_clean()
 

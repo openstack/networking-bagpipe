@@ -78,7 +78,7 @@ class BagpipeML2AgentExtension(l2_extension.L2AgentExtension,
 
         as_numbers = cfg.CONF.ml2_bagpipe_extension.as_number
         bagpipe_rts = [
-            "%s:%s" % (as_number, port_info.network.segmentation_id)
+            "{}:{}".format(as_number, port_info.network.segmentation_id)
             for as_number in as_numbers
         ]
 

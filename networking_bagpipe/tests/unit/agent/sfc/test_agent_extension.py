@@ -67,7 +67,7 @@ class TestSfcAgentExtension(base.BaseTestLinuxBridgeAgentExtension):
     agent_extension_class = bagpipe_agt_ext.BagpipeSfcAgentExtension
 
     def setUp(self):
-        super(TestSfcAgentExtension, self).setUp()
+        super().setUp()
         self.mocked_bulk_rpc = mock.patch.object(
             self.agent_ext._pull_rpc, 'bulk_pull').start()
 

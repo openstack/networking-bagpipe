@@ -58,7 +58,7 @@ def proxy_arp(ifname, enable):
 class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     def __init__(self, *args, **kwargs):
-        super(MPLSLinuxVRFDataplane, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # FIXME: maybe not thread safe ?
         self.ip = self.driver.ip
@@ -161,8 +161,8 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
         # Configure gateway address on this port
         # FIXME: that would need to be per vif port
         # Retrieve broadcast IP address
-        broadcast_ip = str(netaddr.IPNetwork("%s/%s" % (self.gateway_ip,
-                                                        self.network_plen)
+        broadcast_ip = str(netaddr.IPNetwork("{}/{}".format(self.gateway_ip,
+                                                            self.network_plen)
                                              ).broadcast)
 
         try:
@@ -221,7 +221,8 @@ class MPLSLinuxVRFDataplane(dp_drivers.VPNInstanceDataplane):
         # Unconfigure gateway address on this port
         # FIXME: that would need to be per vif port
         # Retrieve broadcast IP address
-        ip = netaddr.IPNetwork("%s/%s" % (self.gateway_ip, self.network_plen))
+        ip = netaddr.IPNetwork(
+            "{}/{}".format(self.gateway_ip, self.network_plen))
         broadcast_ip = str(ip.broadcast)
 
         ipr.addr('del', index=self.ip.interfaces[interface].index,
@@ -351,7 +352,7 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
     ]
 
     def __init__(self):
-        super(MPLSLinuxDataplaneDriver, self).__init__()
+        super().__init__()
 
         privileged_utils.modprobe('mpls_router')
         privileged_utils.modprobe('mpls_gso')

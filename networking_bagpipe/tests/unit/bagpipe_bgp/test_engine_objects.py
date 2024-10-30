@@ -36,10 +36,10 @@ TEST_RD = exa.RouteDistinguisher.fromElements("42.42.42.42", 5)
 class TestEngineObjects(TestCase):
 
     def setUp(self):
-        super(TestEngineObjects, self).setUp()
+        super().setUp()
 
     def tearDown(self):
-        super(TestEngineObjects, self).tearDown()
+        super().tearDown()
 
     # Tests on EVPN NLRIs
 
@@ -285,7 +285,7 @@ class TestEngineObjects(TestCase):
         self.assertNotEqual(rt1a, rt3)
         self.assertNotEqual(rt1a, rt4)
 
-        self.assertEqual(set([rt1a]), set([rt1b]))
+        self.assertEqual({rt1a}, {rt1b})
         # self.assertEqual(set([rt1a]), set([rt2]))
-        self.assertEqual(1, len(set([rt1a]).intersection(set([rt1b]))))
+        self.assertEqual(1, len({rt1a}.intersection({rt1b})))
         # self.assertEqual(1, len(set([rt2]).intersection(set([rt1b]))))

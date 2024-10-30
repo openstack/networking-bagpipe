@@ -19,7 +19,7 @@ from neutron.tests.fullstack.resources import config as neutron_cfg
 class ML2ConfigFixture(neutron_cfg.ML2ConfigFixture):
 
     def __init__(self, env_desc, host_desc, temp_dir, tenant_network_types):
-        super(ML2ConfigFixture, self).__init__(
+        super().__init__(
             env_desc, host_desc, temp_dir, tenant_network_types)
 
         if env_desc.bagpipe_ml2:

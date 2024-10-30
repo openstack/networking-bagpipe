@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 topics_BAGPIPE_BGPVPN = "bagpipe-bgpvpn"
 
 
-class BGPVPNAgentNotifyApi(object):
+class BGPVPNAgentNotifyApi:
     """Base class for BGP VPN Service Plugin notification to agent RPC API."""
 
     def __init__(self, topic=topics.AGENT):

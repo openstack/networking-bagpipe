@@ -233,7 +233,7 @@ class TestVPNInstanceAPIChecks(testtools.TestCase):
 class TestInitVPNInstance(testtools.TestCase):
 
     def setUp(self):
-        super(TestInitVPNInstance, self).setUp()
+        super().setUp()
         self.mock_manager = mock.Mock()
         self.mock_manager.label_allocator.release = mock.Mock()
         self.mock_dp_driver = mock.Mock()
@@ -279,7 +279,7 @@ class TestInitVPNInstance(testtools.TestCase):
 class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
 
     def setUp(self):
-        super(TestVPNInstance, self).setUp()
+        super().setUp()
 
         self.mock_dataplane = mock.Mock(
             spec=dataplane_drivers.VPNInstanceDataplane)
@@ -304,7 +304,7 @@ class TestVPNInstance(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.set_event_target_worker(self.vpn)
 
     def tearDown(self):
-        super(TestVPNInstance, self).tearDown()
+        super().tearDown()
         self.vpn.stop()
         self.vpn.join()
 
@@ -889,7 +889,7 @@ TC_STATIC2 = vpn_instance.TrafficClassifier(
 class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
 
     def setUp(self):
-        super(TestVRF, self).setUp()
+        super().setUp()
 
         self.mock_dp = mock.Mock(
             spec=ipvpn.DummyVPNInstanceDataplane)
@@ -933,7 +933,7 @@ class TestVRF(t.BaseTestBagPipeBGP, testtools.TestCase):
         self.mock_dp.vif_unplugged.reset_mock()
 
     def tearDown(self):
-        super(TestVRF, self).tearDown()
+        super().tearDown()
         self.vpn.stop()
         self.vpn.join()
 

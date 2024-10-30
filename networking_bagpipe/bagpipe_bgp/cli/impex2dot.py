@@ -95,14 +95,14 @@ def get_all(options):
 
                 attract = readvertise.get('attract_traffic', None)
                 if attract:
-                    rts |= set([normalize(rt)
-                                for rt in attract['redirect_rts']])
+                    rts |= {normalize(rt)
+                            for rt in attract['redirect_rts']}
 
     return (rts, vpns)
 
 
 def vpn_uid(server, vpn):
-    return "vpn_%s__%s" % (normalize(server), normalize(vpn))
+    return "vpn_{}__{}".format(normalize(server), normalize(vpn))
 
 
 def vpn_short(vpn):
@@ -158,8 +158,8 @@ Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
     print('       rank=same;')
     for rt in rts:
         label = rt.upper().replace('_', '\\n')
-        print('        %s [shape="circle",label="%s",%s];' % (rt, label,
-                                                              RT_TXT_STYLE))
+        print('        {} [shape="circle",label="{}",{}];'.format(
+            rt, label, RT_TXT_STYLE))
     print('    }')
 
     print('    subgraph ipvpns {')
@@ -180,18 +180,18 @@ Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
     print('    }')
 
     for (server, vpn, _) in vpns:
-        print('    /* %s:%s */' % (server, vpn))
+        print('    /* {}:{} */'.format(server, vpn))
         uid = vpn_uid(server, vpn)
 
         for rt_i in request(options, server, ["vpns", "instances", vpn,
                                               "route_targets", "import"]):
-            print('    %s -> %s:0 [%s];' % (normalize(rt_i), uid,
-                                            RT_STYLE))
+            print('    {} -> {}:0 [{}];'.format(normalize(rt_i), uid,
+                                                RT_STYLE))
 
         for rt_e in request(options, server, ["vpns", "instances", vpn,
                                               "route_targets", "export"]):
-            print('    %s:0 -> %s [%s];' % (uid, normalize(rt_e),
-                                            RT_STYLE))
+            print('    {}:0 -> {} [{}];'.format(uid, normalize(rt_e),
+                                                RT_STYLE))
 
         readvertise = request(options, server, ["vpns", "instances",
                                                 vpn, "readvertise"])
@@ -208,8 +208,8 @@ Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
 
             attract = readvertise.get('attract_traffic', None)
             if attract:
-                intermediate = "%s_%s_attract" % (normalize(server),
-                                                  normalize(vpn))
+                intermediate = "{}_{}_attract".format(normalize(server),
+                                                      normalize(vpn))
                 print('    %s [style=invis,height=0,width=0,'
                       'fixedsize=true,rank=1]' % intermediate)
 
@@ -233,10 +233,11 @@ Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
 
         for port in request(options, server, ["vpns", "instances",
                                               vpn, "ports"]).keys():
-            print('    %s -> port_%s_%s [%s,weight=5];' % (uid,
-                                                           normalize(server),
-                                                           normalize(port),
-                                                           PORT_LINK_STYLE))
+            print('    {} -> port_{}_{} [{},weight=5];'.format(
+                uid,
+                normalize(server),
+                normalize(port),
+                PORT_LINK_STYLE))
             ports.add((server, normalize(port)))
 
         # possible link between an E-VPN and an IPVPN ?
@@ -244,9 +245,9 @@ Example: bagpipe-impex2dot --server s1 --server s2 | dot -Tpdf > impex.pdf
                                           vpn, "gateway_port", "ipvpn"])
         if ipvpn:
             ipvpn_id = ipvpn['external_instance_id']
-            print('    %s -> %s [weight=500];' % (uid,
-                                                  vpn_uid(server, ipvpn_id))
-                  )
+            print('    {} -> {} [weight=500];'.format(
+                uid,
+                vpn_uid(server, ipvpn_id)))
 
     for (server, port) in ports:
         print('    port_%s_%s [label="",style=invis,height=0,width=0,'

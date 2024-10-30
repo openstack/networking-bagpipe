@@ -42,7 +42,7 @@ class HashableDict(dict):
         for k, v in list(_dict.items()):
             if (isinstance(v, dict) and not isinstance(v, HashableDict)):
                 _dict[k] = HashableDict(v)
-        super(HashableDict, self).__init__(_dict)
+        super().__init__(_dict)
 
     def __hash__(self):
         return hash(tuple(sorted(self.items())))
@@ -59,7 +59,7 @@ class UnorderedList(list):
         return set(make_list_hashable(self)) == set(make_list_hashable(other))
 
 
-class StringContains(object):
+class StringContains:
 
     def __init__(self, *items):
         self.items = items
@@ -71,7 +71,7 @@ class StringContains(object):
         return 'StringContains(%s)' % ','.join(self.items)
 
 
-class TestBgpvpnAgentExtensionMixin(object):
+class TestBgpvpnAgentExtensionMixin:
 
     def setUp(self):
         bulk_pull_patcher = mock.patch.object(
@@ -1583,8 +1583,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                             mac_address=base.PORT10['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
                             local_port=local_port['local_port'],
-                            export_rt=set(['64512:98']),
-                            import_rt=set(['64512:99']),
+                            export_rt={'64512:98'},
+                            import_rt={'64512:99'},
                         ),
                         dict(
                             description=mock.ANY,
@@ -1599,11 +1599,11 @@ class TestBgpvpnAgentExtensionMixin(object):
                             gateway_ip=base.NETWORK1['gateway_ip'],
                             local_port=local_port['local_port'],
                             readvertise={
-                                'from_rt': set(['64512:96']),
-                                'to_rt': set(['64512:98'])
+                                'from_rt': {'64512:96'},
+                                'to_rt': {'64512:98'}
                             },
-                            import_rt=set(['64512:99']),
-                            export_rt=set(['64512:98']),
+                            import_rt={'64512:99'},
+                            export_rt={'64512:98'},
                             local_pref=44,
                         ),
                         dict(
@@ -1619,11 +1619,11 @@ class TestBgpvpnAgentExtensionMixin(object):
                             gateway_ip=base.NETWORK1['gateway_ip'],
                             local_port=local_port['local_port'],
                             readvertise={
-                                'from_rt': set(['64512:97']),
-                                'to_rt': set(['64512:98'])
+                                'from_rt': {'64512:97'},
+                                'to_rt': {'64512:98'}
                             },
-                            import_rt=set(['64512:99']),
-                            export_rt=set(['64512:98']),
+                            import_rt={'64512:99'},
+                            export_rt={'64512:98'},
                             local_pref=55,
                         ),
                     ]
@@ -1676,8 +1676,8 @@ class TestBgpvpnAgentExtensionMixin(object):
                             mac_address=base.PORT10['mac_address'],
                             gateway_ip=base.NETWORK1['gateway_ip'],
                             local_port=local_port['local_port'],
-                            export_rt=set(['64512:98']),
-                            import_rt=set(['64512:99']),
+                            export_rt={'64512:98'},
+                            import_rt={'64512:99'},
                         ),
                         dict(
                             description=mock.ANY,
@@ -1692,11 +1692,11 @@ class TestBgpvpnAgentExtensionMixin(object):
                             gateway_ip=base.NETWORK1['gateway_ip'],
                             local_port=local_port['local_port'],
                             readvertise={
-                                'from_rt': set(['64512:97']),
-                                'to_rt': set(['64512:98'])
+                                'from_rt': {'64512:97'},
+                                'to_rt': {'64512:98'}
                             },
-                            import_rt=set(['64512:99']),
-                            export_rt=set(['64512:98']),
+                            import_rt={'64512:99'},
+                            export_rt={'64512:98'},
                             local_pref=55,
                         ),
                     ]
@@ -1751,8 +1751,8 @@ class TestBgpvpnAgentExtensionMixin(object):
         self.mocked_bagpipe_agent.do_port_plug.assert_not_called()
 
         expected_vpn_instance_id = (
-            'ipvpn_portassoc_%s_bgpvpn_%s' % (port_assoc.id,
-                                              from_bgpvpns[1][0].id)
+            'ipvpn_portassoc_{}_bgpvpn_{}'.format(port_assoc.id,
+                                                  from_bgpvpns[1][0].id)
         )
 
         self.mocked_bagpipe_agent.do_port_plug_refresh_many.assert_has_calls(
@@ -1944,8 +1944,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
         with mock.patch.object(self.agent_ext.int_br, 'get_vif_port_by_id',
                                side_effect=[self.DUMMY_VIF10,
                                             self.DUMMY_VIF11]):
-            super(TestOVSAgentExtension,
-                  self).test_net_assoc_already_plugged_ports()
+            super().test_net_assoc_already_plugged_ports()
 
             net_assoc = self._fake_net_assoc(base.NETWORK1,
                                              bgpvpn.BGPVPN_L3,
@@ -1996,8 +1995,7 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                                   'delete_flows') as tun_delete_flows, \
                 mock.patch.object(self.agent_ext.int_br,
                                   'delete_flows') as int_delete_flows:
-            net_assoc_0 = super(TestOVSAgentExtension,
-                                self).test_net_assoc_already_plugged_ports()
+            net_assoc_0 = super().test_net_assoc_already_plugged_ports()
 
             int_add_flow.assert_not_called()
 

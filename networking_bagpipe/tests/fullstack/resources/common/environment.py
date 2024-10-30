@@ -45,7 +45,7 @@ class BaGPipeEnvironmentDescription(neutron_env.EnvironmentDescription):
                  ipvpn_driver='ovs', ipvpn_encap='gre',
                  network_type='vxlan', mech_drivers='openvswitch,linuxbridge',
                  service_plugins=None):
-        super(BaGPipeEnvironmentDescription, self).__init__(
+        super().__init__(
             network_type=network_type,
             l2_pop=not bagpipe_ml2 and bgpvpn,
             mech_drivers=mech_drivers,
@@ -66,10 +66,10 @@ class BaGPipeHost(neutron_env.Host):
                  test_name, neutron_config,
                  central_data_bridge, central_external_bridge,
                  bgp_peer, bgp_port):
-        super(BaGPipeHost, self).__init__(env_desc, host_desc,
-                                          test_name, neutron_config,
-                                          central_data_bridge,
-                                          central_external_bridge)
+        super().__init__(env_desc, host_desc,
+                         test_name, neutron_config,
+                         central_data_bridge,
+                         central_external_bridge)
         self.bgp_peer = bgp_peer
         self.bgp_port = bgp_port
 
@@ -81,7 +81,7 @@ class BaGPipeHost(neutron_env.Host):
             ).bridge
             self.mpls_bridge.set_secure_mode()
 
-        super(BaGPipeHost, self)._setUp()
+        super()._setUp()
 
         self.setup_host_with_bagpipe_bgp()
 
@@ -180,7 +180,7 @@ class BaGPipeHost(neutron_env.Host):
 class GoBGPHost(neutron_env.Host):
 
     def __init__(self, bgp_address, *args, **kwargs):
-        super(GoBGPHost, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.bgp_address = bgp_address
 
@@ -249,7 +249,7 @@ class BaGPipeEnvironment(neutron_env.Environment):
                 ip_network.ExclusiveIPNetwork(
                     "240.0.0.0", "240.255.255.255", "24")).network
 
-        r = super(BaGPipeEnvironment, self)._get_network_range()
+        r = super()._get_network_range()
         if r:
             self._dont_be_paranoid()
             return r

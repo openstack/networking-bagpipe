@@ -37,7 +37,7 @@ RT1 = '64512:7'
 RT2 = '64512:42'
 
 
-class _BaGPipeObjectsTestCommon(object):
+class _BaGPipeObjectsTestCommon:
 
     def _create_test_chain_hop(self, rt, ingress_network=None,
                                egress_network=None):
@@ -166,7 +166,7 @@ class BaGPipePortHopsObjectTestCase(testlib_api.SqlTestCase,
                                     _BaGPipeObjectsTestCommon):
 
     def setUp(self):
-        super(BaGPipePortHopsObjectTestCase, self).setUp()
+        super().setUp()
         self.context = context.get_admin_context()
 
         self.ingress_network = obj_reg.new_instance('Network', self.context)

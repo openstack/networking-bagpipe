@@ -39,7 +39,7 @@ FLOW_PRIORITY = 5
 class OVSEVIDataplane(evpn.VPNInstanceDataplane):
 
     def __init__(self, *args, **kwargs):
-        super(OVSEVIDataplane, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.bridge = self.driver.bridge
         # OpenFlow 1.3 is needed for mod_vlan_vid
@@ -197,7 +197,7 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
 class TunnelManager(dataplane_utils.ObjectLifecycleManager):
 
     def __init__(self, bridge, local_ip):
-        super(TunnelManager, self).__init__()
+        super().__init__()
 
         self.bridge = bridge
         self.local_ip = local_ip
@@ -236,7 +236,7 @@ class OVSDataplaneDriver(dp_drivers.DataplaneDriver):
     ]
 
     def __init__(self, *args, **kwargs):
-        super(OVSDataplaneDriver, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         config.set_default_root_helper()
 

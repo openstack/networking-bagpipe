@@ -33,7 +33,7 @@ MAC2 = "01:00:fe:ed:f0:0d"
 class TestTunnelManager(t.TestCase):
 
     def setUp(self):
-        super(TestTunnelManager, self).setUp()
+        super().setUp()
 
         self.bridge = mock.Mock(spec=br_tun.OVSTunnelBridge)
         self.manager = ovs.TunnelManager(self.bridge, LOCAL_IP)
@@ -101,7 +101,7 @@ class FakeBridgeMockSpec(dataplane_utils.OVSBridgeWithGroups,
     pass
 
 
-class FakeNLRI(object):
+class FakeNLRI:
 
     def __init__(self, ip):
         self.ip = ip
@@ -110,7 +110,7 @@ class FakeNLRI(object):
 class TestOVSEVIDataplane(t.TestCase):
 
     def setUp(self):
-        super(TestOVSEVIDataplane, self).setUp()
+        super().setUp()
 
         self.bridge = mock.Mock(spec=FakeBridgeMockSpec)
         self.tunnel_mgr = mock.Mock(spec=ovs.TunnelManager)

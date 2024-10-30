@@ -103,12 +103,12 @@ def bagpipe_vpn_type(bgpvpn_type):
 def vpn_instance_id_for_port_assoc_route(port_assoc, route):
     bbgp_vpn_type = bagpipe_vpn_type(port_assoc.bgpvpn.type)
     if route.type == bgpvpn_rc.BGPVPN_TYPE:
-        return '%s_portassoc_%s_bgpvpn_%s' % (
+        return '{}_portassoc_{}_bgpvpn_{}'.format(
             bbgp_vpn_type, port_assoc.id, route.bgpvpn.id)
     elif route.type == bgpvpn_rc.PREFIX_TYPE:
         encoded_prefix = str(
             route.prefix).replace('.', '_').replace(':', '_').replace('/', '_')
-        return '%s_portassoc_%s_prefix_%s' % (
+        return '{}_portassoc_{}_prefix_{}'.format(
             bbgp_vpn_type, port_assoc.id, encoded_prefix)
     else:
         LOG.error("unknown route type: %s", route.type)
@@ -126,7 +126,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                                   agent_base_info.BaseInfoManager):
 
     def __init__(self):
-        super(BagpipeBgpvpnAgentExtension, self).__init__()
+        super().__init__()
         self.ports = set()
 
     @log_helpers.log_method_call
@@ -773,7 +773,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             vlan = self.vlan_manager.get(
                 port_info.network.id, port_info.network.segmentation_id).vlan
             i['local_port']['linuxif'] = (
-                '%s:%s' % (bgpvpn_const.LINUXIF_PREFIX, vlan))
+                '{}:{}'.format(bgpvpn_const.LINUXIF_PREFIX, vlan))
         else:
             i['local_port']['linuxif'] = (
                 lnx_agt.LinuxBridgeManager.get_tap_device_name(port_info.id))
@@ -896,7 +896,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             attachment = copy.deepcopy(attach_info)
             attachment['ip_address'] = port_info.ip_address
             attachment['instance_description'] = (
-                'BGPVPN %s associations for net %s (%s)' % (
+                'BGPVPN {} associations for net {} ({})'.format(
                     bbgp_vpn_type, net_info.id, net_info.gateway_info.ip))
             attachment.update(format_associations_route_targets(assocs))
 

@@ -67,7 +67,7 @@ class FilteredRoute(engine.RouteEntry):
             if attribute_id in keep_attributes:
                 attributes.add(attribute)
 
-        super(FilteredRoute, self).__init__(re.nlri, None, attributes)
+        super().__init__(re.nlri, None, attributes)
 
 
 def equivalent_route_in_routes(function, route, routes):
@@ -171,7 +171,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger,
 
             if best_routes is None:
                 self.log.trace("We had no route for this entry (%s)")
-                self.tracked_entry_2_best_routes[entry] = set([new_route])
+                self.tracked_entry_2_best_routes[entry] = {new_route}
                 best_routes = set()
                 self._call_new_best_route(entry, filtered_new_route)
             else:
@@ -398,7 +398,7 @@ class TrackerWorker(worker.Worker, lg.LookingGlassLocalLogger,
 
     @log_decorator.log
     def _call_new_best_route_for_routes(self, entry, routes):
-        routes_no_dups = set([FilteredRoute(r) for r in routes])
+        routes_no_dups = {FilteredRoute(r) for r in routes}
         self.log.debug("   After filtering duplicates: %s", routes_no_dups)
         for route in routes_no_dups:
             self._call_new_best_route(entry, route)

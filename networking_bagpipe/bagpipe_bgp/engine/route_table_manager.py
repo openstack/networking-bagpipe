@@ -35,7 +35,7 @@ def cmp(a, b):
     return (a > b) - (b > a)
 
 
-class Match(object):
+class Match:
 
     def __init__(self, afi, safi, route_target):
         assert route_target is None or isinstance(route_target,
@@ -53,8 +53,8 @@ class Match(object):
         return "match:%s" % str(self)
 
     def __str__(self):
-        return "%s/%s,%s" % (self.afi or "*", self.safi or "*",
-                             self.route_target or "*")
+        return "{}/{},{}".format(self.afi or "*", self.safi or "*",
+                                 self.route_target or "*")
 
     def __cmp__(self, other):
         assert isinstance(other, Match)
@@ -97,7 +97,7 @@ def matches_for(afi, safi, route_targets):
                     yield Match(_afi, _safi, rt)
 
 
-class WorkersAndEntries(object):
+class WorkersAndEntries:
 
     def __init__(self):
         self.workers = set()
@@ -105,8 +105,8 @@ class WorkersAndEntries(object):
         self.n_local_workers = 0
 
     def __repr__(self):
-        return "workers: %s\nentries: %s" % (self.workers,
-                                             self.entries)
+        return "workers: {}\nentries: {}".format(self.workers,
+                                                 self.entries)
 
     def add_worker(self, worker):
         '''returns True iif first local worker'''
@@ -543,7 +543,7 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin,
 
         dump.append("~~~ (source,nlri) ->  entries ~~~")
         for ((source, nlri), entry) in self._source_nlri_2_entry.items():
-            dump.append("  (%s, %s): %s" % (source, nlri, entry))
+            dump.append("  ({}, {}): {}".format(source, nlri, entry))
 
         LOG.debug("RouteTableManager data dump:\n\n%s\n", "\n".join(dump))
 

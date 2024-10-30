@@ -23,7 +23,7 @@ from networking_bagpipe.tests.unit.privileged import privsep_fixtures
 class TestPrivilegedSysctl(base.BaseTestCase):
 
     def setUp(self):
-        super(TestPrivilegedSysctl, self).setUp()
+        super().setUp()
         self.useFixture(privsep_fixtures.PrivelegedFixture())
 
     @mock.patch('oslo_concurrency.processutils.execute')

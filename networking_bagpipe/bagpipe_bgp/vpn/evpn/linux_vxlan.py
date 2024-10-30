@@ -31,7 +31,7 @@ LOG = logging.getLogger(__name__)
 class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
     def __init__(self, *args, **kwargs):
-        super(LinuxVXLANEVIDataplane, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if 'linuxbr' in kwargs:
             self.bridge_name = kwargs.get('linuxbr')
@@ -126,8 +126,8 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
                           run_as_root=True)
 
         # Plug VXLAN interface into bridge
-        privileged_utils.brctl('addif %s %s' % (self.bridge_name,
-                                                self.vxlan_if_name))
+        privileged_utils.brctl('addif {} {}'.format(self.bridge_name,
+                                                    self.vxlan_if_name))
 
     def _cleanup_vxlan_if(self):
         if VXLAN_INTERFACE_PREFIX not in self.vxlan_if_name:
@@ -175,19 +175,19 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
 
     def _unplug_from_bridge(self, interface):
         if self._interface_exists(self.bridge_name):
-            privileged_utils.brctl('delif %s %s' % (self.bridge_name,
-                                                    interface),
+            privileged_utils.brctl('delif {} {}'.format(self.bridge_name,
+                                                        interface),
                                    check_exit=[0, 1])
 
     def set_gateway_port(self, linuxif, gw_ip):
-        privileged_utils.brctl('addif %s %s' % (self.bridge_name, linuxif),
+        privileged_utils.brctl('addif {} {}'.format(self.bridge_name, linuxif),
                                check_exit=False)
 
         self._fdb_dump()
 
     def gateway_port_down(self, linuxif):
-        privileged_utils.brctl('delif %s %s' % (self.bridge_name,
-                                                linuxif),
+        privileged_utils.brctl('delif {} {}'.format(self.bridge_name,
+                                                    linuxif),
                                check_exit=False)
         # TODO(tmorin): need to cleanup bridge fdb and ip neigh ?
 
@@ -201,11 +201,11 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
             self.log.debug("Plugging localport %s into EVPN bridge %s",
                            localport['linuxif'], self.bridge_name)
             privileged_utils.brctl(
-                'addif %s %s' % (self.bridge_name, localport['linuxif']),
+                'addif {} {}'.format(self.bridge_name, localport['linuxif']),
                 check_exit=False)
 
         privileged_utils.bridge(
-            'fdb replace %s dev %s' % (mac_address, localport['linuxif']))
+            'fdb replace {} dev {}'.format(mac_address, localport['linuxif']))
 
         self._fdb_dump()
 
@@ -216,8 +216,8 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
         # remove local fdb entry, but only if tap interface is still here
         if self._is_if_on_bridge(localport['linuxif']):
             privileged_utils.bridge(
-                'fdb delete %s dev %s' % (mac_address,
-                                          localport['linuxif']))
+                'fdb delete {} dev {}'.format(mac_address,
+                                              localport['linuxif']))
 
         # unplug localport only if bridge was created by us
         if BRIDGE_NAME_PREFIX in self.bridge_name:
@@ -346,7 +346,7 @@ class LinuxVXLANDataplaneDriver(dp_drivers.DataplaneDriver):
     ]
 
     def __init__(self):
-        super(LinuxVXLANDataplaneDriver, self).__init__()
+        super().__init__()
 
         privileged_utils.modprobe('vxlan')
 

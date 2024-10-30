@@ -76,7 +76,7 @@ class BaGPipeSfcDriverTestCase(
         fc_db.FlowClassifierDbPlugin.path_prefix = (
             flowclassifier.FLOW_CLASSIFIER_PREFIX
         )
-        super(BaGPipeSfcDriverTestCase, self).setUp(
+        super().setUp(
             ext_mgr=None,
             plugin=None,
             service_plugins=service_plugins

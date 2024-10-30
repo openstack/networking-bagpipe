@@ -21,7 +21,7 @@ from networking_bagpipe.bagpipe_bgp.common import dataplane_utils
 class TestObjectLifecycleManager(testtools.TestCase):
 
     def setUp(self):
-        super(TestObjectLifecycleManager, self).setUp()
+        super().setUp()
 
         self.test_object_mgr = dataplane_utils.ObjectLifecycleManager()
         self.test_object_mgr.create_object = mock.Mock(return_value=1)

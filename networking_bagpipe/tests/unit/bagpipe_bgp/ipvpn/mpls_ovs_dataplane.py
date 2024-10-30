@@ -66,7 +66,7 @@ class TestMPLSOVSDataplaneDriver(t.TestCase):
 class TestNextHopGroupManager(t.TestCase):
 
     def setUp(self):
-        super(TestNextHopGroupManager, self).setUp()
+        super().setUp()
 
         self.bridge = mock.Mock(spec=dataplane_utils.OVSBridgeWithGroups)
         self.manager = mpls_ovs_dataplane.NextHopGroupManager(self.bridge,
@@ -126,7 +126,7 @@ class FakeBridgeMockSpec(dataplane_utils.OVSBridgeWithGroups,
     pass
 
 
-class FakeNLRI(object):
+class FakeNLRI:
 
     def __init__(self, ip):
         self.ip = ip
@@ -135,7 +135,7 @@ class FakeNLRI(object):
 class TestMPLSOVSVRFSDataplane(t.TestCase):
 
     def setUp(self):
-        super(TestMPLSOVSVRFSDataplane, self).setUp()
+        super().setUp()
 
         self.bridge = mock.Mock(spec=FakeBridgeMockSpec)
 

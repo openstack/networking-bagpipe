@@ -31,7 +31,7 @@ class TestBaGpipeML2MechDriver(test_plugin.Ml2PluginV2TestCase):
                               n_consts.TYPE_VXLAN,
                               'ml2')
 
-        super(TestBaGpipeML2MechDriver, self).setUp()
+        super().setUp()
 
     def test_setup(self):
         pass

@@ -30,7 +30,7 @@ class NeutronConfigFixture(neutron_cfg.NeutronConfigFixture):
 
     def __init__(self, env_desc, host_desc, temp_dir,
                  connection, rabbitmq_environment):
-        super(NeutronConfigFixture, self).__init__(
+        super().__init__(
             env_desc, host_desc, temp_dir, connection, rabbitmq_environment)
 
         if env_desc.bgpvpn:
@@ -48,7 +48,7 @@ class NeutronConfigFixture(neutron_cfg.NeutronConfigFixture):
 
 class BGPVPNProviderConfigFixture(neutron_cfg.ConfigFixture):
     def __init__(self, env_desc, host_desc, temp_dir):
-        super(BGPVPNProviderConfigFixture, self).__init__(
+        super().__init__(
             env_desc, host_desc, temp_dir,
             base_filename='networking_bgpvpn.conf')
 

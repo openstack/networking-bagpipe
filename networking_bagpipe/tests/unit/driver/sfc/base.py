@@ -40,7 +40,7 @@ class NeutronDbPluginV2TestCase(test_db_plugin.NeutronDbPluginV2TestCase):
         cfg.CONF.set_override(
             'mechanism_drivers', ['linuxbridge'], group='ml2')
 
-        super(NeutronDbPluginV2TestCase, self).setUp(
+        super().setUp(
             ext_mgr=ext_mgr,
             plugin=plugin,
             service_plugins=service_plugins
@@ -82,7 +82,7 @@ class NeutronDbPluginV2TestCase(test_db_plugin.NeutronDbPluginV2TestCase):
         )
 
     def tearDown(self):
-        super(NeutronDbPluginV2TestCase, self).tearDown()
+        super().tearDown()
 
     @contextlib.contextmanager
     def port(self, fmt=None, **kwargs):

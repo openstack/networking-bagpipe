@@ -16,7 +16,7 @@
 class RemotePEMACAddressNotFound(Exception):
 
     def __init__(self, ip_address):
-        super(RemotePEMACAddressNotFound, self).__init__(
+        super().__init__(
             "MAC address for %s could not be found. CAUTION:"
             " Need direct MPLS/Eth connection" % ip_address)
 
@@ -28,50 +28,51 @@ class APIException(Exception):
 class VPNNotFound(APIException):
 
     def __init__(self, vrf_id):
-        super(VPNNotFound, self).__init__("VPN %s could not be found" % vrf_id)
+        super().__init__("VPN %s could not be found" % vrf_id)
 
 
 class MalformedMACAddress(APIException):
 
     def __init__(self, address):
-        super(MalformedMACAddress, self).__init__(
+        super().__init__(
             "MAC address %s is not valid" % address)
 
 
 class MalformedIPAddress(APIException):
 
     def __init__(self, address):
-        super(MalformedIPAddress, self).__init__(
+        super().__init__(
             "IP address %s is not valid" % address)
 
 
 class OVSBridgeNotFound(APIException):
 
     def __init__(self, bridge):
-        super(OVSBridgeNotFound, self).__init__(
+        super().__init__(
             "OVS bridge '%s' doesn't exist" % bridge)
 
 
 class OVSBridgePortNotFound(APIException):
 
     def __init__(self, interface, bridge):
-        super(OVSBridgePortNotFound, self).__init__(
-            "OVS Port %s doesn't exist on OVS Bridge %s" % (interface, bridge))
+        super().__init__(
+            "OVS Port {} doesn't exist on OVS Bridge {}".format(interface,
+                                                                bridge))
 
 
 class APIMissingParameterException(APIException):
     def __init__(self, parameter):
-        super(APIMissingParameterException, self).__init__(
+        super().__init__(
             "Missing parameter: '%s'" % parameter)
 
 
 class APIAlreadyUsedVNI(APIException):
     def __init__(self, vni):
-        super(APIAlreadyUsedVNI, self).__init__(
+        super().__init__(
             "A VPN instance using vni %d already exists." % vni)
 
 
 class APINotPluggedYet(APIException):
     def __init__(self, endpoint):
-        super(APINotPluggedYet, self).__init__(
-            "Endpoint %s not plugged yet, can't unplug" % (endpoint,))
+        super().__init__(
+            "Endpoint {} not plugged yet, can't unplug".format(endpoint))

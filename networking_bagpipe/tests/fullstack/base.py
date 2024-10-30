@@ -51,7 +51,7 @@ class BaGPipeBaseFullStackTestCase(base.BaseFullStackTestCase):
                 service_plugins=self.service_plugins
             ),
             host_descriptions)
-        super(BaGPipeBaseFullStackTestCase, self).setUp(env)
+        super().setUp(env)
 
         if self.bgpvpn:
             self.safe_client = self.useFixture(

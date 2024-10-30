@@ -87,7 +87,7 @@ class BaGPipeChainHop(base.NeutronDbObject):
     rt_fields = {'rts', 'readv_from_rts', 'redirect_rts'}
 
     def from_db_object(self, db_obj):
-        super(BaGPipeChainHop, self).from_db_object(db_obj)
+        super().from_db_object(db_obj)
 
         self._load_ingress_ports(db_obj)
         self._load_egress_ports(db_obj)
@@ -215,13 +215,13 @@ class BaGPipeChainHop(base.NeutronDbObject):
 
             return chain_hops
 
-        return super(BaGPipeChainHop, cls).get_objects(
+        return super().get_objects(
             context, _pager=_pager, validate_filters=validate_filters,
             **kwargs)
 
     @classmethod
     def modify_fields_from_db(cls, db_obj):
-        fields = super(BaGPipeChainHop, cls).modify_fields_from_db(db_obj)
+        fields = super().modify_fields_from_db(db_obj)
 
         for field in cls.rt_fields:
             fields[field] = (fields[field].split(',')
@@ -235,7 +235,7 @@ class BaGPipeChainHop(base.NeutronDbObject):
 
     @classmethod
     def modify_fields_to_db(cls, fields):
-        result = super(BaGPipeChainHop, cls).modify_fields_to_db(fields)
+        result = super().modify_fields_to_db(fields)
 
         for field in cls.rt_fields:
             if result.get(field):

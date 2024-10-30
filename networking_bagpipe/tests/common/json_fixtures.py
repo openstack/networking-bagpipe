@@ -28,7 +28,7 @@ class JsonFileFixture(fixtures.Fixture):
     """
 
     def __init__(self, base_filename, config, temp_dir):
-        super(JsonFileFixture, self).__init__()
+        super().__init__()
         self.base_filename = base_filename
         self.config = config
         self.temp_dir = temp_dir

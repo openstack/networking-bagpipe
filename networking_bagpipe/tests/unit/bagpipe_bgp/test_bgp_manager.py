@@ -21,7 +21,7 @@ from networking_bagpipe.tests.unit.bagpipe_bgp import base
 class TestRouteTableManager(base.TestCase):
 
     def setUp(self):
-        super(TestRouteTableManager, self).setUp()
+        super().setUp()
 
         self.bgp_manager = bgp_manager.Manager()
 

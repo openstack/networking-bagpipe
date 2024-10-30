@@ -91,7 +91,7 @@ class RDAllocator(IDAllocator):
     MAX = 2 ** 16 - 1
 
     def __init__(self, prefix):
-        super(RDAllocator, self).__init__()
+        super().__init__()
         self.prefix = prefix
 
     def get_new_rd(self, description):
@@ -100,7 +100,7 @@ class RDAllocator(IDAllocator):
         return exa.RouteDistinguisher.fromElements(self.prefix, new_id)
 
     def release(self, rd):
-        super(RDAllocator, self).release(int(str(rd).split(':')[1]))
+        super().release(int(str(rd).split(':')[1]))
 
 
 class LabelAllocator(IDAllocator):

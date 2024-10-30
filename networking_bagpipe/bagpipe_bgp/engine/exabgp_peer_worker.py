@@ -132,7 +132,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
     # hooks into BGPPeerWorker state changes
 
     def _stop_and_clean(self):
-        super(ExaBGPPeerWorker, self)._stop_and_clean()
+        super()._stop_and_clean()
 
         self._active_families = []
 
@@ -144,7 +144,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             self.peer = None
 
     def _to_established(self):
-        super(ExaBGPPeerWorker, self)._to_established()
+        super()._to_established()
 
         if self.rtc_active:
             self.log.debug("RTC active, subscribing to all RTC routes")
