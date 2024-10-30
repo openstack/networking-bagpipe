@@ -881,9 +881,19 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                     help=("Be ready to receive VPN traffic as VXLAN, and to "
                           "preferrably send traffic as VXLAN when advertised "
                           "by the remote end")),
-        cfg.StrOpt("ovs_bridge", default="br-mpls", advanced=True),
-        cfg.IntOpt("input_table", default=0, advanced=True),
-        cfg.IntOpt("ovs_table_id_start", default=1, advanced=True),
+        cfg.StrOpt("ovs_bridge", default="br-mpls", advanced=True,
+                   help=("Name of the OVS bridge to use, this has to be the "
+                         "same as the tunneling bridge of the Neutron OVS "
+                         "agent.")),
+        cfg.IntOpt("input_table", default=0, advanced=True,
+                   help=("Specifies which OVS table will host the rules "
+                         "for traffic from VRFs")),
+        cfg.IntOpt("ovs_table_id_start", default=1, advanced=True,
+                   help=("The starting OVS table number to use for "
+                         "additional tables. The values for the encap-in "
+                         "and VRF tables are derived from this. "
+                         "NOTE: This must be different than input_table "
+                         "config option.")),
         cfg.StrOpt("gre_tunnel", default="mpls_gre", advanced=True,
                    help="OVS interface name for MPLS/GRE encap"),
         cfg.ListOpt("gre_tunnel_options", default=[],
@@ -893,7 +903,8 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                           ", ...') that will be added as OVS tunnel "
                           "interface options (e.g. 'options:packet_type="
                           "legacy_l3 options:...')")),
-        cfg.IntOpt("ovsbr_interfaces_mtu", advanced=True),
+        cfg.IntOpt("ovsbr_interfaces_mtu", advanced=True,
+                   help=("MTU used for OVS bridge interfaces.")),
         cfg.StrOpt("hash_method",
                    choices=["hash", "dp_hash"],
                    default="dp_hash",
