@@ -25,7 +25,7 @@ def sysctl(knob, value):
     :return: 0 if the command succeeded, 1 otherwise
     """
     cmd = ['sysctl']
-    cmd += ['-w', '%s=%s' % (knob, value)]
+    cmd += ['-w', '{}={}'.format(knob, value)]
     result = processutils.execute(*cmd, check_exit_code=True)
     return 1 if result[1] else 0
 

@@ -112,7 +112,7 @@ def _priority_from_prefix(prefix):
 class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     def __init__(self, *args, **kwargs):
-        super(MPLSOVSVRFDataplane, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Initialize dict where we store info on OVS ports (port numbers and
         # bound IP address)
@@ -209,7 +209,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         if exit_code != 0:
             self.log.warning("No %s if, not trying to fix MTU", itf)
         else:
-            self._run_command("ip link set %s mtu %s" % (itf, mtu),
+            self._run_command("ip link set {} mtu {}".format(itf, mtu),
                               run_as_root=True)
 
     def _get_ovs_port_specifics(self, localport):
@@ -382,8 +382,9 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
         if vpn_instance.forward_to_port(direction):
             # Map incoming MPLS traffic going to the VM port
             incoming_actions = [self.get_push_vlan_action(),
-                                "mod_dl_src:%s,mod_dl_dst:%s" % (GATEWAY_MAC,
-                                                                 mac_address),
+                                "mod_dl_src:{},mod_dl_dst:{}".format(
+                                    GATEWAY_MAC,
+                                    mac_address),
                                 "output:%s" % ovs_port]
 
             self.bridge.add_flow_extended(
@@ -483,11 +484,11 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             if (self.driver.vxlan_encap and
                     exa.Encapsulation(exa.Encapsulation.Type.VXLAN) in encaps):
                 self.log.debug("Will use a VXLAN encap for this destination")
-                return "set_field:%s->tun_dst,output:%s" % (
+                return "set_field:{}->tun_dst,output:{}".format(
                     remote_pe, self.driver.vxlan_tunnel_port_number)
             elif self.driver.use_gre:
                 self.log.debug("Using MPLS/GRE encap")
-                return "set_field:%s->tun_dst,output:%s" % (
+                return "set_field:{}->tun_dst,output:{}".format(
                     remote_pe, self.driver.gre_tunnel_port_number)
             else:
                 self.log.debug("Using bare MPLS encap")
@@ -505,7 +506,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
                 # Map traffic to remote IP address as MPLS on ethX to remote
                 # router MAC address
-                return "mod_dl_src:%s,mod_dl_dst:%s,output:%s" % (
+                return "mod_dl_src:{},mod_dl_dst:{},output:{}".format(
                     self.driver.mpls_if_mac_address, remote_pe_mac_address,
                     self.driver.ovs_mpls_if_port_number)
 
@@ -530,7 +531,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             return
 
         dec_ttl = (netaddr.IPNetwork(prefix) not in netaddr.IPNetwork(
-                   "%s/%s" % (self.gateway_ip, self.network_plen)))
+                   "{}/{}".format(self.gateway_ip, self.network_plen)))
         label_action = self._get_label_action(nexthop.label,
                                               nexthop.encaps)
         output_action = self._get_output_action(nexthop.remote_pe,
@@ -565,7 +566,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
 
     def _create_port_range_flow_matches(self, classifier_match, classifier):
         flow_matches = []
-        src_port_match = '{:s}_src'.format(classifier.protocol)
+        src_port_match = f'{classifier.protocol:s}_src'
 
         if classifier.source_port:
             if isinstance(classifier.source_port, tuple):
@@ -573,7 +574,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
             else:
                 src_port_min = src_port_max = classifier.source_port
 
-        dst_port_match = '{:s}_dst'.format(classifier.protocol)
+        dst_port_match = f'{classifier.protocol:s}_dst'
 
         if classifier.destination_port:
             if isinstance(classifier.destination_port, tuple):
@@ -669,7 +670,7 @@ class OVSBucketAllocator(identifier_allocators.IDAllocator):
     MAX = 2 ** 32 - 2 ** 8 - 1
 
 
-class NextHop(object):
+class NextHop:
 
     def __init__(self, label, remote_pe, encaps, lb_consistent_hash_order):
         self.label = label
@@ -687,16 +688,16 @@ class NextHop(object):
                      self.encaps))
 
     def __repr__(self):
-        return "NextHop(%s,%s,%s,%s)" % (self.label,
-                                         self.remote_pe,
-                                         self.encaps,
-                                         self.lb_consistent_hash_order)
+        return "NextHop({},{},{},{})".format(self.label,
+                                             self.remote_pe,
+                                             self.encaps,
+                                             self.lb_consistent_hash_order)
 
 
 class NextHopGroupManager(dataplane_utils.ObjectLifecycleManager):
 
     def __init__(self, bridge, hash_method, hash_method_param, hash_fields):
-        super(NextHopGroupManager, self).__init__()
+        super().__init__()
 
         self.bridge = bridge
         self.hash_method = hash_method
@@ -738,7 +739,7 @@ class NextHopGroupManager(dataplane_utils.ObjectLifecycleManager):
 class NextHopGroupManagerProxy(dataplane_utils.ObjectLifecycleManagerProxy):
 
     def __init__(self, manager, parent_key, vrf_table, vrf_match, cookie_func):
-        super(NextHopGroupManagerProxy, self).__init__(manager, parent_key)
+        super().__init__(manager, parent_key)
 
         self.vrf_table = vrf_table
         self.vrf_match = vrf_match
@@ -769,7 +770,8 @@ class NextHopGroupManagerProxy(dataplane_utils.ObjectLifecycleManagerProxy):
             actions = []
         bucket_allocator = self.bucket_allocators[prefix]
         bucket_id = bucket_allocator.get_new_id(
-            "Bucket ID for prefix %s and nexthop %s" % (str(prefix), nexthop),
+            "Bucket ID for prefix {} and nexthop {}".format(
+                str(prefix), nexthop),
             hint_value=nexthop.lb_consistent_hash_order
         )
         bucket = 'bucket=bucket_id=%d,%s' % (bucket_id,
@@ -913,7 +915,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
     ]
 
     def __init__(self):
-        super(MPLSOVSDataplaneDriver, self).__init__()
+        super().__init__()
 
         config.set_default_root_helper()
         config.setup_privsep()
@@ -1197,7 +1199,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         for (table_name, table_id) in self.all_tables.items():
             output.update({
                 "%s (%d)" % (table_name, table_id): self._run_command(
-                    "ovs-ofctl -O %s dump-flows --names %s '%s' %s" % (
+                    "ovs-ofctl -O {} dump-flows --names {} '{}' {}".format(
                         ovs_const.OPENFLOW15,
                         self.bridge.br_name,
                         dataplane_utils.join_s("table=%d" % table_id,
@@ -1210,8 +1212,8 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
 
     def get_lg_ovs_ports(self, path_prefix):
         (output, _) = self._run_command(
-            "ovs-ofctl -O %s show %s |grep addr" % (ovs_const.OPENFLOW15,
-                                                    self.bridge.br_name),
+            "ovs-ofctl -O {} show {} |grep addr".format(ovs_const.OPENFLOW15,
+                                                        self.bridge.br_name),
             run_as_root=True,
             acceptable_return_codes=[0, 1],
             shell=True)

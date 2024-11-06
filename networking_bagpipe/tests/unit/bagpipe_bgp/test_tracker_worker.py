@@ -103,14 +103,14 @@ class TrackerWorkerThread(tracker_worker.TrackerWorker, threading.Thread):
 class TestTrackerWorker(testtools.TestCase, t.BaseTestBagPipeBGP):
 
     def setUp(self):
-        super(TestTrackerWorker, self).setUp()
+        super().setUp()
         self.tracker_worker = TrackerWorkerThread()
         self.tracker_worker.start()
         self.set_event_target_worker(self.tracker_worker)
         self._calls = []
 
     def tearDown(self):
-        super(TestTrackerWorker, self).tearDown()
+        super().tearDown()
         self.tracker_worker.stop()
         self.tracker_worker.join()
 

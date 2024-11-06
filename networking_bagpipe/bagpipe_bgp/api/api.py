@@ -48,7 +48,7 @@ class ThreadedSimpleServer(socketserver.ThreadingMixIn,
     pass
 
 
-class PecanAPI(object):
+class PecanAPI:
 
     def __init__(self):
 

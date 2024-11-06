@@ -20,7 +20,7 @@ from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 from networking_bagpipe.tests.unit.agent import base
 
 
-class TestBaGPipeAgentExtensionMixin(object):
+class TestBaGPipeAgentExtensionMixin:
 
     def _rts_for_network(self, network):
         rt = "64512:%s" % network['segmentation_id']

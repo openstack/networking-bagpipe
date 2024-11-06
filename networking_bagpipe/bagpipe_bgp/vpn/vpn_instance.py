@@ -46,7 +46,7 @@ def forward_from_port(direction):
     return direction in (None, constants.BOTH, constants.FROM_PORT)
 
 
-class TrafficClassifier(object):
+class TrafficClassifier:
 
     def __init__(self, source_prefix=None, destination_prefix=None,
                  source_port=None, destination_port=None, protocol='tcp'):
@@ -79,11 +79,11 @@ class TrafficClassifier(object):
         return "traffic-classifier:%s" % str(self)
 
     def __str__(self):
-        return "%s-%s,%s-%s,%s" % (self.source_pfx or "*",
-                                   self.source_port or "*",
-                                   self.destination_pfx or "*",
-                                   self.destination_port or "*",
-                                   self.protocol)
+        return "{}-{},{}-{},{}".format(self.source_pfx or "*",
+                                       self.source_port or "*",
+                                       self.destination_pfx or "*",
+                                       self.destination_port or "*",
+                                       self.protocol)
 
     def __eq__(self, other):
         return (isinstance(other, self.__class__) and
@@ -404,7 +404,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         return self.dataplane.needs_cleanup_assist()
 
     def __repr__(self):
-        return "%s-%s" % (self.instance_type, self.instance_id)
+        return "{}-{}".format(self.instance_type, self.instance_id)
 
     @utils.synchronized
     @log_decorator.log
@@ -866,7 +866,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         self._raise_if_mac2ip_inconsistency(mac_address, ip_address_prefix)
 
         if endpoint not in self.endpoint_2_rd:
-            raise Exception("Endpoint record missing: %s" % (endpoint,))
+            raise Exception("Endpoint record missing: {}".format(endpoint))
 
         # Finding label and local port informations
         label = pdata.get('label')

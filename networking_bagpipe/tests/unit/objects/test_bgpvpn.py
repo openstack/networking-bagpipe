@@ -57,7 +57,7 @@ def _subnet_dict(gw_mac=None):
     }
 
 
-class _BPGVPNObjectsTestCommon(object):
+class _BPGVPNObjectsTestCommon:
 
     def _create_test_bgpvpn(self):
         bgpvpn = bgpvpn_obj.BGPVPN(self.context,

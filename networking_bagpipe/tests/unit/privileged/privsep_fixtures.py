@@ -18,6 +18,6 @@ from networking_bagpipe import privileged
 class PrivelegedFixture(fixtures.Fixture):
 
     def setUp(self):
-        super(PrivelegedFixture, self).setUp()
+        super().setUp()
         self.useFixture(fixtures.MockPatchObject(
             privileged.default_cmd, 'client_mode', False))

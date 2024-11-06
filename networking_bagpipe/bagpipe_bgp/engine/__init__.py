@@ -157,7 +157,7 @@ class RouteEntry(lg.LookingGlassMixin):
         if not skip_nexthop:
             nexthop = str(self.nexthop)
 
-        return "[RouteEntry: %s/%s %s nh:%s %s%s]" % (
+        return "[RouteEntry: {}/{} {} nh:{} {}{}]".format(
             self.afi, self.safi, self.nlri, nexthop,
             self.attributes, from_string)
 
@@ -175,7 +175,7 @@ class RouteEntry(lg.LookingGlassMixin):
             att_dict[
                 repr(exa.Attribute.CODE(attribute.ID))] = str(attribute)
 
-        res = {"afi-safi": "%s/%s" % (self.afi, self.safi),
+        res = {"afi-safi": "{}/{}".format(self.afi, self.safi),
                "attributes": att_dict,
                "next_hop": self.nexthop
                }
@@ -195,7 +195,7 @@ class RouteEntry(lg.LookingGlassMixin):
         }
 
 
-class RouteEvent(object):
+class RouteEvent:
 
     """Represents an advertisement or withdrawal of a RouteEntry"""
 
@@ -247,10 +247,11 @@ class RouteEvent(object):
             replaces_str = "replaces one route"
         else:
             replaces_str = "replaces no route"
-        return "[RouteEvent(%s): %s %s %s]" % (replaces_str,
-                                               RouteEvent.type2name[self.type],
-                                               self.route_entry,
-                                               self.source)
+        return "[RouteEvent({}): {} {} {}]".format(replaces_str,
+                                                   RouteEvent.type2name[
+                                                       self.type],
+                                                   self.route_entry,
+                                                   self.source)
 
 
 class UnsupportedRT(Exception):
@@ -259,7 +260,7 @@ class UnsupportedRT(Exception):
         self.rt = rt
 
 
-class _SubUnsubCommon(object):
+class _SubUnsubCommon:
 
     def __init__(self, afi, safi, route_target, worker=None):
         if not (route_target is None or
@@ -272,9 +273,9 @@ class _SubUnsubCommon(object):
 
     def __repr__(self):
         by_worker = " by %s" % self.worker.name if self.worker else ""
-        return "%s [%s/%s,%s]%s" % (self.__class__.__name__,
-                                    self.afi or "*", self.safi or "*",
-                                    self.route_target or "*", by_worker)
+        return "{} [{}/{},{}]{}".format(self.__class__.__name__,
+                                        self.afi or "*", self.safi or "*",
+                                        self.route_target or "*", by_worker)
 
 
 class Subscription(_SubUnsubCommon):
@@ -338,7 +339,7 @@ class EventSource(lg.LookingGlassMixin):
                 self.get_route_entries()]
 
 
-class WorkerCleanupEvent(object):
+class WorkerCleanupEvent:
 
     def __init__(self, worker):
         self.worker = worker

@@ -35,7 +35,7 @@ def _split_lg_path(path_prefix, path):
     else:
         return (path[0], path[1:],
                 # pylint: disable=no-member
-                "%s/%s" % (path_prefix, quote(path[0])))
+                "{}/{}".format(path_prefix, quote(path[0])))
 
 
 def _get_lg_local_info_recurse(obj, cls, path_prefix):
@@ -93,7 +93,7 @@ def get_lg_prefixed_path(path_prefix, path_items):
     return fmt % tuple(quoted_path_items)
 
 
-class LookingGlassMixin(object):
+class LookingGlassMixin:
 
     def _get_lg_map(self):
         # not to be overridden: calls get_lg_map, on each of the super classes
@@ -312,7 +312,7 @@ class LookingGlassMixin(object):
 class NoSuchLookingGlassObject(Exception):
 
     def __init__(self, path_prefix, path):
-        super(NoSuchLookingGlassObject, self).__init__()
+        super().__init__()
         assert isinstance(path_prefix, str)
         self.path_prefix = path_prefix
 
@@ -320,8 +320,8 @@ class NoSuchLookingGlassObject(Exception):
         self.path = path
 
     def __repr__(self):
-        return "No such looking glass object: %s at %s" % (self.path,
-                                                           self.path_prefix)
+        return "No such looking glass object: {} at {}".format(
+            self.path, self.path_prefix)
 
 
 # Looking glass reference URLs
@@ -356,7 +356,7 @@ class LookingGlassLogHandler(python_logging.Handler):
     """
 
     def __init__(self, level=logging.WARNING, max_size=100):
-        super(LookingGlassLogHandler, self).__init__(level)
+        super().__init__(level)
         self.records = []
         self.max_size = max_size
         self.setFormatter(

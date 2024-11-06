@@ -24,7 +24,7 @@ class TestIDAllocator(testtools.TestCase):
     remove_index = 2
 
     def setUp(self):
-        super(TestIDAllocator, self).setUp()
+        super().setUp()
 
         self.test_allocator = identifier_allocators.IDAllocator()
         self.test_allocator.current_id = self.min_id

@@ -32,7 +32,7 @@ class InterfaceAddress(types.ConfigType):
     }
 
     def __init__(self, type_name="interface address value", version=4):
-        super(InterfaceAddress, self).__init__(type_name=type_name)
+        super().__init__(type_name=type_name)
         self.version = version
         self.family = self.FAMILY_MAP[version]
         self.ip_address = types.IPAddress(version)
@@ -62,7 +62,7 @@ class InterfaceAddress(types.ConfigType):
 
     def _formatter(self, value):
         address = self(value)
-        return "%s(%s)" % (address, value)
+        return "{}({})".format(address, value)
 
     def __repr__(self):
         return "InterfaceAddress"

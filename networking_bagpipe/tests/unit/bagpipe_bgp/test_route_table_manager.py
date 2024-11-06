@@ -74,13 +74,13 @@ MATCH3 = rtm.Match(exa.AFI(exa.AFI.ipv4), exa.SAFI(exa.SAFI.mpls_vpn), t.RT3)
 class TestRouteTableManager(testtools.TestCase, t.BaseTestBagPipeBGP):
 
     def setUp(self):
-        super(TestRouteTableManager, self).setUp()
+        super().setUp()
         self.rtm = rtm.RouteTableManager(mock.Mock(), mock.Mock())
         self.rtm.start()
         self.set_event_target_worker(self.rtm)
 
     def tearDown(self):
-        super(TestRouteTableManager, self).tearDown()
+        super().tearDown()
         self.rtm.stop()
         self.rtm.join()
 

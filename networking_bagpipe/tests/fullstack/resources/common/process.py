@@ -34,7 +34,7 @@ class BagpipeBGPFixture(fixtures.Fixture):
 
     def __init__(self, env_desc, host_desc, test_name,
                  bgp_cfg_fixture, namespace=None):
-        super(BagpipeBGPFixture, self).__init__()
+        super().__init__()
         self.env_desc = env_desc
         self.host_desc = host_desc
         self.test_name = test_name
@@ -66,7 +66,7 @@ class BagpipeFakeRRFixture(fixtures.Fixture):
     BAGPIPE_FAKERR = "bagpipe-fakerr"
 
     def __init__(self, env_desc, host_desc, test_name):
-        super(BagpipeFakeRRFixture, self).__init__()
+        super().__init__()
         self.env_desc = env_desc
         self.host_desc = host_desc
         self.test_name = test_name
@@ -97,8 +97,8 @@ class GoBGPProcessFixture(neutron_proc.ProcessFixture):
         fileutils.ensure_tree(log_dir, mode=0o755)
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d--%H-%M-%S-%f")
-        log_file = "%s/%s--%s.log" % (log_dir, self.process_name,
-                                      timestamp)
+        log_file = "{}/{}--{}.log".format(log_dir, self.process_name,
+                                          timestamp)
 
         gobgpd_exec = shutil.which(self.exec_name)
         if not gobgpd_exec:
@@ -129,7 +129,7 @@ class GoBGPFixture(fixtures.Fixture):
     GOBGPD = "gobgpd"
 
     def __init__(self, env_desc, host_desc, test_name, gobgp_cfg_fixture):
-        super(GoBGPFixture, self).__init__()
+        super().__init__()
         self.env_desc = env_desc
         self.host_desc = host_desc
         self.test_name = test_name

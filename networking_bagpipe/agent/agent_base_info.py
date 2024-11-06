@@ -46,7 +46,7 @@ class keydefaultdict(defaultdict):
             return ret
 
 
-class CommonInfo(object):
+class CommonInfo:
 
     def __init__(self, id):
         self.id = id
@@ -72,7 +72,7 @@ class CommonInfo(object):
 class PortInfo(CommonInfo):
 
     def __init__(self, port_id):
-        super(PortInfo, self).__init__(port_id)
+        super().__init__(port_id)
 
         self.ip_address = None
         self.mac_address = None
@@ -119,7 +119,7 @@ class PortInfo(CommonInfo):
                   self.id, self.admin_state_up)
 
     def __repr__(self):
-        return "PortInfo(%s,%s)" % (self.id, self.admin_state_up)
+        return "PortInfo({},{})".format(self.id, self.admin_state_up)
 
 
 GatewayInfo = namedtuple('GatewayInfo', ['mac', 'ip'])
@@ -129,7 +129,7 @@ NO_GW_INFO = GatewayInfo(None, None)
 class NetworkInfo(CommonInfo):
 
     def __init__(self, network_id):
-        super(NetworkInfo, self).__init__(network_id)
+        super().__init__(network_id)
 
         self.gateway_info = NO_GW_INFO
         self.ports = set()
@@ -139,11 +139,11 @@ class NetworkInfo(CommonInfo):
         self.gateway_info = gateway_info
 
     def __repr__(self):
-        return "NetInfo: %s (segmentation id:%s, gw:%s), " % (
+        return "NetInfo: {} (segmentation id:{}, gw:{}), ".format(
             self.id, self.segmentation_id, self.gateway_info)
 
 
-class BaseInfoManager(object):
+class BaseInfoManager:
 
     def __init__(self):
         # Store all ports level network and service informations

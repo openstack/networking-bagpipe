@@ -28,7 +28,6 @@ disable=
  expression-not-assigned,
  fixme,
  global-statement,
- non-parent-init-called,
  not-callable,
  protected-access,
  redefined-builtin,
@@ -39,8 +38,6 @@ disable=
  unused-argument,
  unused-import,
  unused-variable,
-# TODO(dougwig) - disable nonstandard-exception while we have neutron_lib shims
- nonstandard-exception,
 # "C" Coding convention violations
  invalid-name,
  len-as-condition,
@@ -87,10 +84,6 @@ max-line-length=79
 # you should avoid to define new builtins when possible.
 # _ is used by our localization
 additional-builtins=_
-
-[CLASSES]
-# List of interface methods to ignore, separated by a comma.
-ignore-iface-methods=
 
 [IMPORTS]
 # Deprecated modules which should not be used, separated by a comma

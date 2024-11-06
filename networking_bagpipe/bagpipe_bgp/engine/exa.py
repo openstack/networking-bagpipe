@@ -1,5 +1,4 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
-# encoding: utf-8
 
 # Copyright 2017 Orange
 #

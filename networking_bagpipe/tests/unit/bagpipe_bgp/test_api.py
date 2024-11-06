@@ -22,7 +22,7 @@ from networking_bagpipe.tests.unit.bagpipe_bgp import base
 class TestAPI(base.TestCase):
 
     def setUp(self):
-        super(TestAPI, self).setUp()
+        super().setUp()
         cfg_fixture = self.useFixture(config_fixture.Config())
         cfg_fixture.register_opts(api_config.common_opts, "API")
 

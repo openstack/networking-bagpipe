@@ -77,8 +77,8 @@ def instantiate_dataplane_drivers():
                   vpn_type, driver_name)
         try:
             driver_class = stevedore.driver.DriverManager(
-                namespace='%s.%s' % (DATAPLANE_DRIVER_ENTRY_POINT_PFX,
-                                     vpn_type),
+                namespace='{}.{}'.format(DATAPLANE_DRIVER_ENTRY_POINT_PFX,
+                                         vpn_type),
                 name=driver_name,
             ).driver
 

@@ -48,7 +48,7 @@ class BaGPipeSfcDriver(driver_base.SfcDriverBase,
     """BaGPipe Sfc Driver Base Class."""
 
     def initialize(self):
-        super(BaGPipeSfcDriver, self).initialize()
+        super().initialize()
         self.rt_allocator = sfc_db.RTAllocator()
         self._push_rpc = resources_rpc.ResourcesPushRpcApi()
 

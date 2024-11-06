@@ -31,7 +31,7 @@ common_opts = [
 cfg.CONF.register_opts(common_opts, "COMMON")
 
 
-class RootwrapDaemonHelper(object):
+class RootwrapDaemonHelper:
     __client = None
     __lock = threading.Lock()
 

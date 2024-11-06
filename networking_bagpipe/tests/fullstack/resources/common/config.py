@@ -54,9 +54,9 @@ class LinuxBridgeConfigFixture(neutron_cfg.LinuxBridgeConfigFixture):
 
     def __init__(self, env_desc, host_desc, temp_dir, local_ip,
                  physical_device_name):
-        super(LinuxBridgeConfigFixture, self).__init__(env_desc, host_desc,
-                                                       temp_dir, local_ip,
-                                                       physical_device_name)
+        super().__init__(env_desc, host_desc,
+                         temp_dir, local_ip,
+                         physical_device_name)
         bagpipe_agent_config_fixture_init_common(
             self, env_desc, host_desc, local_ip)
 
@@ -64,8 +64,8 @@ class LinuxBridgeConfigFixture(neutron_cfg.LinuxBridgeConfigFixture):
 class OVSConfigFixture(neutron_cfg.OVSConfigFixture):
 
     def __init__(self, env_desc, host_desc, temp_dir, local_ip, mpls_bridge):
-        super(OVSConfigFixture, self).__init__(env_desc, host_desc,
-                                               temp_dir, local_ip)
+        super().__init__(env_desc, host_desc,
+                         temp_dir, local_ip)
         bagpipe_agent_config_fixture_init_common(
             self, env_desc, host_desc, local_ip)
 
@@ -95,7 +95,7 @@ class BagpipeBGPConfigFixture(neutron_cfg.ConfigFixture):
 
     def __init__(self, env_desc, host_desc, temp_dir, local_ip, bgp_peer,
                  bgp_port, mpls_bridge, mpls_interface):
-        super(BagpipeBGPConfigFixture, self).__init__(
+        super().__init__(
             env_desc, host_desc, temp_dir,
             base_filename='bgp.conf')
 
@@ -155,7 +155,7 @@ class GoBGPConfigFixture(JsonFixture):
 
     def __init__(self, env_desc, host_desc, temp_dir,
                  bgp_peer, bgp_port, host_ips):
-        super(GoBGPConfigFixture, self).__init__(
+        super().__init__(
             env_desc, host_desc, temp_dir,
             base_filename='gobgp.conf')
 

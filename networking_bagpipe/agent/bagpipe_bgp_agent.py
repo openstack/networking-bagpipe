@@ -12,8 +12,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import socket
-
 import httplib2
 import json
 
@@ -82,7 +80,7 @@ class SetJSONEncoder(jsonutils.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-class HTTPClientBase(object):
+class HTTPClientBase:
     """An HTTP client base class"""
 
     def __init__(self, host="127.0.0.1", port=8082,
@@ -107,7 +105,7 @@ class HTTPClientBase(object):
             headers = {'User-Agent': self.client_name,
                        "Content-Type": "application/json",
                        "Accept": "application/json"}
-            uri = "http://%s:%s/%s" % (self.host, self.port, action)
+            uri = "http://{}:{}/{}".format(self.host, self.port, action)
 
             http = httplib2.Http()
             response, content = http.request(uri, method, body, headers)
@@ -122,7 +120,7 @@ class HTTPClientBase(object):
                     "An HTTP operation has failed on bagpipe-bgp."
                 )
                 raise BaGPipeBGPException(reason=reason)
-        except (socket.error, IOError) as e:
+        except OSError as e:
             reason = "Failed to connect to bagpipe-bgp: %s" % str(e)
             raise BaGPipeBGPException(reason=reason)
 
@@ -140,7 +138,7 @@ class HTTPClientBase(object):
 
 
 def get_default_vpn_instance_id(vpn_type, network_id):
-    return '%s_%s' % (vpn_type, network_id)
+    return '{}_{}'.format(vpn_type, network_id)
 
 
 class BaGPipeBGPAgent(HTTPClientBase):
@@ -184,9 +182,8 @@ class BaGPipeBGPAgent(HTTPClientBase):
         :param agent_type: bagpipe-bgp agent type (Linux bridge or OVS)
 
         """
-        super(BaGPipeBGPAgent,
-              self).__init__(cfg.CONF.BAGPIPE.bagpipe_bgp_ip,
-                             cfg.CONF.BAGPIPE.bagpipe_bgp_port, agent_type)
+        super().__init__(cfg.CONF.BAGPIPE.bagpipe_bgp_ip,
+                         cfg.CONF.BAGPIPE.bagpipe_bgp_port, agent_type)
 
         self.agent_type = agent_type
 

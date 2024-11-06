@@ -47,7 +47,7 @@ def when(index, *args, **kwargs):
     return index.when(*args, **kwargs)
 
 
-class PingController(object):
+class PingController:
 
     def __init__(self):
         # Random generated sequence number
@@ -58,7 +58,7 @@ class PingController(object):
         return self.sequence
 
 
-class VPNManagerController(object):
+class VPNManagerController:
 
     def __init__(self):
         self.manager = vpn_manager.VPNManager.get_instance()
@@ -257,7 +257,7 @@ class LookingGlassController(VPNManagerController,
                              lg.LookingGlassMixin):
 
     def __init__(self):
-        super(LookingGlassController, self).__init__()
+        super().__init__()
 
         self.start_time = time.time()
 
@@ -277,7 +277,7 @@ class LookingGlassController(VPNManagerController,
     @when(index, method='GET')
     def process(self, *url_path_elements):
 
-        path_prefix = "%s://%s/%s" % (
+        path_prefix = "{}://{}/{}".format(
             request.scheme,  # http
             request.host,
             LOOKING_GLASS_BASE,
@@ -343,7 +343,7 @@ class LookingGlassController(VPNManagerController,
                 for record in self.catchall_lg_log_handler.get_records()]
 
 
-class RootController(object):
+class RootController:
 
     @expose(generic=True)
     def index(self):

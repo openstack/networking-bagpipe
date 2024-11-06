@@ -106,7 +106,7 @@ class BGPVPN(base.NeutronDbObject):
 
     @classmethod
     def modify_fields_from_db(cls, db_obj):
-        result = super(BGPVPN, cls).modify_fields_from_db(db_obj)
+        result = super().modify_fields_from_db(db_obj)
         for field in ['route_targets',
                       'import_targets',
                       'export_targets',
@@ -118,7 +118,7 @@ class BGPVPN(base.NeutronDbObject):
 
     @classmethod
     def modify_fields_to_db(cls, fields):
-        result = super(BGPVPN, cls).modify_fields_to_db(fields)
+        result = super().modify_fields_to_db(fields)
         for field in ['route_targets',
                       'import_targets',
                       'export_targets',
@@ -153,18 +153,18 @@ class BGPVPNNetAssociation(base.NeutronDbObject):
                         'subnets']
 
     def __init__(self, context=None, **kwargs):
-        super(BGPVPNNetAssociation, self).__init__(context, **kwargs)
+        super().__init__(context, **kwargs)
 
     def create(self):
         with self.db_context_writer(self.obj_context):
-            super(BGPVPNNetAssociation, self).create()
+            super().create()
             self.obj_load_attr('subnets')
 
     def obj_load_attr(self, attrname):
         if attrname == 'subnets':
             self._load_subnets()
         else:
-            super(BGPVPNNetAssociation, self).obj_load_attr(attrname)
+            super().obj_load_attr(attrname)
 
     def _load_subnets(self, db_obj=None):
         # pylint: disable=no-member
@@ -173,7 +173,7 @@ class BGPVPNNetAssociation(base.NeutronDbObject):
         self.obj_reset_changes(['subnets'])
 
     def from_db_object(self, obj):
-        super(BGPVPNNetAssociation, self).from_db_object(obj)
+        super().from_db_object(obj)
         self._load_subnets(obj)
 
     def all_subnets(self, network_id):
@@ -207,23 +207,23 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
                         'connected_networks']
 
     def __init__(self, context=None, **kwargs):
-        super(BGPVPNRouterAssociation, self).__init__(context, **kwargs)
+        super().__init__(context, **kwargs)
 
     def create(self):
         with self.db_context_writer(self.obj_context):
-            super(BGPVPNRouterAssociation, self).create()
+            super().create()
             self.obj_load_attr('connected_networks')
 
     def update(self):
         with self.db_context_writer(self.obj_context):
             if 'connected_networks' in self.obj_what_changed():
                 self.obj_load_attr('connected_networks')
-            super(BGPVPNRouterAssociation, self).update()
+            super().update()
 
     def obj_load_attr(self, attrname):
         if attrname == 'connected_networks':
             return self._load_connected_networks()
-        super(BGPVPNRouterAssociation, self).obj_load_attr(attrname)
+        super().obj_load_attr(attrname)
 
     @classmethod
     def get_objects(cls, context, _pager=None, validate_filters=True,
@@ -238,7 +238,7 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
             for port in ports:
                 # pylint: disable=no-member
                 router_assocs.extend(
-                    super(BGPVPNRouterAssociation, cls).get_objects(
+                    super().get_objects(
                         context, _pager=_pager,
                         validate_filters=validate_filters,
                         router_id=RouterPort.get_object(
@@ -247,7 +247,7 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
                 )
             return router_assocs
 
-        return super(BGPVPNRouterAssociation, cls).get_objects(
+        return super().get_objects(
             context, _pager=_pager, validate_filters=validate_filters,
             **kwargs)
 
@@ -282,7 +282,7 @@ class BGPVPNRouterAssociation(base.NeutronDbObject):
         self.obj_reset_changes(['connected_networks'])
 
     def from_db_object(self, obj):
-        super(BGPVPNRouterAssociation, self).from_db_object(obj)
+        super().from_db_object(obj)
         self._load_connected_networks(obj)
 
     def all_subnets(self, network_id):
@@ -321,18 +321,18 @@ class BGPVPNPortAssociation(base.NeutronDbObject):
                         'routes']
 
     def __init__(self, context=None, **kwargs):
-        super(BGPVPNPortAssociation, self).__init__(context, **kwargs)
+        super().__init__(context, **kwargs)
 
     def create(self):
         with self.db_context_writer(self.obj_context):
-            super(BGPVPNPortAssociation, self).create()
+            super().create()
             self.obj_load_attr('subnets')
 
     def obj_load_attr(self, attrname):
         if attrname == 'subnets':
             self._load_subnets()
         else:
-            super(BGPVPNPortAssociation, self).obj_load_attr(attrname)
+            super().obj_load_attr(attrname)
 
     def _load_subnets(self, db_obj=None):
         # pylint: disable=no-member
@@ -342,7 +342,7 @@ class BGPVPNPortAssociation(base.NeutronDbObject):
         self.obj_reset_changes(['subnets'])
 
     def from_db_object(self, obj):
-        super(BGPVPNPortAssociation, self).from_db_object(obj)
+        super().from_db_object(obj)
         self._load_subnets(obj)
 
     def all_subnets(self, network_id):
@@ -384,12 +384,11 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
     synthetic_fields = ['bgpvpn']
 
     def __init__(self, *args, **kwargs):
-        super(BGPVPNPortAssociationRoute, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @classmethod
     def modify_fields_from_db(cls, db_obj):
-        fields = super(BGPVPNPortAssociationRoute,
-                       cls).modify_fields_from_db(db_obj)
+        fields = super().modify_fields_from_db(db_obj)
         if 'prefix' in fields and fields['prefix'] is not None:
             fields['prefix'] = net_utils.AuthenticIPNetwork(fields['prefix'])
 
@@ -397,8 +396,7 @@ class BGPVPNPortAssociationRoute(base.NeutronDbObject):
 
     @classmethod
     def modify_fields_to_db(cls, fields):
-        result = super(BGPVPNPortAssociationRoute,
-                       cls).modify_fields_to_db(fields)
+        result = super().modify_fields_to_db(fields)
         if 'prefix' in result and result['prefix'] is not None:
             result['prefix'] = cls.filter_to_str(result['prefix'])
 

@@ -29,10 +29,10 @@ def _create_test_ipvpn_nlri(label, nexthop):
 class TestNLRIs(unittest.TestCase):
 
     def setUp(self):
-        super(TestNLRIs, self).setUp()
+        super().setUp()
 
     def tearDown(self):
-        super(TestNLRIs, self).tearDown()
+        super().tearDown()
 
     # tests on MPLS VPN NLRIs
 

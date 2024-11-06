@@ -303,7 +303,7 @@ def main():
         options.gw_ip = str(net[-2])
 
     if options.vpn_instance_id == DEFAULT_VPN_INSTANCE_ID:
-        options.vpn_instance_id = "%s-%s" % (
+        options.vpn_instance_id = "{}-{}".format(
             options.network_type, options.vpn_instance_id)
 
     if options.port.startswith("netns"):
@@ -325,7 +325,7 @@ def main():
                                                    options.if2vpn,
                                                    options.netns)
 
-        print("Local port: %s (%s)" % (options.port, options.mac))
+        print("Local port: {} ({})".format(options.port, options.mac))
         run_log_command("ip link show %s" % options.port)
 
     local_port = {}
@@ -340,8 +340,8 @@ def main():
 
         # currently our only the MPLS OVS driver for ipvpn requires preplug
         if (options.ovs_preplug and options.network_type == const.IPVPN):
-            print("pre-plugging %s into %s" % (options.port,
-                                               options.bridge))
+            print("pre-plugging {} into {}".format(options.port,
+                                                   options.bridge))
             run_log_command("ovs-vsctl del-port %s %s" %
                             (options.bridge, options.port),
                             raise_on_error=False)

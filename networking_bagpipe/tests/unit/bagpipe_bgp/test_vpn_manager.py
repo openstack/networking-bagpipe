@@ -35,7 +35,7 @@ GW_MASK = 24
 VNID = 255
 
 
-class MockVPNInstance(object):
+class MockVPNInstance:
 
     type = consts.EVPN
 
@@ -55,9 +55,9 @@ class MockVPNInstance(object):
         self.forced_vni = False
 
     def __repr__(self):
-        return "%s:%s:%s" % (self.instance_type,
-                             self.instance_id,
-                             self.external_instance_id)
+        return "{}:{}:{}".format(self.instance_type,
+                                 self.instance_id,
+                                 self.external_instance_id)
 
     @classmethod
     def validate_convert_attach_params(*args):
@@ -95,7 +95,7 @@ class MockVPNInstance(object):
 class TestVPNManager(t.TestCase):
 
     def setUp(self):
-        super(TestVPNManager, self).setUp()
+        super().setUp()
         mock.patch("networking_bagpipe.bagpipe_bgp.vpn.dataplane_drivers."
                    "instantiate_dataplane_drivers",
                    return_value={
@@ -105,7 +105,7 @@ class TestVPNManager(t.TestCase):
         self.manager = manager.VPNManager()
 
     def tearDown(self):
-        super(TestVPNManager, self).tearDown()
+        super().tearDown()
         self.manager.stop()
 
     def test_redirect_traffic_single_instance(self):

@@ -38,10 +38,10 @@ RT5 = exa.RouteTarget(64512, 50)
 
 def _rt_to_string(rt):
     assert isinstance(rt, exa.RouteTarget)
-    return "%s:%s" % (rt.asn, rt.number)
+    return "{}:{}".format(rt.asn, rt.number)
 
 
-class TestNLRI(object):
+class TestNLRI:
 
     def __init__(self, desc):
         self.desc = desc
@@ -80,7 +80,7 @@ LOG = logging.getLogger()
 class TestCase(testtools.TestCase):
 
     def setUp(self):
-        super(TestCase, self).setUp()
+        super().setUp()
         cfg_fixture = self.useFixture(config_fixture.Config())
         cfg_fixture.register_opts(config.bgp_opts, "BGP")
         cfg_fixture.config(group='BGP',
@@ -89,7 +89,7 @@ class TestCase(testtools.TestCase):
                            )
 
 
-class FakeNLRI(object):
+class FakeNLRI:
 
     def __init__(self, nlri_desc, afi=exa.AFI.ipv4, safi=exa.SAFI.mpls_vpn):
         self.nlri = nlri_desc
@@ -100,7 +100,7 @@ class FakeNLRI(object):
         return "FakeNLRI %s (%d:%d)" % (self.nlri, self.afi, self.safi)
 
 
-class BaseTestBagPipeBGP(object):
+class BaseTestBagPipeBGP:
 
     def set_event_target_worker(self, worker):
         self.event_target_worker = worker

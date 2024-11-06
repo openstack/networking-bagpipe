@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 
 
 # largely copied from networking_sfc.services.sfc.common.ovs_ext_lib
-class OVSBridgeWithGroups(object):
+class OVSBridgeWithGroups:
 
     def __init__(self, ovs_bridge):
         self.bridge = ovs_bridge
@@ -120,7 +120,7 @@ def _build_group_expr_str(group_dict, cmd):
         group_expr_arr.append(group_id)
 
     for key, value in group_dict.items():
-        group_expr_arr.append("%s=%s" % (key, value))
+        group_expr_arr.append("{}={}".format(key, value))
 
     if buckets:
         group_expr_arr.append(buckets)
@@ -158,7 +158,7 @@ def join_s(*args):
     return ','.join([_f for _f in args if _f])
 
 
-class ObjectLifecycleManager(object):
+class ObjectLifecycleManager:
 
     def __init__(self):
         self.objects = dict()
@@ -239,7 +239,7 @@ class ObjectLifecycleManager(object):
         return self.objects
 
 
-class ObjectLifecycleManagerProxy(object):
+class ObjectLifecycleManagerProxy:
 
     def __init__(self, manager, parent_user):
         self.manager = manager

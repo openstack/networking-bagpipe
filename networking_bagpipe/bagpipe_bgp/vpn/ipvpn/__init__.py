@@ -82,13 +82,13 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     @classmethod
     def validate_convert_params(cls, params, also_mandatory=()):
-        return super(VRF, cls).validate_convert_params(
+        return super().validate_convert_params(
             params,
-            also_mandatory=tuple(set(also_mandatory) | set(['ip_address'])))
+            also_mandatory=tuple(set(also_mandatory) | {'ip_address'}))
 
     @classmethod
     def validate_convert_attach_params(cls, params):
-        super(VRF, cls).validate_convert_attach_params(params)
+        super().validate_convert_attach_params(params)
         if 'gateway_ip' not in params:
             raise exc.APIMissingParameterException('gateway_ip')
 
@@ -101,7 +101,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
 
     def generate_vif_bgp_route(self, mac_address, ip_prefix, plen, label, rd):
         # Generate BGP route and advertise it...
-        nlri = self._nlri_from("%s/%s" % (ip_prefix, plen), label, rd)
+        nlri = self._nlri_from("{}/{}".format(ip_prefix, plen), label, rd)
 
         return engine.RouteEntry(nlri)
 
@@ -328,10 +328,10 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
     def vif_plugged(self, mac_address, ip_address_prefix, localport,
                     advertise_subnet=False, lb_consistent_hash_order=0,
                     local_pref=None, **kwargs):
-        super(VRF, self).vif_plugged(mac_address, ip_address_prefix,
-                                     localport, advertise_subnet,
-                                     lb_consistent_hash_order, local_pref,
-                                     **kwargs)
+        super().vif_plugged(mac_address, ip_address_prefix,
+                            localport, advertise_subnet,
+                            lb_consistent_hash_order, local_pref,
+                            **kwargs)
 
         if vpn_instance.forward_to_port(kwargs.get('direction')):
             endpoint = (mac_address, ip_address_prefix)
@@ -375,7 +375,7 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                         self._route_for_readvertisement(route, endpoint)
                     )
 
-        super(VRF, self).vif_unplugged(mac_address, ip_address_prefix)
+        super().vif_unplugged(mac_address, ip_address_prefix)
 
     # Callbacks for BGP route updates (TrackerWorker) ########################
 
@@ -408,8 +408,8 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
         if isinstance(new_route.nlri, flowspec.Flow):
             if len(new_route.ecoms(exa.TrafficRedirect)) == 1:
                 traffic_redirect = new_route.ecoms(exa.TrafficRedirect)
-                redirect_rt = "%s:%s" % (traffic_redirect[0].asn,
-                                         traffic_redirect[0].target)
+                redirect_rt = "{}:{}".format(traffic_redirect[0].asn,
+                                             traffic_redirect[0].target)
 
                 self.start_redirect_traffic(redirect_rt,
                                             new_route.nlri.rules)
@@ -452,8 +452,9 @@ class VRF(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                     if last:
                         traffic_redirect = old_route.ecoms(
                             exa.TrafficRedirect)
-                        redirect_rt = "%s:%s" % (traffic_redirect[0].asn,
-                                                 traffic_redirect[0].target)
+                        redirect_rt = "{}:{}".format(
+                            traffic_redirect[0].asn,
+                            traffic_redirect[0].target)
 
                         self.stop_redirect_traffic(redirect_rt,
                                                    old_route.nlri.rules)
