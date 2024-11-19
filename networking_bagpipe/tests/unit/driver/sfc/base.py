@@ -19,7 +19,7 @@ from oslo_utils import uuidutils
 
 from neutron_lib.api.definitions import provider_net as provider
 
-from neutron.tests.unit.db import test_db_base_plugin_v2 as test_db_plugin
+from neutron.tests.common import test_db_base_plugin_v2 as test_db_plugin
 
 SRC_CIDR = '10.10.0.0/24'
 SRC_GATEWAY = '10.10.0.1'
