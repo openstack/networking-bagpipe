@@ -29,7 +29,7 @@
             required-projects: *bagpipe_required_projects
         - openstack-tox-cover:
             required-projects: *bagpipe_required_projects
-        - neutron-tempest-plugin-bgpvpn-bagpipe:
+        - neutron-tempest-plugin-bgpvpn-bagpipe-2023-2:
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
@@ -54,7 +54,7 @@
             required-projects: *bagpipe_required_projects
         - openstack-tox-py310:
             required-projects: *bagpipe_required_projects
-        - neutron-tempest-plugin-bgpvpn-bagpipe:
+        - neutron-tempest-plugin-bgpvpn-bagpipe-2023-2:
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
@@ -75,7 +75,7 @@
             required-projects: *bagpipe_required_projects
         - networking-bagpipe-openstack-tox-py310-with-sqlalchemy-main:
             required-projects: *bagpipe_required_projects
-        - neutron-tempest-plugin-bgpvpn-bagpipe
+        - neutron-tempest-plugin-bgpvpn-bagpipe-2023-2
         - networking-bagpipe-tempest
     experimental:
       jobs:
