@@ -26,7 +26,7 @@ blockdiag components-bagpipe {
          color=orange
 
          agent_a[label="Neutron Agent\n+ bagpipe extension",color=grey,textcolor=darkorange]
-         vswitch_a[label="vswitch\n(OVS or linux)",color=lightgrey]
+         vswitch_a[label="vswitch\n(OVS)",color=lightgrey]
          bgpspeaker_a[label="bagpipe-bgp",color="darkorange"]
 
          agent_a -> bgpspeaker_a[label="REST"]
@@ -39,7 +39,7 @@ blockdiag components-bagpipe {
          color=orange
 
          agent_b[label="Neutron Agent\n+ bagpipe extension",color=grey,textcolor=darkorange]
-         vswitch_b[label="vswitch\n(OVS or linux)",color=lightgrey]
+         vswitch_b[label="vswitch\n(OVS)",color=lightgrey]
          bgpspeaker_b[label="bagpipe-bgp",color="darkorange"]
 
          agent_b -> bgpspeaker_b[label="REST"]

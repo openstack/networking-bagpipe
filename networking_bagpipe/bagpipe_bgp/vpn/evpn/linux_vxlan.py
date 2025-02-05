@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from oslo_config import cfg
 from oslo_log import log as logging
 from pyroute2 import ndb as ndb_mod  # pylint: disable=no-name-in-module
 
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp import constants as consts
-from networking_bagpipe.bagpipe_bgp.engine import exa
-from networking_bagpipe.bagpipe_bgp.vpn import dataplane_drivers as dp_drivers
 from networking_bagpipe.bagpipe_bgp.vpn import evpn
 from networking_bagpipe.privileged import privileged_utils
 
@@ -328,51 +325,3 @@ class LinuxVXLANEVIDataplane(evpn.VPNInstanceDataplane):
             "linux_bridge": self.bridge_name,
             "vxlan_if": self.vxlan_if_name
         }
-
-
-class LinuxVXLANDataplaneDriver(dp_drivers.DataplaneDriver):
-
-    """E-VPN Dataplane driver relying on Linux kernel linuxbridge VXLAN"""
-
-    dataplane_instance_class = LinuxVXLANEVIDataplane
-    type = consts.EVPN
-    required_kernel = "3.11.0"
-    encaps = [exa.Encapsulation(exa.Encapsulation.Type.VXLAN)]
-
-    driver_opts = [
-        cfg.IntOpt("vxlan_dst_port", default="4789",
-                   help=("UDP port toward which send VXLAN traffic (defaults "
-                         "to standard IANA-allocated port)")),
-    ]
-
-    def __init__(self):
-        super().__init__()
-
-        privileged_utils.modprobe('vxlan')
-
-    @log_decorator.log_info
-    def reset_state(self):
-        # delete all EVPN bridges
-        res = privileged_utils.brctl('show', check_exit=[0, 1])
-        if res and len(res) > 0:
-            res = res[0]
-        bridge_lines = [line for line in res.split('\n')[1:-1]
-                        if BRIDGE_NAME_PREFIX in line]
-
-        for b_l in bridge_lines:
-            bridge = b_l.split('\t')[0]
-            self._run_command("ip link set %s down" % bridge,
-                              run_as_root=True)
-            privileged_utils.brctl('delbr %s' % bridge)
-
-        # delete all VXLAN interfaces
-        cmd = "ip link show | awk '{print $2}' | tr -d ':' | grep '%s'"
-        for interface in self._run_command(cmd % VXLAN_INTERFACE_PREFIX,
-                                           run_as_root=True,
-                                           raise_on_error=False,
-                                           acceptable_return_codes=[0, 1],
-                                           shell=True)[0]:
-            self._run_command("ip link set %s down" % interface,
-                              run_as_root=True)
-            self._run_command("ip link delete %s" % interface,
-                              run_as_root=True)

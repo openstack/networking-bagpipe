@@ -22,15 +22,10 @@ from networking_bagpipe.agent import bagpipe_bgp_agent
 from networking_bagpipe.agent.bgpvpn import constants as bgpvpn_const
 from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 
-from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
-    import constants as lnx_agt_constants
-from neutron.plugins.ml2.drivers.linuxbridge.agent \
-    import linuxbridge_neutron_agent as lnx_agt
 from neutron.plugins.ml2.drivers.openvswitch.agent \
     import ovs_agent_extension_api as ovs_ext_agt
 from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
-from neutron.tests import base
 from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent \
     import ovs_test_base
 
@@ -208,48 +203,6 @@ class BaseTestAgentExtension:
             network_info = self.agent_ext.networks_info[network_id]
             self.assertEqual(len(network_info.ports), expected_size,
                              "Network ports size not as expected")
-
-
-class BaseTestLinuxBridgeAgentExtension(base.BaseTestCase,
-                                        BaseTestAgentExtension):
-
-    driver_type = lnx_agt_constants.EXTENSION_DRIVER_TYPE
-
-    def setUp(self):
-        base.BaseTestCase.setUp(self)
-        BaseTestAgentExtension.setUp(self)
-
-        agent_extension_api = mock.Mock()
-        self.agent_ext.consume_api(agent_extension_api)
-        self.agent_ext.initialize(self.connection,
-                                  lnx_agt_constants.EXTENSION_DRIVER_TYPE)
-
-        patcher = mock.patch('neutron.agent.linux.ip_lib.device_exists',
-                             return_value=True)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-    def _get_expected_local_port(self, bbgp_vpn_type, network_id,
-                                 segmentation_id, port_id, detach=False):
-        linuxbr = lnx_agt.LinuxBridgeManager.get_bridge_name(network_id)
-
-        if bbgp_vpn_type == bbgp_const.EVPN:
-            r = {
-                'linuxbr': linuxbr,
-                'local_port': {
-                    'linuxif': lnx_agt.LinuxBridgeManager.get_tap_device_name(
-                        port_id)
-                }
-            }
-            if detach:
-                del r['linuxbr']
-            return r
-        else:  # if bbgp_const.IPVPN:
-            return {
-                'local_port': {
-                    'linuxif': linuxbr
-                }
-            }
 
 
 PATCH_INT_TO_MPLS = 5

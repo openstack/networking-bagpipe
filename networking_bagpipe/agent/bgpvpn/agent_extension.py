@@ -43,10 +43,6 @@ from neutron.api.rpc.callbacks import events as rpc_events
 from neutron.api.rpc.handlers import resources_rpc
 from neutron.conf.agent import common as config
 from neutron.conf.plugins.ml2.drivers import ovs_conf
-from neutron.plugins.ml2.drivers.linuxbridge.agent.common \
-    import constants as lnxbridge_agt_constants
-from neutron.plugins.ml2.drivers.linuxbridge.agent import \
-    linuxbridge_neutron_agent as lnx_agt
 from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 from neutron_lib.agent import l2_extension
@@ -162,12 +158,6 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             registry.subscribe(self.ovs_restarted,
                                resources.AGENT,
                                events.OVS_RESTARTED)
-
-        elif self._is_linuxbridge_extension():
-            self.bagpipe_bgp_agent = (
-                bagpipe_bgp_agent.BaGPipeBGPAgent.get_instance(
-                    n_const.AGENT_TYPE_LINUXBRIDGE)
-            )
         else:
             raise Exception("driver type not supported: %s", driver_type)
 
@@ -185,10 +175,6 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
 
     def _is_ovs_extension(self):
         return self.driver_type == ovs_agt_consts.EXTENSION_DRIVER_TYPE
-
-    def _is_linuxbridge_extension(self):
-        return (
-            self.driver_type == lnxbridge_agt_constants.EXTENSION_DRIVER_TYPE)
 
     def _setup_rpc(self, connection):
         self.rpc_pull_api = resources_rpc.ResourcesPullRpcApi()
@@ -775,15 +761,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             i['local_port']['linuxif'] = (
                 '{}:{}'.format(bgpvpn_const.LINUXIF_PREFIX, vlan))
         else:
-            i['local_port']['linuxif'] = (
-                lnx_agt.LinuxBridgeManager.get_tap_device_name(port_info.id))
-            if bbgp_vpn_type == bbgp_const.IPVPN:
-                # the interface we need to pass to bagpipe is the
-                # bridge
-                i['local_port'].update({
-                    'linuxif': lnx_agt.LinuxBridgeManager.get_bridge_name(
-                        port_info.network.id)
-                })
+            raise Exception("The LinuxBridge driver type not supported!")
 
         return i
 
@@ -852,11 +830,6 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                             'ovs_port_number': self.patch_mpls_to_int_ofport
                         }
                     })
-        else:  # linuxbridge
-            if bbgp_vpn_type == bbgp_const.EVPN:
-                attach_info['linuxbr'] = (
-                    lnx_agt.LinuxBridgeManager.get_bridge_name(net_info.id)
-                )
 
         if bbgp_vpn_type == bbgp_const.EVPN:
             # if the network is a VXLAN network, then reuse same VNI

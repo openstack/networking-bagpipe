@@ -35,8 +35,8 @@ The networking-bagpipe package includes:
 * for use case 2: a Neutron ML2 mechanism driver (base Neutron networks),
   a networking-sfc driver (service chaining)
 
-* compute code common to both: agent extensions for Neutron agent
-  (linuxbridge or openvswitch) to consolidate and pass information via
+* compute code common to both: agent extensions for Neutron l2 agent
+  (openvswitch-agent) to consolidate and pass information via
   its REST API to BaGPipe-BGP (a lightweight BGP VPN implementation)
 
 .. _networking-bgpvpn: https://github.com/openstack/networking-bgpvpn

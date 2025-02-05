@@ -1,0 +1,5 @@
+---
+upgrade:
+  - |
+    The ``linuxbridge`` Ml2 driver is removed from core ``Neutron``, and from networking-bagpipe.
+    See the Neutron change for details: https://review.opendev.org/c/openstack/neutron/+/927216

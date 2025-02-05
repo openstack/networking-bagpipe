@@ -2135,13 +2135,3 @@ class TestOVSAgentExtension(base.BaseTestOVSAgentExtension,
                 mock_setup_mpls_br.assert_called()
 
             add_flow.assert_called()
-
-
-class TestLinuxBridgeAgentExtension(base.BaseTestLinuxBridgeAgentExtension,
-                                    TestBgpvpnAgentExtensionMixin):
-
-    agent_extension_class = bagpipe_agt_ext.BagpipeBgpvpnAgentExtension
-
-    def setUp(self):
-        base.BaseTestLinuxBridgeAgentExtension.setUp(self)
-        TestBgpvpnAgentExtensionMixin.setUp(self)

@@ -287,13 +287,6 @@ class BaGPipeBGPAgent(HTTPClientBase):
         # attributes accumulate the RTs of all the service producing
         # attachments for a given VPN instance (vpn instance id).
         #
-        # Another consolidation that is done in the case where both EVPN and
-        # IPVPN attachments are produced, and the agent is a linuxbridge agent.
-        # In that case the IPVPN attachments are modified so that instead of
-        # plugging the port into the IPVPN, the EVPN instance is plugged into
-        # the IPVPN, which is necessary so that bagpipe-bgp will connect the
-        # linux bridge to a linux VRF with a veth interface.
-        #
         # NOTE(tmorin): the code does not do consistency checks for parameters
         # that would be conflicting between attachments, for instance if
         # an EVPN attachment would specify a VNI X and another a VNI Y.

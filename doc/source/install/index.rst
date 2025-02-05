@@ -82,7 +82,7 @@ Deployment
 ~~~~~~~~~~
 
 On Neutron servers, the following needs to be done, *based on an
-ML2/linuxbridge or ML2/openvswitch configuration* as a starting point:
+ML2/openvswitch configuration* as a starting point:
 
 * installing ``networking-bagpipe`` python package (see
   :ref:`n8g_bagpipe_installation`)
@@ -90,7 +90,7 @@ ML2/linuxbridge or ML2/openvswitch configuration* as a starting point:
 * in ML2 configuration (``/etc/neutron/plugins/ml2.ini``):
 
   * adding the ``bagpipe`` mechanism driver (additionally to the
-    ``linuxbridge`` or ``openvswitch`` driver which will still handle
+    ``openvswitch`` driver which will still handle
     ``flat`` and ``vlan``    networks)
 
   * *before Queens release* (i.e. if networking-bagpipe < 8) use the
@@ -102,7 +102,7 @@ ML2/linuxbridge or ML2/openvswitch configuration* as a starting point:
 
        [ml2]
        # tenant_network_types = route_target  # before queens only!
-       mechanism_drivers = openvswitch,linuxbridge,bagpipe
+       mechanism_drivers = openvswitch,bagpipe
 
 
 You need to deploy a BGP Route Reflector, that will distribute BGP VPN routes
@@ -111,13 +111,12 @@ E-VPN and, optionally, RT Constraints. One option, among others is to use
 GoBGP_ (`sample configuration`_).
 
 On compute node (and network nodes if any) the following needs to be done,
-*based on an ML2/linuxbridge or ML2/openvswitch configuration* as a
-starting point:
+*based on and ML2/openvswitch configuration* as a starting point:
 
 * installing ``networking-bagpipe`` python package (see
   :ref:`n8g_bagpipe_installation`)
 
-* configuring Neutron linuxbridge or OpenvSwitch agent for bagpipe
+* configuring Neutron OpenvSwitch agent for bagpipe
   ``/etc/neutron/plugins/ml2.ini``:
 
   * enabling ``bagpipe`` agent extension
@@ -158,13 +157,6 @@ starting point:
        [DATAPLANE_DRIVER_EVPN]
        dataplane_driver = ovs
 
-    * ``linux`` for the linuxbridge agent:
-
-    .. code-block:: ini
-
-       [DATAPLANE_DRIVER_EVPN]
-       dataplane_driver = linux
-
 
 BaGPipe for BGPVPN
 ------------------
@@ -192,14 +184,6 @@ following needs to be done:
        # examples, of course!
        as_number = 64517
        rtnn = 10000,30000
-
-* add the ``bagpipe_sfc`` agent extension to the Neutron linuxbridge agent
-  config in``/etc/neutron/plugins/ml2.ini``:
-
-    .. code-block:: ini
-
-       [agent]
-       extensions = bagpipe_sfc
 
 * :ref:`bagpipe-bgp` lightweight BGP VPN implementation, configured to
   use ``ovs`` as dataplane driver for IPVPNs, and ``linux`` as dataplane

@@ -10,8 +10,8 @@ a. on Neutron server, allocate and associate BGP VPN constructs necessary to
 b. pass the information about these BGP VPN constructs to the compute node agent
    via Openstack Neutron message bus (typically, but not necessarily RabbitMQ)
 
-c. on compute node, a bagpipe extension of the Neutron agent (OVS or
-   linuxbridge) passes the information to the local implementation of BGP VPN
+c. on compute node, a bagpipe extension of the Neutron agent (OVS)
+   passes the information to the local implementation of BGP VPN
    extensions (:ref:`bagpipe-bgp`) that will advertise and receive
    BGP VPN routes and populate the dataplane accordingly
 
