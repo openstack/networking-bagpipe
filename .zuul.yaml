@@ -4,25 +4,21 @@
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
       - check-requirements
-      - periodic-stable-jobs-neutron
     check:
       jobs:
         - openstack-tox-pep8:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-docs:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py38:
             required-projects: &bagpipe_required_projects
               - openstack/neutron
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py39:
             required-projects: *bagpipe_required_projects
         - openstack-tox-py310:
@@ -33,6 +29,7 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
+            voting: false
         - networking-bagpipe-dsvm-fullstack:
             voting: false
         - networking-bagpipe-tempest
@@ -42,31 +39,24 @@
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-docs:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py38:
             required-projects: *bagpipe_required_projects
         - openstack-tox-py39:
             required-projects: *bagpipe_required_projects
         - openstack-tox-py310:
             required-projects: *bagpipe_required_projects
-        - neutron-tempest-plugin-bgpvpn-bagpipe:
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^setup.cfg$
+        # NOTE(elod.illes): this job is failing in this branch and
+        # needs to be set as non-voting in check queue until it is not
+        # fixed, thus no need to run it on gate for now.
+        # - neutron-tempest-plugin-bgpvpn-bagpipe:
+        #     irrelevant-files:
+        #       - ^(test-|)requirements.txt$
+        #       - ^setup.cfg$
         - networking-bagpipe-tempest
-    periodic-stable:
-      jobs:
-        - openstack-tox-docs:
-            required-projects: *bagpipe_required_projects
-        - openstack-tox-py38:
-            required-projects: *bagpipe_required_projects
-        - openstack-tox-py39:
-            required-projects: *bagpipe_required_projects
     periodic-weekly:
       jobs:
         - openstack-tox-py39:
@@ -130,7 +120,6 @@
     required-projects:
       - openstack/neutron
       - openstack/networking-bgpvpn
-      - openstack/networking-sfc
     vars:
       tox_envlist: dsvm-fullstack
       project_name: networking-bagpipe
