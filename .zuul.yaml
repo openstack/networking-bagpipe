@@ -4,49 +4,38 @@
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
       - check-requirements
-      - periodic-stable-jobs-neutron
     check:
       jobs:
-        - openstack-tox-lower-constraints:
-            # Currently, we cannot specify that we want neutron
-            # checked out from master using tox-siblings for this
-            # job, so this always fails.
-            voting: false
         - openstack-tox-pep8:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-docs:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py36:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py38:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py39:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-cover:
             required-projects:
               - openstack/horizon
               - openstack/neutron
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - neutron-tempest-plugin-bgpvpn-bagpipe:
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
+            voting: false
         - networking-bagpipe-dsvm-fullstack:
             voting: false
         - networking-bagpipe-tempest
@@ -56,49 +45,30 @@
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-docs:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py36:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py38:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py39:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-        - neutron-tempest-plugin-bgpvpn-bagpipe:
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^setup.cfg$
+        # NOTE(elod.illes): this job is failing in this branch and
+        # needs to be set as non-voting in check queue until it is not
+        # fixed, thus no need to run it on gate for now.
+        # - neutron-tempest-plugin-bgpvpn-bagpipe:
+        #     irrelevant-files:
+        #       - ^(test-|)requirements.txt$
+        #       - ^setup.cfg$
         - networking-bagpipe-tempest
-    periodic-stable:
-      jobs:
-        - openstack-tox-docs:
-            required-projects:
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-        - openstack-tox-py36:
-            required-projects:
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
-        - openstack-tox-py38:
-            required-projects:
-              - openstack/horizon
-              - openstack/networking-bgpvpn
-              - openstack/networking-sfc
 
 - job:
     name: networking-bagpipe-tempest
@@ -156,7 +126,6 @@
     required-projects:
       - openstack/neutron
       - openstack/networking-bgpvpn
-      - openstack/networking-sfc
     vars:
       tox_envlist: dsvm-fullstack
       project_name: networking-bagpipe

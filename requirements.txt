@@ -26,7 +26,7 @@ pecan>=1.3.2 # BSD
 horizon>=17.1.0 # Apache-2.0
 neutron>=16.0.0.0b1 # Apache-2.0
 networking-bgpvpn>=12.0.0.0b1 # Apache-2.0
-networking-sfc>=10.0.0.0b1 # Apache-2.0
+networking-sfc>=10.0.0.0b1,<15.0.0 # Apache-2.0
 
 # The comment below indicates this project repo is current with neutron-lib
 # and should receive neutron-lib consumption patches as they are released
