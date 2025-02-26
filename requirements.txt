@@ -22,7 +22,6 @@ pecan>=1.3.2 # BSD
 
 # OpenStack CI will install the following projects from git
 # if they are in the required-projects list for a job:
-horizon>=17.1.0 # Apache-2.0
 neutron>=23.0.0 # Apache-2.0
 networking-bgpvpn>=12.0.0 # Apache-2.0
 networking-sfc>=10.0.0 # Apache-2.0
