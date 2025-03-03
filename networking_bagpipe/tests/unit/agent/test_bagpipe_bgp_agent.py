@@ -47,7 +47,7 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
     def setUp(self):
         super().setUp()
 
-        self.agent = agent.BaGPipeBGPAgent('Linux bridge agent')
+        self.agent = agent.BaGPipeBGPAgent('ovs agent')
         self.agent._send_attach_local_port = mock.Mock()
         self.agent._send_detach_local_port = mock.Mock()
 
@@ -114,12 +114,7 @@ class TestBaGPipeBGPAgentSingleService(base.BaseTestCase):
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
-                local_port={
-                    bbgp_const.EVPN: {
-                        'id': '{}_{}'.format(bbgp_const.EVPN,
-                                             const.NETWORK_INFO1['network_id'])
-                    }
-                },
+                local_port=const.PORT_INFO1['local_port'],
                 **rts_as_set(const.IPVPN_RT100)
             ))
         ])
@@ -274,7 +269,7 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
     def setUp(self):
         super().setUp()
 
-        self.agent = agent.BaGPipeBGPAgent('Linux bridge agent')
+        self.agent = agent.BaGPipeBGPAgent('ovs agent')
         self.agent._send_attach_local_port = mock.Mock()
         self.agent._send_detach_local_port = mock.Mock()
 
@@ -370,12 +365,7 @@ class TestBaGPipeBGPAgentMultipleServices(base.BaseTestCase):
                 ip_address=const.PORT_INFO1['ip_address'],
                 mac_address=const.PORT_INFO1['mac_address'],
                 gateway_ip=const.NETWORK_INFO1['gateway_ip'],
-                local_port={
-                    bbgp_const.EVPN: {
-                        'id': '{}_{}'.format(bbgp_const.EVPN,
-                                             const.NETWORK_INFO1['network_id'])
-                    }
-                },
+                local_port=const.PORT_INFO1['local_port'],
                 **rts_as_set(const.IPVPN_RT100)
             ))
         ])

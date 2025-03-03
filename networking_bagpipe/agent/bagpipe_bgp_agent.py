@@ -30,7 +30,6 @@ from networking_bagpipe.bagpipe_bgp import constants as bbgp_const
 
 from neutron.conf.agent import common as config
 
-from neutron_lib import constants as n_const
 from neutron_lib import exceptions as n_exc
 
 LOG = logging.getLogger(__name__)
@@ -391,17 +390,6 @@ class BaGPipeBGPAgent(HTTPClientBase):
 
             if vpn_attachment_list:
                 attach_list[vpn_type] = vpn_attachment_list
-
-        if self.agent_type == n_const.AGENT_TYPE_LINUXBRIDGE:
-            if (attach_list.get(bbgp_const.EVPN) and
-                    attach_list.get(bbgp_const.IPVPN)):
-                # go through all IPVPN attachments and rewrite local_port
-                # to point to the evpn instance, rather than the VM port
-                for attachment in attach_list[bbgp_const.IPVPN]:
-                    attachment['local_port'] = {bbgp_const.EVPN: {
-                        'id': attachment['vpn_instance_id'].replace('ipvpn',
-                                                                    'evpn')
-                    }}
 
         LOG.debug("all attachments for port %s: %s", port_id, attach_list)
         return attach_list

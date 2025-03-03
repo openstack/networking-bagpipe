@@ -15,7 +15,7 @@
 
 """
 L2 Agent extension to support bagpipe networking-bgpvpn driver RPCs in the
-OpenVSwitch and Linuxbridge agents
+OpenVSwitch agent
 """
 
 import collections
