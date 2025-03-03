@@ -32,7 +32,6 @@ class TestBaGPipeML2ConnectivitySameNetwork(base.BaGPipeBaseFullStackTestCase):
     service_plugins = 'router'
 
     l2_agent_type = constants.AGENT_TYPE_OVS
-    of_interface = None
 
     compute_node_count = 5
     port_per_compute_per_net = 2
