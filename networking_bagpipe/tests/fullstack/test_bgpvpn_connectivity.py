@@ -34,7 +34,6 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
     bagpipe_ml2 = False
     service_plugins = 'router,%s' % bgpvpn_cfg.BGPVPN_SERVICE
 
-    of_interface = 'ovs-ofctl'
     bgpvpn = True
 
     port_per_compute_per_net = 2

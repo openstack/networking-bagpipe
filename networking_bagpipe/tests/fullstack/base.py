@@ -36,8 +36,7 @@ class BaGPipeBaseFullStackTestCase(base.BaseFullStackTestCase):
 
     def setUp(self):
         host_descriptions = [
-            neutron_env.HostDescription(of_interface=self.of_interface,
-                                        l2_agent_type=self.l2_agent_type)
+            neutron_env.HostDescription(l2_agent_type=self.l2_agent_type)
             for _ in range(self.compute_node_count)
         ]
         env = common_env.BaGPipeEnvironment(
