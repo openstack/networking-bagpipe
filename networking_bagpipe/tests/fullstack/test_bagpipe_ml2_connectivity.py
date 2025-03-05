@@ -31,7 +31,7 @@ class TestBaGPipeML2ConnectivitySameNetwork(base.BaGPipeBaseFullStackTestCase):
     mech_drivers = 'bagpipe'
     service_plugins = 'router'
 
-    l2_agent_type = constants.AGENT_TYPE_LINUXBRIDGE
+    l2_agent_type = constants.AGENT_TYPE_OVS
     of_interface = None
 
     compute_node_count = 5

@@ -43,7 +43,7 @@ class BaGPipeEnvironmentDescription(neutron_env.EnvironmentDescription):
 
     def __init__(self, bagpipe_ml2=False, evpn_driver='linux', bgpvpn=False,
                  ipvpn_driver='ovs', ipvpn_encap='gre',
-                 network_type='vxlan', mech_drivers='openvswitch,linuxbridge',
+                 network_type='vxlan', mech_drivers='openvswitch',
                  service_plugins=None):
         super().__init__(
             network_type=network_type,
@@ -103,31 +103,6 @@ class BaGPipeHost(neutron_env.Host):
                 self.env_desc, self.host_desc,
                 self.test_name, self.neutron_config, agent_cfg_fixture))
 
-    def setup_host_with_linuxbridge_agent(self):
-        self.host_namespace = self.useFixture(
-            net_helpers.NamespaceFixture(prefix="host-")
-        ).name
-
-        self.connect_namespace_to_control_network()
-
-        agent_cfg_fixture = config.LinuxBridgeConfigFixture(
-            self.env_desc, self.host_desc,
-            self.neutron_config.temp_dir,
-            self.local_ip,
-            physical_device_name=self.host_port.name
-        )
-        self.useFixture(agent_cfg_fixture)
-
-        agent_fixture_cls = neutron_proc.LinuxBridgeAgentFixture
-
-        self.linuxbridge_agent = self.useFixture(
-            agent_fixture_cls(
-                self.env_desc, self.host_desc,
-                self.test_name, self.neutron_config, agent_cfg_fixture,
-                namespace=self.host_namespace
-            )
-        )
-
     def setup_host_with_bagpipe_bgp(self):
         if self.host_desc.l2_agent_type == constants.AGENT_TYPE_OVS:
             mpls_bridge = (self.mpls_bridge.br_name
@@ -142,9 +117,6 @@ class BaGPipeHost(neutron_env.Host):
                     mpls_interface = filter(
                         lambda port: net_helpers.VETH0_PREFIX
                         in port, self.mpls_bridge.get_port_name_list())[0]
-        elif self.host_desc.l2_agent_type == constants.AGENT_TYPE_LINUXBRIDGE:
-            mpls_bridge = None
-            mpls_interface = self.host_port.name
 
         bgp_cfg_fixture = common_cfg.BagpipeBGPConfigFixture(
             self.env_desc, self.host_desc, self.neutron_config.temp_dir,

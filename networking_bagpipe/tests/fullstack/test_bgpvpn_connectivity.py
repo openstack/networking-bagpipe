@@ -58,13 +58,6 @@ class TestConnectivitySameBGPVPN(base.BaGPipeBaseFullStackTestCase):
             'l2_agent_type': constants.AGENT_TYPE_OVS,
             'ipvpn_driver': 'ovs',
             'ipvpn_encap': 'bare-mpls'
-        }),
-        ('Linuxbridge', {
-            'mech_drivers': 'linuxbridge',
-            'l2_agent_type': constants.AGENT_TYPE_LINUXBRIDGE,
-            'ipvpn_driver': 'linux',
-            'evpn_driver': 'linux',
-            'ipvpn_encap': 'bare-mpls',
         })
     ]
 

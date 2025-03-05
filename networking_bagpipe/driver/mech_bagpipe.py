@@ -47,7 +47,7 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
     def __init__(self):
         sg_enabled = securitygroups_rpc.is_firewall_enabled()
         super().__init__(
-            n_const.AGENT_TYPE_LINUXBRIDGE,
+            n_const.AGENT_TYPE_OVS,
             portbindings.VIF_TYPE_BRIDGE,
             {portbindings.CAP_PORT_FILTER: sg_enabled})
 

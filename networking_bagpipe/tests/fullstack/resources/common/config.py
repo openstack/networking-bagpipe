@@ -50,17 +50,6 @@ def bagpipe_agent_config_fixture_init_common(self, env_desc, host_desc,
     })
 
 
-class LinuxBridgeConfigFixture(neutron_cfg.LinuxBridgeConfigFixture):
-
-    def __init__(self, env_desc, host_desc, temp_dir, local_ip,
-                 physical_device_name):
-        super().__init__(env_desc, host_desc,
-                         temp_dir, local_ip,
-                         physical_device_name)
-        bagpipe_agent_config_fixture_init_common(
-            self, env_desc, host_desc, local_ip)
-
-
 class OVSConfigFixture(neutron_cfg.OVSConfigFixture):
 
     def __init__(self, env_desc, host_desc, temp_dir, local_ip, mpls_bridge):
