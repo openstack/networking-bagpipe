@@ -50,12 +50,9 @@ class InterfaceAddress(types.ConfigType):
                 except KeyError:
                     raise ValueError("interface %s does not exist" % value)
 
-                # we can't use an iterator if we want to access dictionaries
-                # inside ipaddr
-                for i in range(0, len(interface.ipaddr)):
-                    addr = interface.ipaddr[i]
-                    if addr['family'] == self.family:
-                        return self.ip_address(addr['address'])
+                for iface_addr in interface.ipaddr:
+                    if iface_addr['family'] == self.family:
+                        return self.ip_address(iface_addr['address'])
 
                 raise ValueError("no IPv%s address found on interface %s",
                                  self.version, value)
