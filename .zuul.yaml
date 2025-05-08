@@ -56,7 +56,7 @@
             required-projects: *bagpipe_required_projects
         - openstack-tox-py311:
             required-projects: *bagpipe_required_projects
-        - neutron-tempest-plugin-bgpvpn-bagpipe:
+        - neutron-tempest-plugin-bgpvpn-bagpipe-2024-2:
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
