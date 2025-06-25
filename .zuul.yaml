@@ -31,8 +31,6 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
-        - networking-bagpipe-dsvm-fullstack:
-            voting: false
         - networking-bagpipe-tempest
     gate:
       jobs:
@@ -124,15 +122,3 @@
     irrelevant-files:
       - ^(test-|)requirements.txt$
       - ^setup.cfg$
-
-- job:
-    name: networking-bagpipe-dsvm-fullstack
-    parent: neutron-fullstack
-    timeout: 7800
-    required-projects:
-      - openstack/neutron
-      - openstack/networking-bgpvpn
-      - openstack/networking-sfc
-    vars:
-      tox_envlist: dsvm-fullstack
-      project_name: networking-bagpipe
