@@ -180,11 +180,6 @@ following needs to be done:
        [sfc]
        drivers = bagpipe
 
-       [sfc_bagpipe]
-       # examples, of course!
-       as_number = 64517
-       rtnn = 10000,30000
-
 * :ref:`bagpipe-bgp` lightweight BGP VPN implementation, configured to
   use ``ovs`` as dataplane driver for IPVPNs, and ``linux`` as dataplane
   driver for EVPN (``/etc/bagpipe-bgp/bgp.conf``):
@@ -218,10 +213,6 @@ Queens release) :
 
        [sfc]
        drivers = bagpipe
-
-       [sfc_bagpipe]
-       as_number = 64517
-       rtnn = 10000,30000
 
 
        [[post-config|/$NEUTRON_CORE_PLUGIN_CONF]]
