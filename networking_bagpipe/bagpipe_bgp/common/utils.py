@@ -18,6 +18,7 @@ import re
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.engine import exa
 
 
@@ -80,7 +81,7 @@ def convert_route_targets(orig_list):
             asn, nn = rt.split(':')
             list_.append(exa.RouteTarget(int(asn), int(nn)))
         except Exception:
-            raise Exception("Malformed route target: '%s'" % rt)
+            raise Exception(_("Malformed route target: '%s'" % rt))
     return list_
 
 

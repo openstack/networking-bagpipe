@@ -38,6 +38,7 @@ from twisted.internet import protocol
 from twisted.internet import reactor
 from twisted.protocols import basic
 
+from networking_bagpipe._i18n import _
 # pylint: disable=no-member
 
 
@@ -55,8 +56,8 @@ class FakeRR(basic.LineReceiver):
                       "reseting everyone !" % self.transport.getPeer().host)
                 for client in self.factory.clients:
                     client.transport.loseConnection()
-                raise Exception("Have already 2 peers, not accepting more !"
-                                "  (%s)" % self.transport.getPeer().host)
+                raise Exception(_("Have already 2 peers, not accepting more !"
+                                  "  (%s)" % self.transport.getPeer().host))
 
             print("Got new peer: %s" % self.transport.getPeer().host)
 

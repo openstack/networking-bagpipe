@@ -27,6 +27,7 @@ import optparse
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.api import config as api_config
 from networking_bagpipe.bagpipe_bgp.common import net_utils
 from networking_bagpipe.bagpipe_bgp.common import run_command
@@ -332,7 +333,7 @@ def main():
             print("will plug evpn %s into the IPVPN" % options.port[5:])
             local_port['evpn'] = {'id': options.port[5:]}
         else:
-            raise Exception("Can only plug an evpn into an ipvpn")
+            raise Exception(_("Can only plug an evpn into an ipvpn"))
     else:
         local_port['linuxif'] = options.port
 

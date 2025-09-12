@@ -23,6 +23,7 @@ from oslo_utils import versionutils
 
 from neutron.common import utils as n_utils
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.common import dataplane_utils
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
@@ -233,8 +234,8 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                     except KeyError:
                         port_name = localport['linuxif']
                 except Exception:
-                    raise Exception("Trying to find which port to plug, but no"
-                                    " portname was provided")
+                    raise Exception(_("Trying to find which port to plug,"
+                                      " but no portname was provided"))
 
                 try:
                     port = self.driver.find_ovs_port(port_name)
@@ -243,7 +244,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                 self.log.debug("Corresponding port number: %s", port)
         except KeyError as e:
             self.log.error("Incomplete port specification: %s", e)
-            raise Exception("Incomplete port specification: %s" % e)
+            raise Exception(_("Incomplete port specification: %s" % e))
 
         return (port, port_name)
 
@@ -330,8 +331,8 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                 self.log.error("different VLAN for different interfaces: "
                                "%s vs %s", self.ovs_vlan,
                                ovs_vlan)
-                raise Exception("can't specify a different VLAN for different"
-                                " interfaces")
+                raise Exception(_("can't specify a different VLAN for "
+                                  "different interfaces"))
 
     @log_decorator.log
     def vif_plugged(self, mac_address, ip_address, localport, label,
@@ -950,17 +951,17 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
 
         if not self.mpls_interface:
             if not self.use_gre:
-                raise Exception("mpls_over_gre force-disabled, but no "
-                                "mpls_interface specified")
+                raise Exception(_("mpls_over_gre force-disabled, but no "
+                                  "mpls_interface specified"))
             else:
                 self.use_gre = True
                 self.log.info("Defaulting to use of MPLS-over-GRE (no "
                               "mpls_interface specified)")
         elif self.mpls_interface == "*gre*":
             if not self.use_gre:
-                raise Exception("mpls_over_gre force-disabled, but "
-                                "mpls_interface set to '*gre', cannot "
-                                "use bare MPLS")
+                raise Exception(_("mpls_over_gre force-disabled, but "
+                                  "mpls_interface set to '*gre', cannot "
+                                  "use bare MPLS"))
             else:
                 self.log.info("mpls_interface is '*gre*', will thus use "
                               "MPLS-over-GRE")
@@ -978,10 +979,10 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         self.input_table = self.config.input_table
 
         if self.config.ovs_table_id_start == self.input_table:
-            raise Exception("invalid ovs_table_id_start (%d): can't use tables"
-                            " same as input table (%d)" % (
-                                self.config.ovs_table_id_start,
-                                self.config.input_table))
+            raise Exception(_("invalid ovs_table_id_start (%d): can't use"
+                              "tables same as input table (%d)" % (
+                                  self.config.ovs_table_id_start,
+                                  self.config.input_table)))
 
         self.encap_in_table = self.config.ovs_table_id_start
         self.vrf_table = self.config.ovs_table_id_start + 1
@@ -1030,9 +1031,9 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
                           "physical interface %s", self.mpls_interface)
             # Check if MPLS interface is attached to OVS bridge
             if not self.bridge.port_exists(self.mpls_interface):
-                raise Exception("Specified mpls_interface %s is not plugged to"
-                                " OVS bridge %s" % (self.mpls_interface,
-                                                    self.bridge.br_name))
+                raise Exception(_("Specified mpls_interface %s is not plugged"
+                                  " to OVS bridge %s" % (self.mpls_interface,
+                                                         self.bridge.br_name)))
             else:
                 self.ovs_mpls_if_port_number = self.bridge.get_port_ofport(
                     self.mpls_interface)
@@ -1177,7 +1178,7 @@ class MPLSOVSDataplaneDriver(dp_drivers.DataplaneDriver):
         ofport = self.bridge.get_port_ofport(dev_name)
 
         if ofport is None:
-            raise Exception("OVS port not found for device %s" % dev_name)
+            raise Exception(_("OVS port not found for device %s" % dev_name))
 
         return ofport
 

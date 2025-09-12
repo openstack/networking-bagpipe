@@ -24,6 +24,8 @@ from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as n_const
 
+from networking_bagpipe._i18n import _
+
 
 LOG = log.getLogger(__name__)
 
@@ -52,9 +54,9 @@ class BaGPipeMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             {portbindings.CAP_PORT_FILTER: sg_enabled})
 
         if cfg.CONF.ml2_bagpipe.as_number != -1:
-            raise Exception(
+            raise Exception(_(
                 "bagpipe AS configuration must be done on neutron l2 agents, "
-                "in [ml2_bagpipe_extension]")
+                "in [ml2_bagpipe_extension]"))
 
     def get_allowed_network_types(self, agent):
         return (agent['configurations'].get('tunnel_types', []) +

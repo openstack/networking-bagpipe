@@ -137,8 +137,9 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             self.tun_br = self.agent_api.request_tun_br()
 
             if self.tun_br is None:
-                raise Exception("tunneling is not enabled in OVS agent, "
-                                "however bagpipe_bgpvpn extensions needs it")
+                raise Exception(_("tunneling is not enabled in OVS agent, "
+                                  "however bagpipe_bgpvpn extensions "
+                                  "needs it"))
 
             if cfg.CONF.SECURITYGROUP.firewall_driver != "openvswitch":
                 LOG.warning('Neutron router fallback supported only with the '
@@ -159,7 +160,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
                                resources.AGENT,
                                events.OVS_RESTARTED)
         else:
-            raise Exception("driver type not supported: %s", driver_type)
+            raise Exception(_("driver type not supported: %s" % driver_type))
 
         self.bagpipe_bgp_agent.register_build_callback(
             bgpvpn_const.BGPVPN_SERVICE,
@@ -761,7 +762,7 @@ class BagpipeBgpvpnAgentExtension(l2_extension.L2AgentExtension,
             i['local_port']['linuxif'] = (
                 '{}:{}'.format(bgpvpn_const.LINUXIF_PREFIX, vlan))
         else:
-            raise Exception("The LinuxBridge driver type not supported!")
+            raise Exception(_("The LinuxBridge driver type not supported!"))
 
         return i
 

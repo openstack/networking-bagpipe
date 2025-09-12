@@ -16,6 +16,7 @@ import threading
 
 from oslo_log import log as logging
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -105,27 +106,27 @@ class VPNManager(lg.LookingGlassMixin, utils.ClassReprMixin):
         assert 'evpn' in localport
 
         if 'id' not in localport['evpn']:
-            raise Exception("Missing parameter 'id' :an external EVPN "
-                            "instance id must be specified for an EVPN "
-                            "attachment")
+            raise Exception(_("Missing parameter 'id' :an external EVPN "
+                              "instance id must be specified for an EVPN "
+                              "attachment"))
 
         try:
             evpn = self.vpn_instances[localport['evpn']['id']]
         except Exception:
-            raise Exception("The specified evpn instance does not exist (%s)"
-                            % localport['evpn'])
+            raise Exception(_("The specified evpn instance does not exist (%s)"
+                              % localport['evpn']))
 
         if evpn.type != constants.EVPN:
-            raise Exception("The specified instance to plug is not an evpn"
-                            "instance (is %s instead)" % evpn.type)
+            raise Exception(_("The specified instance to plug is not an evpn"
+                              "instance (is %s instead)" % evpn.type))
 
         if ipvpn_instance in self._evpn_ipvpn_ifs:
             (evpn_if, ipvpn_if, evpn, managed) = \
                 self._evpn_ipvpn_ifs[ipvpn_instance]
 
             if localport['evpn']['id'] != evpn.external_instance_id:
-                raise Exception('Trying to plug into an IPVPN a new E-VPN '
-                                'while one is already plugged in')
+                raise Exception(_("Trying to plug into an IPVPN a new E-VPN "
+                                  "while one is already plugged in"))
             else:
                 # do nothing
                 LOG.warning('Trying to plug an E-VPN into an IPVPN, but it was'
@@ -135,12 +136,12 @@ class VPNManager(lg.LookingGlassMixin, utils.ClassReprMixin):
 
         #  detect if this evpn is already plugged into an IPVPN
         if evpn.has_gateway_port():
-            raise Exception("Trying to plug E-VPN into an IPVPN, but this EVPN"
-                            " is already plugged into an IPVPN")
+            raise Exception(_("Trying to plug E-VPN into an IPVPN, but this "
+                              "EVPN  is already plugged into an IPVPN"))
 
         if 'linuxif' in localport and localport['linuxif']:
-            raise Exception("Cannot specify an attachment with both a linuxif "
-                            "and an evpn")
+            raise Exception(_("Cannot specify an attachment with both a "
+                              "linuxif and an evpn"))
 
         if 'ovs_port_name' in localport['evpn']:
             try:
@@ -148,9 +149,10 @@ class VPNManager(lg.LookingGlassMixin, utils.ClassReprMixin):
                 assert (localport['ovs']['port_name'] or
                         localport['ovs']['port_number'])
             except Exception:
-                raise Exception("Using ovs_port_name in EVPN/IPVPN attachment"
-                                " requires specifying the corresponding OVS"
-                                " port, which must also be pre-plugged")
+                raise Exception(_("Using ovs_port_name in EVPN/IPVPN "
+                                  "attachment requires specifying the "
+                                  "corresponding OVS port, which must "
+                                  "also be pre-plugged"))
 
             evpn_if = localport['evpn']['ovs_port_name']
 
@@ -232,11 +234,11 @@ class VPNManager(lg.LookingGlassMixin, utils.ClassReprMixin):
 
         if vpn_instance:
             if vpn_instance.type != instance_type:
-                raise Exception("Found an existing vpn_instance with "
-                                "external id %s but a different type "
-                                "(asked %s vs. already having %s)"
-                                % (external_instance_id,
-                                   instance_type, vpn_instance.type))
+                raise Exception(_("Found an existing vpn_instance with "
+                                  "external id %s but a different type "
+                                  "(asked %s vs. already having %s)"
+                                  % (external_instance_id,
+                                     instance_type, vpn_instance.type)))
             return vpn_instance, True
 
         if not kwargs.pop('create_if_none', True):
@@ -333,7 +335,7 @@ class VPNManager(lg.LookingGlassMixin, utils.ClassReprMixin):
                 readvertise = {k: utils.convert_route_targets(readvertise[k])
                                for k in ['from_rt', 'to_rt']}
             except KeyError as e:
-                raise Exception("Wrong 'readvertise' parameters: %s" % e)
+                raise Exception(_("Wrong 'readvertise' parameters: %s" % e))
 
         if attract_traffic:
             try:
@@ -342,7 +344,8 @@ class VPNManager(lg.LookingGlassMixin, utils.ClassReprMixin):
                         attract_traffic['redirect_rts'])
                 )
             except KeyError as e:
-                raise Exception("Wrong 'attract_traffic' parameters: %s" % e)
+                raise Exception(_("Wrong 'attract_traffic' parameters: %s" %
+                                  e))
 
         kwargs = {}
         if vni:

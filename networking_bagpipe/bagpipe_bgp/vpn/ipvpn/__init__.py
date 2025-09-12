@@ -15,6 +15,8 @@
 import abc
 import itertools
 
+from networking_bagpipe._i18n import _
+
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -47,10 +49,10 @@ class DummyVPNInstanceDataplane(dp_drivers.DummyVPNInstanceDataplane,
                                 VPNInstanceDataplane):
 
     def add_dataplane_for_traffic_classifier(self, *args, **kwargs):
-        raise Exception("not implemented")
+        raise Exception(_("not implemented"))
 
     def remove_dataplane_for_traffic_classifier(self, *args, **kwargs):
-        raise Exception("not implemented")
+        raise Exception(_("not implemented"))
 
 
 class DummyDataplaneDriver(dp_drivers.DummyDataplaneDriver):

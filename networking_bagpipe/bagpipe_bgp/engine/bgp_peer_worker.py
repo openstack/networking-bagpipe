@@ -19,6 +19,7 @@ import time
 
 from oslo_log import log as logging
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp import engine
 from networking_bagpipe.bagpipe_bgp.engine import worker
@@ -75,7 +76,7 @@ class FSM:
                 "%s BGP FSM transitioned from '%s' to '%s' state" %
                 (self.worker, self._prev_state, self._state))
         else:
-            raise Exception("no such state (%s)" % repr(state))
+            raise Exception(_("no such state (%s)" % repr(state)))
 
     def __repr__(self):
         return self._state
@@ -169,8 +170,8 @@ class BGPPeerWorker(worker.Worker,
             if self.fsm.state == FSM.Established:
                 self._send(self._update_for_route_event(event))
             else:
-                raise Exception("cannot process event in '%s' state"
-                                % self.fsm.state)
+                raise Exception(_("cannot process event in '%s' state"
+                                  % self.fsm.state))
 
         elif event == SEND_KEEP_ALIVE:
             self._send(self._keep_alive_message_data())
