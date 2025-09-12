@@ -20,6 +20,8 @@ from oslo_config import types
 from oslo_privsep import priv_context
 from pyroute2 import ndb as ndb_module
 
+from networking_bagpipe._i18n import _
+
 
 class InterfaceAddress(types.ConfigType):
     # Option type for a config entry accepting whether an IP address
@@ -48,14 +50,14 @@ class InterfaceAddress(types.ConfigType):
                 try:
                     interface = ndb.interfaces[value]
                 except KeyError:
-                    raise ValueError("interface %s does not exist" % value)
+                    raise ValueError(_("interface %s does not exist" % value))
 
                 for iface_addr in interface.ipaddr:
                     if iface_addr['family'] == self.family:
                         return self.ip_address(iface_addr['address'])
 
-                raise ValueError("no IPv%s address found on interface %s",
-                                 self.version, value)
+                raise ValueError(_("no IPv%s address found on interface %s" %
+                                   (self.version, value)))
 
     def _formatter(self, value):
         address = self(value)

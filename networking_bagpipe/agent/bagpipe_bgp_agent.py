@@ -170,7 +170,8 @@ class BaGPipeBGPAgent(HTTPClientBase):
             cls._create_instance(agent_type)
         else:
             if cls._instance.agent_type != agent_type:
-                raise Exception("Agent already configured with another type")
+                raise Exception(
+                    _("Agent already configured with another type"))
 
         return cls._instance
 

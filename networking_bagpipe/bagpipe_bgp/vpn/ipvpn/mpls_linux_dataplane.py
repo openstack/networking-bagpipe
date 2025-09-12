@@ -22,6 +22,8 @@ import pyroute2
 from pyroute2 import common as pr_common  # pylint: disable=no-name-in-module
 from pyroute2 import netlink  # pylint: disable=no-name-in-module
 
+from networking_bagpipe._i18n import _
+
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp import constants as consts
@@ -386,7 +388,7 @@ class MPLSLinuxDataplaneDriver(dp_drivers.DataplaneDriver):
 
         if "*gre*" in self.config["mpls_interface"]:
             self.mpls_interface = "gre_wildcard"
-            raise Exception("MPLS/GRE not supported yet")
+            raise Exception(_("MPLS/GRE not supported yet"))
         else:
             self.mpls_interface = self.config["mpls_interface"]
 

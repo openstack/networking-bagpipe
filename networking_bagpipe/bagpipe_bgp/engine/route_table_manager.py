@@ -19,6 +19,7 @@ import threading
 
 from oslo_log import log as logging
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp.common import utils
@@ -209,7 +210,7 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin,
             elif event.__class__ == engine.WorkerCleanupEvent:
                 self._worker_cleanup(event.worker)
             else:
-                raise Exception("unknown event: %s", event)
+                raise Exception(_("unknown event: %s" % event))
         except Exception:
             LOG.exception("Exception during processing of event %s", event)
 

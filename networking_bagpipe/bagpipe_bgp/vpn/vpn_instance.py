@@ -23,6 +23,8 @@ import threading
 import netaddr
 from oslo_log import log as logging
 
+from networking_bagpipe._i18n import _
+
 from networking_bagpipe.bagpipe_bgp.common import exceptions as exc
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
@@ -516,9 +518,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
         ecommunities = exa.extcoms.ExtendedCommunities()
         for encap in self.dp_driver.supported_encaps():
             if not isinstance(encap, exa.Encapsulation):
-                raise Exception("dp_driver.supported_encaps() should "
-                                "return a list of Encapsulation objects (%s)",
-                                type(encap))
+                raise Exception(_("dp_driver.supported_encaps() should "
+                                  "return a list of Encapsulation objects "
+                                  "(%s)" % type(encap)))
 
             if encap != exa.Encapsulation(
                     exa.Encapsulation.Type.DEFAULT):
@@ -840,8 +842,9 @@ class VPNInstance(tracker_worker.TrackerWorker,
                                   mac_address, ip_addr_pfx)
                     errors = True
             if errors:
-                raise Exception("There were errors on at least one of the "
-                                "unplug resulting from the wildcard unplug")
+                raise Exception(_("There were errors on at least one of the "
+                                  "unplug resulting from the wildcard "
+                                  "unplug"))
             # remove the wildcard endpoint itself, if any:
             if (mac_address, None) in self.endpoint_2_rd:
                 try:
@@ -866,7 +869,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         self._raise_if_mac2ip_inconsistency(mac_address, ip_address_prefix)
 
         if endpoint not in self.endpoint_2_rd:
-            raise Exception("Endpoint record missing: {}".format(endpoint))
+            raise Exception(_("Endpoint record missing: {}".format(endpoint)))
 
         # Finding label and local port informations
         label = pdata.get('label')
@@ -877,7 +880,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
             self.log.error("vif_unplugged called for endpoint (%s, %s), but "
                            "port data (%s, %s) is incomplete",
                            mac_address, ip_address_prefix, label, localport)
-            raise Exception("Inconsistent informations for port, bug ?")
+            raise Exception(_("Inconsistent informations for port, bug ?"))
 
         if linuxif in self.localport_2_endpoints:
             # Parse address/mask
@@ -934,7 +937,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         else:
             self.log.error("vif_unplugged called for endpoint %s, but"
                            " port data is incomplete", endpoint)
-            raise Exception("bagpipe-bgp bug, check its logs")
+            raise Exception(_("bagpipe-bgp bug, check its logs"))
 
         self.log.debug("localport_2_endpoints: %s", self.localport_2_endpoints)
         self.log.debug("endpoint_2_rd: %s", self.endpoint_2_rd)
@@ -1011,7 +1014,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
             self.log.error("stop_redirect_traffic called for redirect route "
                            "target %s and classifier %s, but doesn't exist",
                            redirect_rt, classifier)
-            raise Exception("bagpipe-bgp bug, check its logs")
+            raise Exception(_("bagpipe-bgp bug, check its logs"))
 
     def _check_encaps(self, route):
         '''check that encaps of a route

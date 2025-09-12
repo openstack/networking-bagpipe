@@ -15,6 +15,7 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import config
 from networking_bagpipe.bagpipe_bgp.common import dataplane_utils
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
@@ -64,9 +65,9 @@ class OVSEVIDataplane(evpn.VPNInstanceDataplane):
     def vif_plugged(self, mac_address, ip_address_prefix, localport, label,
                     direction):
         if 'vlan' not in localport:
-            raise Exception("missing localport['vlan'] parameter")
+            raise Exception(_("missing localport['vlan'] parameter"))
         if self.vlan and localport['vlan'] != self.vlan:
-            raise Exception("inconsistent vlan")
+            raise Exception(_("inconsistent vlan"))
         else:
             self.vlan = localport['vlan']
 

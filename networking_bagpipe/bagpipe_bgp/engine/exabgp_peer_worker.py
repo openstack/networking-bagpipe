@@ -29,6 +29,7 @@ from exabgp.reactor import peer as exa_peer
 from oslo_config import cfg
 from oslo_log import log as logging
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp import engine
 from networking_bagpipe.bagpipe_bgp.engine import bgp_peer_worker
@@ -221,7 +222,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             if (e.code, e.subcode) == (1, 1):
                 raise bgp_peer_worker.OpenWaitTimeout(str(e))
             else:
-                raise Exception("Notify received: %s" % e)
+                raise Exception(_("Notify received: %s" % e))
         except exa_reactor.network.error.LostConnection:
             raise
 
@@ -272,7 +273,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             select.select([self.protocol.connection.io], [], [], 2)
 
             if not self.protocol.connection:
-                raise Exception("lost connection")
+                raise Exception(_("lost connection"))
 
             message = next(self.protocol.read_message())
 
@@ -296,7 +297,8 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
             return 1
         if message.ID == exa_message.Update.ID:
             if self.fsm.state != bgp_peer_worker.FSM.Established:
-                raise Exception("Update received but not in Established state")
+                raise Exception(
+                    _("Update received but not in Established state"))
             # more below
         elif message.ID == exa_message.KeepAlive.ID:
             self.enqueue(bgp_peer_worker.KEEP_ALIVE_RECEIVED)
@@ -312,8 +314,8 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
                     elif nlri.action == exa_message.IN.WITHDRAWN:
                         action = engine.RouteEvent.WITHDRAW
                     else:
-                        raise Exception("should not be reached (action:%s)",
-                                        nlri.action)
+                        raise Exception(_("should not be reached (action:%s)" %
+                                          nlri.action))
                     self._process_received_route(action, nlri,
                                                  message.attributes)
         return 1
@@ -328,7 +330,7 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
         elif action == exa_message.IN.WITHDRAWN:
             self._withdraw_route(route_entry)
         else:
-            raise Exception("unsupported action ??? (%s)" % action)
+            raise Exception(_("unsupported action ??? (%s)" % action))
 
         # TODO(tmmorin): move RTC code out-of the peer-specific code
         if (nlri.afi, nlri.safi) == (exa.AFI.ipv4, exa.SAFI.rtc):
@@ -347,7 +349,8 @@ class ExaBGPPeerWorker(bgp_peer_worker.BGPPeerWorker, lg.LookingGlassMixin):
                     elif action == exa_message.IN.WITHDRAWN:
                         self._unsubscribe(afi, safi, nlri.rt)
                     else:
-                        raise Exception("unsupported action ??? (%s)" % action)
+                        raise Exception(_("unsupported action ??? (%s)"
+                                          % action))
 
     def _send(self, data):
         # (error if state not the right one for sending updates)

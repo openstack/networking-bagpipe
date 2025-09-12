@@ -17,6 +17,7 @@ import threading
 
 from oslo_log import log as logging
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp.common import utils
 from networking_bagpipe.bagpipe_bgp.engine import exa
@@ -80,7 +81,7 @@ class IDAllocator(lg.LookingGlassMixin):
             del self.allocated_ids[id]
             self.released_ids.append(id)
         else:
-            raise Exception("Asked to release a non-allocated id: %d" % id)
+            raise Exception(_("Asked to release a non-allocated id: %d" % id))
 
     def get_lg_local_info(self, prefix):
         return self.allocated_ids

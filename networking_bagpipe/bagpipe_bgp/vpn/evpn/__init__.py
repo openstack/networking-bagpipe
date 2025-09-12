@@ -14,6 +14,7 @@
 
 import abc
 
+from networking_bagpipe._i18n import _
 from networking_bagpipe.bagpipe_bgp.common import log_decorator
 from networking_bagpipe.bagpipe_bgp.common import looking_glass as lg
 from networking_bagpipe.bagpipe_bgp.common import utils
@@ -111,8 +112,8 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                 exa.Encapsulation(exa.Encapsulation.Type.GRE) in encaps,
                 exa.Encapsulation(exa.Encapsulation.Type.MPLS_UDP) in encaps
                 ])):
-            raise Exception("The dataplane can't support both an MPLS encap "
-                            "and a VXLAN encapsulation")
+            raise Exception(_("The dataplane can't support both an MPLS encap "
+                              "and a VXLAN encapsulation"))
 
         # Advertise route to receive multi-destination traffic
         self.log.info("Generating BGP route for broadcast/multicast traffic")
@@ -203,8 +204,8 @@ class EVI(vpn_instance.VPNInstance, lg.LookingGlassMixin):
                              route.nlri.CODE)
             return None
         else:
-            raise Exception("EVI %d should not receive routes of type %s" %
-                            (self.instance_id, type(route.nlri)))
+            raise Exception(_("EVI %d should not receive routes of type %s" %
+                             (self.instance_id, type(route.nlri))))
 
     @utils.synchronized
     @log_decorator.log
