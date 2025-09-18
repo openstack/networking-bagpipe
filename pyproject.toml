@@ -1,4 +1,95 @@
 [build-system]
-requires = ["pbr>=5.7.0", "setuptools>=64.0.0", "wheel"]
+requires = ["pbr>=6.1.1"]
 build-backend = "pbr.build"
 
+[project]
+name = "networking-bagpipe"
+description = "Mechanism driver for Neutron ML2 plugin using BGP E-VPNs/IP VPNs as a backend"
+authors = [
+    {name = "OpenStack", email = "openstack-discuss@lists.openstack.org"},
+]
+readme = {file = "README.rst", content-type = "text/x-rst"}
+license = {text = "Apache-2.0"}
+dynamic = ["version", "dependencies"]
+requires-python = ">=3.10"
+classifiers = [
+  "Environment :: OpenStack",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[project.urls]
+Homepage = "https://docs.openstack.org/networking-bagpipe/latest/"
+Repository = "https://opendev.org/openstack/networking-bagpipe"
+
+[tool.setuptools]
+packages = [
+    "networking_bagpipe"
+]
+
+[tool.setuptools.data-files]
+"etc/bagpipe-bgp" = [
+        "etc/bagpipe-bgp/bgp.conf.template",
+        "etc/bagpipe-bgp/rootwrap.conf",
+]
+"etc/bagpipe_bgp/rootwrap.d" = [
+    "etc/bagpipe-bgp/rootwrap.d/mpls-ovs-dataplane.filters",
+    "etc/bagpipe-bgp/rootwrap.d/linux-vxlan.filters",
+]
+
+[project.entry-points."oslo.config.opts"]
+"networking_bagpipe.bagpipe_bgp_agent" = "networking_bagpipe.opts:list_bagpipe_bgp_agent_opts"
+"networking_bagpipe.api" = "networking_bagpipe.opts:list_api_opts"
+"networking_bagpipe.bgp_common" = "networking_bagpipe.opts:list_bgp_common_opts"
+"networking_bagpipe.run_command" = "networking_bagpipe.opts:list_run_command_opts"
+"networking_bagpipe.dataplane.ipvpn" = "networking_bagpipe.opts:list_dataplane_driver_ipvpn_opts"
+"networking_bagpipe.dataplane.ipvpn.mpls_linux" = "networking_bagpipe.opts:list_dataplane_driver_ipvpn_mpls_linux_opts"
+"networking_bagpipe.dataplane.ipvpn.mpls_ovs" = "networking_bagpipe.opts:list_dataplane_driver_ipvpn_mpls_ovs_opts"
+"networking_bagpipe.dataplane.evpn" = "networking_bagpipe.opts:list_dataplane_driver_evpn_opts"
+
+[project.entry-points."console_scripts"]
+"bagpipe-bgp" = "networking_bagpipe.bagpipe_bgp.bgp_daemon:daemon_main"
+"bagpipe-bgp-cleanup" = "networking_bagpipe.bagpipe_bgp.bgp_daemon:cleanup_main"
+"bagpipe-looking-glass" = "networking_bagpipe.bagpipe_bgp.cli.looking_glass:main"
+"bagpipe-rest-attach" = "networking_bagpipe.bagpipe_bgp.cli.rest_attach:main"
+"bagpipe-impex2dot" = "networking_bagpipe.bagpipe_bgp.cli.impex2dot:main"
+"bagpipe-fakerr" = "networking_bagpipe.bagpipe_bgp.fakerr:main"
+
+[project.entry-points."neutron.agent.l2.extensions"]
+"bagpipe" = "networking_bagpipe.agent.bagpipe_ml2.agent_extension:BagpipeML2AgentExtension"
+"bagpipe_bgpvpn" = "networking_bagpipe.agent.bgpvpn.agent_extension:BagpipeBgpvpnAgentExtension"
+
+[project.entry-points."neutron.ml2.mechanism_drivers"]
+"bagpipe" = "networking_bagpipe.driver.mech_bagpipe:BaGPipeMechanismDriver"
+
+[project.entry-points."neutron.db.alembic_migrations"]
+"networking-bagpipe" = "networking_bagpipe.db.migration:alembic_migrations"
+
+[project.entry-points."bagpipe.dataplane.evpn"]
+"dummy" = "networking_bagpipe.bagpipe_bgp.vpn.evpn:DummyDataplaneDriver"
+"ovs" = "networking_bagpipe.bagpipe_bgp.vpn.evpn.ovs:OVSDataplaneDriver"
+#for backward compatibility with old configs:
+"DummyDataplaneDriver" = "networking_bagpipe.bagpipe_bgp.vpn.evpn:DummyDataplaneDriver"
+"bagpipe.bgp.vpn.evpn.DummyDataplaneDriver" = "networking_bagpipe.bagpipe_bgp.vpn.evpn:DummyDataplaneDriver"
+
+[project.entry-points."bagpipe.dataplane.ipvpn"]
+"dummy" = "networking_bagpipe.bagpipe_bgp.vpn.ipvpn:DummyDataplaneDriver"
+"linux" = "networking_bagpipe.bagpipe_bgp.vpn.ipvpn.mpls_linux_dataplane:MPLSLinuxDataplaneDriver"
+"ovs" = "networking_bagpipe.bagpipe_bgp.vpn.ipvpn.mpls_ovs_dataplane:MPLSOVSDataplaneDriver"
+#for backward compatibility with old configs:
+"DummyDataplaneDriver" = "networking_bagpipe.bagpipe_bgp.vpn.ipvpn:DummyDataplaneDriver"
+"mpls_linux_dataplane.MPLSLinuxDataplaneDriver" = "networking_bagpipe.bagpipe_bgp.vpn.ipvpn.mpls_linux_dataplane:MPLSLinuxDataplaneDriver"
+"mpls_ovs_dataplane.MPLSOVSDataplaneDriver" = "networking_bagpipe.bagpipe_bgp.vpn.ipvpn.mpls_ovs_dataplane:MPLSOVSDataplaneDriver"
+"bagpipe.bgp.vpn.ipvpn.DummyDataplaneDriver" = "networking_bagpipe.bagpipe_bgp.vpn.ipvpn:DummyDataplaneDriver"
+"bagpipe.bgp.vpn.ipvpn.mpls_linux_dataplane.MPLSLinuxDataplaneDriver" = "networking_bagpipe.bagpipe_bgp.vpn.ipvpn.mpls_linux_dataplane:MPLSLinuxDataplaneDriver"
+"bagpipe.bgp.vpn.ipvpn.mpls_ovs_dataplane.MPLSOVSDataplaneDriver" = "networking_bagpipe.bagpipe_bgp.vpn.ipvpn.mpls_ovs_dataplane:MPLSOVSDataplaneDriver"
