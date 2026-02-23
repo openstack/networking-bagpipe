@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import collections
-import functools
 import logging as python_logging
 import select
 import time
@@ -22,7 +21,9 @@ from exabgp.bgp import fsm as exa_fsm
 from exabgp.bgp import message as exa_message
 from exabgp.bgp.message import open as exa_open
 from exabgp.bgp import neighbor as exa_neighbor
-from exabgp import logger as exa_logger
+from exabgp.environment import getenv
+from exabgp.environment import parsing as exa_parsing
+from exabgp.logger import option as exa_log_option
 from exabgp.protocol import family as exa_family
 from exabgp import reactor as exa_reactor
 from exabgp.reactor import peer as exa_peer
@@ -42,54 +43,27 @@ LOG = logging.getLogger(__name__)
 def setup_exabgp_env():
     # initialize/tweak ExaBGP config and log internals
 
-    from exabgp.configuration.setup import environment
-    environment.application = 'bagpipe-bgp'
-    env = environment.setup(None)
+    env = getenv()
     # tell exabgp to parse routes:
     env.log.routes = True
 
-    # we "tweak" the internals of exabgp Logger, so that (a) it does not break
-    # oslo_log and (b) it logs through oslo_log
-    # decorating the original restart would be better...
-    exa_logger.Logger._restart = exa_logger.Logger.restart
-
-    def decorated_restart(f):
-        @functools.wraps(f)
-        def restart_never_first(self, first):
-            # we don't want exabgp to really ever do its first restart stuff
-            # that resets the root logger handlers
-            return f(self, False)
-        return restart_never_first
-
-    exa_logger.Logger.restart = decorated_restart(
-        exa_logger.Logger.restart
+    # Note(lajoskatona): exabgp 5.0.0, changed how logging is handled, relying
+    # on standard python logging, so just need to ensure it uses oslo_log
+    # finally
+    # Set up exabgp to use oslo_log logger
+    exa_log_option.logger = logging.getLogger(__name__ + ".exabgp")
+    exa_log_option.formater = lambda msg, src, lvl, ts=None: (
+        msg if exa_log_option.short else "%-13s %s" % (src, msg)
     )
-
-    exa_logger.Logger._syslog = logging.getLogger(__name__ + ".exabgp").logger
-
-    # prevent exabgp Logger code from adding or removing handlers for
-    # this logger
-    def noop(handler):
-        pass
-
-    exa_logger.Logger._syslog.addHandler = noop
-    exa_logger.Logger._syslog.removeHandler = noop
-
-    def patched_format(self, message, source, level, timestamp=None):
-        if self.short:
-            return message
-        return "%-13s %s" % (source, message)
-
-    exa_logger.Logger._format = patched_format
 
     env.log.enable = True
 
     if LOG.logger.getEffectiveLevel():
-        env.log.level = environment.syslog_value(
+        env.log.level = exa_parsing.syslog_value(
             python_logging.getLevelName(LOG.logger.getEffectiveLevel())
         )
     else:
-        env.log.level = environment.syslog_value('INFO')
+        env.log.level = exa_parsing.syslog_value('INFO')
     env.log.all = True
     env.log.packets = True
 

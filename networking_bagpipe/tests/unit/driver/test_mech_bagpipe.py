@@ -27,7 +27,7 @@ class TestBaGpipeML2MechDriver(test_plugin.Ml2PluginV2TestCase):
         cfg.CONF.set_override('type_drivers',
                               n_consts.TYPE_VXLAN,
                               'ml2')
-        cfg.CONF.set_override('tenant_network_types',
+        cfg.CONF.set_override('project_network_types',
                               n_consts.TYPE_VXLAN,
                               'ml2')
 

@@ -18,8 +18,15 @@
 # by other modules
 
 # flake8: noqa
-from exabgp.bgp.message import OUT
-from exabgp.bgp.message import IN
+from exabgp.bgp.message.direction import Direction
+from exabgp.bgp.message.action import Action
+
+# Note(lajoskatona): exabgp 5.0.0 changed how the IN/OUT enums look like.
+# Perhaps bagpipe can live with this backward compatibility trick
+OUT = Direction.OUT
+IN = Direction.IN
+OUT.ANNOUNCE = Action.ANNOUNCE
+OUT.WITHDRAW = Action.WITHDRAW
 
 from exabgp.bgp.message.open.asn import ASN
 

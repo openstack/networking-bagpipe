@@ -77,7 +77,7 @@
 - job:
     name: networking-bagpipe-tempest
     parent: tempest-full-py3
-    nodeset: openstack-single-node-jammy
+    nodeset: openstack-single-node-noble
     timeout: 10800
     required-projects:
       - openstack/tempest
