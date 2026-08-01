@@ -4,8 +4,6 @@
 mysql-client [platform:dpkg !platform:debian]
 mysql-server [platform:dpkg !platform:debian]
 mariadb-server [platform:rpm platform:redhat platform:debian]
-postgresql
-postgresql-client [platform:dpkg]
 
 # cffi (required by oslo.privsep) and PyNaCL (required by paramiko)
 libffi-dev [platform:dpkg]
