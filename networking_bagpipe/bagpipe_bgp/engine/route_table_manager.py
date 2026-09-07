@@ -163,7 +163,7 @@ class RouteTableManager(threading.Thread, lg.LookingGlassMixin,
 
     def __init__(self, first_local_subscriber_cb, last_local_subscriber_cb):
         threading.Thread.__init__(self, name="RouteTableManager")
-        self.setDaemon(True)
+        self.daemon = True
 
         # keys are Matches, values are WorkersAndEntries objects:
         self._match_2_workers_entries = (

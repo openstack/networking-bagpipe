@@ -79,7 +79,7 @@ class TrackerWorkerThread(tracker_worker.TrackerWorker, threading.Thread):
 
     def __init__(self):
         threading.Thread.__init__(self, name='TrackerWorkerThread')
-        self.setDaemon(True)
+        self.daemon = True
         tracker_worker.TrackerWorker.__init__(
             self, mock.Mock(), 'TrackerWorker', _test_compare_routes)
 

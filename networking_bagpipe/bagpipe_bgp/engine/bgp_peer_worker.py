@@ -114,7 +114,7 @@ class BGPPeerWorker(worker.Worker,
     def __init__(self, bgp_manager, peer_address):
         # call super
         threading.Thread.__init__(self)
-        self.setDaemon(True)
+        self.daemon = True
         worker.Worker.__init__(self, bgp_manager, "BGP-%s" % peer_address)
 
         self.peer_address = peer_address
