@@ -258,7 +258,7 @@ class VPNInstance(tracker_worker.TrackerWorker,
         self.description = None
 
         threading.Thread.__init__(self)
-        self.setDaemon(True)
+        self.daemon = True
 
         if dataplane_driver.ecmp_support:
             compare_routes = tracker_worker.compare_ecmp
