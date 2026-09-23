@@ -501,7 +501,7 @@ class MPLSOVSVRFDataplane(dp_drivers.VPNInstanceDataplane):
                                    "%(remote_pe)s: %(remote_pe_mac_address)s",
                                    locals())
                 except exc.RemotePEMACAddressNotFound as e:
-                    self.log.error("An error occured during setupDataplaneFor"
+                    self.log.error("An error occurred during setupDataplaneFor"
                                    "RemoteEndpoint: %s", e)
                     raise
 
