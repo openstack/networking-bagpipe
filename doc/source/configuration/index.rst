@@ -15,7 +15,6 @@ various services.
    :glob:
    :maxdepth: 1
 
-   neutron
    neutron-agent
    bagpipe-bgp
 

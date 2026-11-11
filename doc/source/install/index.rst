@@ -165,62 +165,6 @@ Information on how to use ``bagpipe`` driver for networking-bgpvpn_ is provided
 in `BGPVPN bagpipe driver documentation`_.
 
 
-BaGPipe for networking-sfc
---------------------------
-
-To enable the use of networking-bagpipe driver for networking-sfc, the
-following needs to be done:
-
-* enable ``bagpipe`` driver for the ``networking-sfc`` service plugin, in
-  ``/etc/neutron/neutron.conf`` and configure its parameters
-  (see :ref:`neutron-sfc-config`):
-
-    .. code-block:: ini
-
-       [sfc]
-       drivers = bagpipe
-
-* :ref:`bagpipe-bgp` lightweight BGP VPN implementation, configured to
-  use ``ovs`` as dataplane driver for IPVPNs, and ``linux`` as dataplane
-  driver for EVPN (``/etc/bagpipe-bgp/bgp.conf``):
-
-    .. code-block:: ini
-
-       [DATAPLANE_DRIVER_IPVPN]
-       dataplane_driver = ovs
-
-       [DATAPLANE_DRIVER_EVPN]
-       dataplane_driver = linux
-
-In a devstack
-~~~~~~~~~~~~~
-
-To experiment with sfc driver in a devstack, the following is can be added
-in your `local.conf` (replace stable/X with stable/queens for e.g. Openstack
-Queens release) :
-
-    .. code-block:: ini
-
-       enable_plugin networking-sfc https://git.openstack.org/openstack/networking-bagpipe.git
-       # enable_plugin networking-sfc https://git.openstack.org/openstack/networking-bagpipe.git stable/X
-       enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git
-       # enable_plugin networking-bagpipe https://git.openstack.org/openstack/networking-bagpipe.git stable/X
-
-       BAGPIPE_DATAPLANE_DRIVER_EVPN=linux
-       BAGPIPE_DATAPLANE_DRIVER_IPVPN=ovs
-
-       [[post-config|$NEUTRON_CONF]]
-
-       [sfc]
-       drivers = bagpipe
-
-
-       [[post-config|/$NEUTRON_CORE_PLUGIN_CONF]]
-
-       [agent]
-       extensions = bagpipe_sfc
-
-
 .. _networking-bgpvpn: http://git.openstack.org/cgit/openstack/networking-bgpvpn
 .. _GoBGP: http://osrg.github.io/gobgp
 .. _sample configuration: http://git.openstack.org/cgit/openstack/networking-bagpipe/tree/samples/gobgp.conf

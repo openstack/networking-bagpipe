@@ -32,8 +32,7 @@ The networking-bagpipe package includes:
   and BGP) is in networking-bagpipe, the Neutron server-side part,
   being currently in networking-bgpvpn_ package)
 
-* for use case 2: a Neutron ML2 mechanism driver (base Neutron networks),
-  a networking-sfc driver (service chaining)
+* for use case 2: a Neutron ML2 mechanism driver (base Neutron networks)
 
 * compute code common to both: agent extensions for Neutron l2 agent
   (openvswitch-agent) to consolidate and pass information via

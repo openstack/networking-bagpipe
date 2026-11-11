@@ -11,18 +11,15 @@
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-docs:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py311:
             required-projects: &bagpipe_required_projects
               - openstack/neutron
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py314: # from openstack-python3-jobs template
             required-projects: *bagpipe_required_projects
         - openstack-tox-cover:
@@ -38,12 +35,10 @@
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-docs:
             required-projects:
               - openstack/horizon
               - openstack/networking-bgpvpn
-              - openstack/networking-sfc
         - openstack-tox-py311:
             required-projects: *bagpipe_required_projects
         - openstack-tox-py314:

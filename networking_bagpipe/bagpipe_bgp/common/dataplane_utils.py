@@ -28,7 +28,6 @@ from neutron_lib.plugins.ml2 import ovs_constants as ovs_const
 LOG = logging.getLogger(__name__)
 
 
-# largely copied from networking_sfc.services.sfc.common.ovs_ext_lib
 class OVSBridgeWithGroups:
 
     def __init__(self, ovs_bridge):
